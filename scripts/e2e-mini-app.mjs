@@ -164,12 +164,12 @@ const waitHash = (page, value, timeout = 5000) =>
   page.waitForFunction((v) => window.location.hash === v, value, { timeout }).then(() => true, () => false)
 
 async function enterDemo(page) {
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).click()
+  await page.getByRole('button', { name: /Explore demo mode/ }).click()
   await waitHash(page, '#/')
 }
 
 async function nav(page, label) {
-  await page.locator('nav[aria-label="Основная навигация"]').getByText(label, { exact: true }).click()
+  await page.locator('nav[aria-label="Primary navigation"]').getByText(label, { exact: true }).click()
 }
 
 /** Отвечает на последний попап Telegram (web_app_open_popup). */
@@ -200,7 +200,7 @@ async function noHorizontalScroll(page) {
 {
   const { context, page, errors, sdkRequests } = await openPage()
   await page.goto(SITE)
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   check('браузер: экран входа отрисован', true)
   check('браузер: запроса к telegram.org нет', sdkRequests.length === 0, sdkRequests.join(', '))
   check('браузер: класс tg-mini-app не ставится', !(await page.evaluate(() => document.documentElement.classList.contains('tg-mini-app'))))
@@ -217,7 +217,7 @@ async function noHorizontalScroll(page) {
   const { context, page, errors } = await openPage({ sdk: 'fail' })
   const started = Date.now()
   await page.goto(launchUrl())
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   const elapsed = Date.now() - started
   check('SDK недоступен: сайт отрисован', true)
   check('SDK недоступен: отрисовка ≤ 5 с', elapsed <= 5000, `${elapsed} мс`)
@@ -231,14 +231,14 @@ async function noHorizontalScroll(page) {
 {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl())
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   const list = (await events(page)).map(([t]) => t)
   check('Mini App: expand()', list.includes('web_app_expand'))
   check('Mini App: ready()', list.includes('web_app_ready'))
   check('Mini App: expand до ready', list.indexOf('web_app_expand') < list.lastIndexOf('web_app_ready'))
-  check('Mini App: шапка #0e1013', (await lastEvent(page, 'web_app_set_header_color'))?.color === '#0e1013')
-  check('Mini App: фон #0e1013', (await lastEvent(page, 'web_app_set_background_color'))?.color === '#0e1013')
-  check('Mini App: нижняя панель #1a1d22', (await lastEvent(page, 'web_app_set_bottom_bar_color'))?.color === '#1a1d22')
+  check('Mini App: шапка #08090a', (await lastEvent(page, 'web_app_set_header_color'))?.color === '#08090a')
+  check('Mini App: фон #08090a', (await lastEvent(page, 'web_app_set_background_color'))?.color === '#08090a')
+  check('Mini App: нижняя панель #0b0c0e', (await lastEvent(page, 'web_app_set_bottom_bar_color'))?.color === '#0b0c0e')
   check('Mini App: initData убран из адреса', !(await hash(page)).includes('tgWebApp'), await hash(page))
   check('Mini App: неавторизованный — штатный экран входа', (await hash(page)) === '#/auth')
   check('Mini App: на экране входа BackButton скрыт', (await lastEvent(page, 'web_app_setup_back_button'))?.is_visible !== true)
@@ -360,9 +360,9 @@ for (const [name, opts, expected] of [
 ]) {
   const { context, page, errors } = await openPage()
   await page.goto(launchUrl(opts))
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   check(`deep link ${name}: сначала штатный вход`, (await hash(page)) === '#/auth', await hash(page))
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).click()
+  await page.getByRole('button', { name: /Explore demo mode/ }).click()
   const ok = await waitHash(page, expected)
   await page.waitForTimeout(300)
   check(`deep link ${name}: после входа ${expected}`, ok && (await hash(page)) === expected, await hash(page))
@@ -375,7 +375,7 @@ for (const [name, opts, expected] of [
 {
   const { context, page, errors } = await openPage()
   await page.goto(launchUrl({ version: '6.0', platform: 'tdesktop' }))
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   await nav(page, 'Кредит')
   await waitHash(page, '#/credit')
@@ -393,7 +393,7 @@ for (const [name, opts, expected] of [
 for (const mode of ['browser', 'mini-app']) {
   const { context, page, errors } = await openPage({ width: 320, height: 640 })
   await page.goto(mode === 'browser' ? SITE : launchUrl())
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   const overflow = []
   if (!(await noHorizontalScroll(page))) overflow.push('/auth')
   await enterDemo(page)
@@ -415,7 +415,7 @@ for (const mode of ['browser', 'mini-app']) {
 {
   const { context, page, errors } = await openPage({ width: 768, height: 900 })
   await page.goto(SITE)
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   const clipped = []
   for (const width of [768, 900, 1024, 1280, 1440]) {
@@ -437,7 +437,7 @@ for (const mode of ['browser', 'mini-app']) {
 {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl({ platform: 'ios' }))
-  await page.getByRole('button', { name: /Войти в демо-режим/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   await page.setViewportSize({ width: 800, height: 390 })
   await receive(page, 'viewport_changed', { height: 390, is_state_stable: true, is_expanded: true })

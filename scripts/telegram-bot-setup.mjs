@@ -1,5 +1,5 @@
 /**
- * Настройка Telegram-бота LADA Assistant для Supabase Edge Function.
+ * Настройка Telegram-бота Mara OS Assistant для Supabase Edge Function.
  *
  * Что делает скрипт:
  *   1. (по желанию, --deploy) разворачивает функцию telegram-api и секреты через Supabase CLI;
@@ -174,7 +174,7 @@ console.log(`
 
 Mini App: кнопка меню и inline-кнопки бота открывают ${webAppUrl}
 Прямая ссылка (запуск из других чатов) требует регистрации Main Mini App в @BotFather:
-  https://t.me/${bot.username}?startapp=garage
+  https://t.me/${bot.username}?startapp=fans
 
 Токен бота храните только в секретах (Supabase secrets / bot/.env / CI), не в VITE_*.
 Если токен когда-либо попадал в VITE_* или в сборку сайта — отзовите его командой /revoke в @BotFather,

@@ -1,19 +1,19 @@
 /**
- * Регрессионный тест демо-режима.
+ * Регрессионный тест демо-режима Mara OS.
  *
- * Баг, который он ловит: в сборке с ключами Supabase (а именно такая уезжает
- * на GitHub Pages) кнопка «Войти в демо-режим» пыталась залогиниться в облако
- * под несуществующим demo@lada.ru и молча падала — демо не открывалось.
+ * Проверяет полный сценарий «вход в демо → данные CRM → AI-пайплайн → выход»
+ * в сборке, где заданы ключи Supabase (именно такая уезжает на GitHub Pages):
+ * кнопка «Explore demo mode» не должна трогать облако и молча падать.
  *
- * Тест выполняется в Node: модуль src/lib собирается esbuild-ом с «боевыми»
- * переменными окружения, после чего проверяется полный сценарий
- * «вход в демо → данные → выход → возврат в облачный режим».
+ * Тест выполняется в Node: src/lib + src/repositories + src/lib/ai собираются
+ * esbuild-ом с «боевыми» переменными окружения.
  *
  * Запуск: node scripts/smoke-demo.mjs
  */
 import { build } from 'esbuild';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -39,16 +39,35 @@ globalThis.CustomEvent = class {
   }
 };
 
+const aliasPlugin = {
+  name: 'at-alias',
+  setup(b) {
+    b.onResolve({ filter: /^@\// }, (args) => {
+      const target = path.join(root, 'src', args.path.slice(2));
+      const cands = [target + '.ts', target + '.tsx', target + '.mjs', path.join(target, 'index.ts'), target];
+      for (const cand of cands) {
+        try {
+          if (fs.statSync(cand).isFile()) return { path: cand };
+        } catch {
+          /* не существует */
+        }
+      }
+      return { path: target + '.ts' };
+    });
+  },
+};
+
 await build({
-  entryPoints: [path.join(root, 'src', 'lib', 'index.ts')],
+  entryPoints: [path.join(root, 'scripts', 'smoke-demo-entry.ts')],
   bundle: true,
   platform: 'node',
   format: 'esm',
   outfile,
   logLevel: 'error',
+  plugins: [aliasPlugin],
   define: {
     'process.env.NODE_ENV': '"production"',
-    // ключи заданы — ровно та сборка, в которой демо не работало
+    // ключи заданы — ровно та сборка, в которой демо не должно ломаться
     'import.meta.env': JSON.stringify({
       VITE_SUPABASE_URL: 'https://example-project.supabase.co',
       VITE_SUPABASE_ANON_KEY: 'sb_publishable_example_key',
@@ -56,7 +75,7 @@ await build({
   },
 });
 
-const lib = await import(pathToFileURL(outfile).href);
+const demo = await import(pathToFileURL(outfile).href);
 
 let failed = 0;
 const check = (name, condition, detail = '') => {
@@ -68,62 +87,75 @@ const check = (name, condition, detail = '') => {
   }
 };
 
-check('ключи Supabase распознаны', lib.isDemoOnly() === false);
-check('по умолчанию работает облачный бэкенд', lib.getBackend().mode === 'supabase');
+check('ключи Supabase распознаны', demo.isDemoOnly() === false);
+check('по умолчанию работает облачный бэкенд', demo.getBackend().mode === 'supabase');
 
-lib.setDemoMode(true);
-const demo = lib.getBackend();
-check('после нажатия «Войти в демо» бэкенд переключился', demo.mode === 'demo', `mode=${demo.mode}`);
+demo.setDemoMode(true);
+check('после «Explore demo mode» бэкенд переключился', demo.getBackend().mode === 'demo');
 
-const user = await demo.auth.signIn('demo@lada.ru', 'demo');
-check('вход в демо-кабинет выполнен', user?.email === 'demo@lada.ru');
-check('сессия демо сохраняется', (await demo.auth.getUser())?.id === 'demo-user');
+const user = await demo.getBackend().auth.signIn('demo@mara.app', 'demo');
+check('вход в демо выполнен', user?.email === 'demo@mara.app');
+check('сессия демо сохраняется', (await demo.getBackend().auth.getUser())?.id === 'demo-user');
 
-const car = await demo.data.getCar('demo-user');
-const loan = await demo.data.getLoan('demo-user');
-const txs = await demo.data.listTransactions('demo-user');
-const maint = await demo.data.listMaintenance('demo-user');
-check('демо-гараж заполнен автомобилем', Boolean(car && car.current_mileage > 0));
-check('демо-кредит создан', Boolean(loan && loan.monthly_payment > 0));
-check('демо-расходы созданы', txs.length > 10, `записей: ${txs.length}`);
-check('журнал ТО заполнен', maint.length >= 3, `записей: ${maint.length}`);
+const repos = demo.getRepositories();
 
-/* План обслуживания должен строиться по этим данным без единой правки руками */
-const service = await import(pathToFileURL(await bundleService()).href);
-const plan = service.buildServicePlan({
-  mileage: car.current_mileage,
-  mode: 'forum',
-  engine: '21127',
-  maintenance: maint,
+const fans = await repos.fans.list();
+check('демо-фан-база заполнена', fans.length >= 15, `фанов: ${fans.length}`);
+check('есть фан уровня inner circle', fans.some((f) => f.relationship === 'Inner circle'));
+
+const conversations = await repos.conversations.list();
+check('демо-диалоги есть', conversations.length >= 5, `диалогов: ${conversations.length}`);
+
+const offers = await repos.commerce.offers();
+check('демо-офферы есть', offers.length >= 3, `офферов: ${offers.length}`);
+
+const content = await repos.content.list();
+check('демо-контент есть', content.length >= 5, `позиций: ${content.length}`);
+
+const tasks = await repos.ai.tasks();
+check('демо-задачи есть', tasks.length >= 3, `задач: ${tasks.length}`);
+
+/* Human-in-the-loop: черновик от AI → правка → одобрение → отправка. */
+const conv = conversations[0];
+const draft = await repos.conversations.saveDraft(conv.id, 'smoke draft');
+check('черновик AI ждёт одобрения', draft.state === 'awaiting_approval');
+const approved = await repos.conversations.approveDraft(conv.id, draft.id, 'approved by human');
+check('одобрение превращает черновик в отправленное', approved.state === 'sent' && approved.body === 'approved by human');
+
+/* Полный AI-пайплайн на mock-провайдере (работает без API-ключа). */
+const fan = await repos.fans.get(conversations[0].fanId);
+const messages = await repos.conversations.messages(conv.id);
+const orchestrator = demo.getAiOrchestrator();
+const pipeline = await demo.runReplyPipeline(orchestrator, {
+  character: {
+    name: 'Mara Quinn',
+    voice: 'Dry, first-person, honest about numbers.',
+    story: '365 days to buy back my time',
+    lore: '$54k salary. $27k debt. One red notebook.',
+    boundaries: ['Never break the diary frame'],
+    personality: ['dry', 'confident'],
+    recurringObjects: ['red notebook'],
+  },
+  fan: {
+    id: fan.id,
+    name: fan.name,
+    relationshipLevel: 'fan',
+    ltv: fan.ltv,
+    purchases: fan.purchases,
+    hasActiveSubscription: Boolean(fan.subscription),
+    source: 'telegram',
+  },
+  memories: [],
+  history: messages.slice(-6).map((m) => ({ author: m.author === 'fan' ? 'fan' : 'mara', body: m.body })),
+  offers: offers.map((o) => ({ id: o.id, name: o.name, price: o.price, type: o.kind.toLowerCase() })),
 });
-check('план ТО собран автоматически', plan.length > 10, `работ: ${plan.length}`);
-check(
-  'по журналу определены выполненные работы',
-  plan.some((s) => !s.estimated),
-  'ни одна запись журнала не распознана',
-);
-check(
-  'есть работы, требующие внимания',
-  plan.some((s) => s.state !== 'ok'),
-);
+check('AI-пайплайн вернул черновик', pipeline.draft.reply.length > 10);
+check('вывод помечен как mock', pipeline.mock === true);
 
-await demo.auth.signOut();
-check('выход из демо очищает сессию', (await demo.auth.getUser()) === null);
-lib.setDemoMode(false);
-check('после выхода возвращается облачный режим', lib.getBackend().mode === 'supabase');
+await demo.getBackend().auth.signOut();
+check('выход из демо очищает сессию', (await demo.getBackend().auth.getUser()) === null);
+demo.setDemoMode(false);
+check('после выхода возвращается облачный режим', demo.getBackend().mode === 'supabase');
 
-console.log(failed ? `\n${failed} проверок упало` : '\nДемо-режим работает во всех состояниях');
+console.log(failed ? `\n${failed} проверок упало` : '\nДемо-режим Mara OS работает во всех состояниях');
 process.exit(failed ? 1 : 0);
-
-async function bundleService() {
-  const out = path.join(root, 'node_modules', '.tmp', 'smoke-service.mjs');
-  await build({
-    entryPoints: [path.join(root, 'src', 'lib', 'service.ts')],
-    bundle: true,
-    platform: 'node',
-    format: 'esm',
-    outfile: out,
-    logLevel: 'error',
-  });
-  return out;
-}

@@ -3,12 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import AppErrorBoundary from './components/AppErrorBoundary'
-import { enableWebpAssets } from './lib/assets'
 import { bootstrapTelegramMiniApp } from './lib/telegram-mini-app'
-
-// Кадры дуэта Granta + Vesta хранятся в JPEG и WebP — подставляем WebP там,
-// где браузер его поддерживает (визуально страница не меняется).
-enableWebpAssets()
 
 function render() {
   createRoot(document.getElementById('root')!).render(

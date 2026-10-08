@@ -54,17 +54,17 @@ async function loadTelegramModule(env, index) {
 const cases = [
   {
     name: 'вместо адреса API подставлено произвольное значение',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: TOKEN },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: TOKEN },
     expect: { configured: false, issue: 'invalid-url' },
   },
   {
     name: 'относительный путь /telegram-api в задеплоенной сборке',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: '/telegram-api' },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: '/telegram-api' },
     expect: { configured: false, issue: 'relative-in-prod' },
   },
   {
     name: 'корректный HTTPS-адрес функции',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: `${FUNCTION_URL}/` },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: `${FUNCTION_URL}/` },
     expect: { configured: true, issue: '' },
   },
   {
@@ -74,17 +74,17 @@ const cases = [
   },
   {
     name: 'адрес API не задан',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: '' },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: '' },
     expect: { configured: false, issue: 'missing-url' },
   },
   {
     name: 'HTTP-адрес вместо HTTPS',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: 'http://bot.example.com' },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: 'http://bot.example.com' },
     expect: { configured: false, issue: 'not-https' },
   },
   {
     name: 'мусор в переменной',
-    env: { VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: 'https://' },
+    env: { VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: 'https://' },
     expect: { configured: false, issue: 'invalid-url' },
   },
 ]
@@ -115,7 +115,7 @@ check('домен API доступен для сообщений об ошибк
 
 {
   const dev = await loadTelegramModule(
-    { DEV: true, VITE_TELEGRAM_BOT_USERNAME: 'LadaGarage_bot', VITE_TELEGRAM_API_URL: '/telegram-api' },
+    { DEV: true, VITE_TELEGRAM_BOT_USERNAME: 'MaraOSAssistant_bot', VITE_TELEGRAM_API_URL: '/telegram-api' },
     100,
   )
   check('в dev-режиме относительный путь допустим (прокси Vite)', dev.isTelegramConfigured === true && dev.TELEGRAM_CONFIG_ISSUE === '')

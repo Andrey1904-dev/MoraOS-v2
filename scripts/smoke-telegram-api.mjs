@@ -24,7 +24,7 @@ const CHAT_ID = 555_000_111
 let webhookInfo = { url: '', pending_update_count: 0 }
 let clock = 1_700_000_000_000
 let linkRows = []
-let carsRows = []
+let fansRows = []
 let linkResult = true
 const sentMessages = []
 const insertedCodes = []
@@ -49,7 +49,7 @@ globalThis.fetch = async (url, init = {}) => {
       sentMessages.push(JSON.parse(init.body))
       return json({ ok: true, result: { message_id: sentMessages.length } })
     }
-    return json({ ok: true, result: { id: 1, username: 'LadaGarage_bot' } })
+    return json({ ok: true, result: { id: 1, username: 'MaraOSAssistant_bot' } })
   }
   if (href.includes('/auth/v1/user')) return json({ id: USER_ID, email: 'owner@example.com' })
   if (href.includes('/rest/v1/rpc/link_telegram_account')) return json(linkResult)
@@ -64,10 +64,13 @@ globalThis.fetch = async (url, init = {}) => {
     }
     return json(null)
   }
-  if (href.includes('/rest/v1/cars')) return json(carsRows)
-  if (href.includes('/rest/v1/loans')) return json([])
-  if (href.includes('/rest/v1/transactions')) return json([])
-  if (href.includes('/rest/v1/maintenance')) return json([])
+  if (href.includes('/rest/v1/fans')) return json(fansRows)
+  if (href.includes('/rest/v1/subscriptions')) return json([])
+  if (href.includes('/rest/v1/conversations')) return json([])
+  if (href.includes('/rest/v1/content')) return json([])
+  if (href.includes('/rest/v1/revenue_events')) return json([])
+  if (href.includes('/rest/v1/tasks')) return json([])
+  if (href.includes('/rest/v1/ai_runs')) return json([])
   throw new Error(`unexpected fetch: ${href}`)
 }
 
@@ -232,7 +235,7 @@ const check = (name, condition, detail = '') => {
       update_id: 10,
       message: {
         message_id: 1,
-        from: { id: 42, first_name: 'Андрей' },
+        from: { id: 42, first_name: 'Ann' },
         chat: { id: CHAT_ID, type: 'private' },
         text: '/link',
       },
@@ -240,7 +243,7 @@ const check = (name, condition, detail = '') => {
   })
   const text = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
   check('webhook принимает update от Telegram', response.status === 200, `status=${response.status}`)
-  check('по /link бот отправляет код', /КОД ПОДКЛЮЧЕНИЯ/.test(text), text.slice(0, 80))
+  check('по /link бот отправляет код', /CONNECTION CODE/.test(text), text.slice(0, 80))
   check('код сохранён в таблицу с хэшем', insertedCodes.length === 1 && /^[0-9a-f]{64}$/.test(insertedCodes[0].code_hash))
   check('код привязан к чату Telegram', insertedCodes[0]?.telegram_chat_id === CHAT_ID)
   check('getWebhookInfo вызывается для /health', telegramMethods.includes('getWebhookInfo'))
@@ -249,7 +252,10 @@ const check = (name, condition, detail = '') => {
 {
   sentMessages.length = 0
   linkRows = []
-  carsRows = [{ id: 'car-1', current_mileage: 47_800, insurance_until: '2026-12-01', created_at: '2026-01-01' }]
+  fansRows = [
+    { relationship_level: 'visitor', joined_at: '2026-10-01' },
+    { relationship_level: 'inner_circle', joined_at: '2026-10-05' },
+  ]
   await call('/telegram', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Telegram-Bot-Api-Secret-Token': 'webhook-secret' },
@@ -257,14 +263,14 @@ const check = (name, condition, detail = '') => {
       update_id: 11,
       message: {
         message_id: 2,
-        from: { id: 42, first_name: 'Андрей' },
+        from: { id: 42, first_name: 'Ann' },
         chat: { id: CHAT_ID, type: 'private' },
-        text: '/garage',
+        text: '/fans',
       },
     }),
   })
   const text = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
-  check('непривязанный чат получает просьбу подключить сайт', /Сначала подключите сайт/.test(text), text.slice(0, 80))
+  check('непривязанный чат получает просьбу подключить сайт', /NOT CONNECTED/.test(text), text.slice(0, 80))
 
   sentMessages.length = 0
   linkRows = [{ user_id: USER_ID }]
@@ -275,14 +281,14 @@ const check = (name, condition, detail = '') => {
       update_id: 12,
       message: {
         message_id: 3,
-        from: { id: 42, first_name: 'Андрей' },
+        from: { id: 42, first_name: 'Ann' },
         chat: { id: CHAT_ID, type: 'private' },
-        text: '/garage',
+        text: '/fans',
       },
     }),
   })
   const linkedText = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
-  check('привязанный чат получает сводку о пробеге', /47\s?800/.test(linkedText), linkedText.slice(0, 120))
+  check('привязанный чат получает сводку аудитории', /Total audience — <b>2<\/b>/.test(linkedText), linkedText.slice(0, 120))
 }
 
 {
@@ -294,14 +300,14 @@ const check = (name, condition, detail = '') => {
       update_id: 13,
       callback_query: {
         id: 'cb-1',
-        from: { id: 42, first_name: 'Андрей' },
-        data: 'credit',
+        from: { id: 42, first_name: 'Ann' },
+        data: 'analytics',
         message: { message_id: 4, chat: { id: CHAT_ID, type: 'private' } },
       },
     }),
   })
   check('callback_query подтверждается', telegramMethods.includes('answerCallbackQuery'))
-  check('кнопка «Автокредит» отвечает сообщением', sentMessages.length >= 1)
+  check('кнопка «Analytics» отвечает экраном выручки', sentMessages.length >= 1)
 }
 
 console.log(failed === 0 ? '\nTelegram API smoke: все проверки пройдены.' : `\nTelegram API smoke: провалено проверок — ${failed}.`)

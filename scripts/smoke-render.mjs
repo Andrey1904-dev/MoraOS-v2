@@ -1,29 +1,38 @@
 /**
- * Smoke-тест рендера всех экранов без браузера.
+ * Smoke-тест рендера всех экранов Mara OS без браузера.
  *
  * В песочнице нет Chromium, поэтому вместо скриншотов каждый маршрут
- * рендерится через react-dom/server — в трёх состояниях: «с данными»
- * (графики, таблицы, виджеты), «пустой аккаунт» (онбординг и пустые состояния)
- * и «настоящие контексты» (реальные провайдеры, состояние загрузки).
- * Задача — поймать падения на этапе выполнения: битые импорты, отсутствующие
- * компоненты, несовпадение форм данных с разметкой.
+ * рендерится через react-dom/server с настоящими провайдерами в демо-режиме
+ * (ключи Supabase пустые — isDemoActive() включается автоматически).
+ * useResource грузит данные асинхронно, поэтому рендерится состояние
+ * загрузки/скелетоны — цель теста не пиксельная картинка, а отсутствие
+ * падений: битые импорты, отсутствующие компоненты, несовпадение форм данных.
  *
- * Запуск: npm run smoke  (собирает esbuild-бандл и выполняет его в Node)
+ * Запуск: node scripts/smoke-build.mjs (собирает esbuild-бандл и выполняет его)
  */
 import fs from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createElement as h, StrictMode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '../src/context/AuthContext.tsx';
-import { AppDataProvider } from '../src/context/AppDataContext.tsx';
-import Layout from '../src/components/Layout.tsx';
+import { ToastProvider } from '../src/components/ui/Feedback.tsx';
+import { AppShell } from '../src/components/layout/AppShell.tsx';
 import AuthPage from '../src/pages/AuthPage.tsx';
-import DashboardPage from '../src/pages/DashboardPage.tsx';
-import CreditPage from '../src/pages/CreditPage.tsx';
-import ExpensesPage from '../src/pages/ExpensesPage.tsx';
-import GaragePage from '../src/pages/GaragePage.tsx';
-import ServicePage from '../src/pages/ServicePage.tsx';
-import TelegramPage from '../src/pages/TelegramPage.tsx';
+import Overview from '../src/pages/Overview.tsx';
+import Fans from '../src/pages/Fans.tsx';
+import FanProfile from '../src/pages/FanProfile.tsx';
+import Conversations from '../src/pages/Conversations.tsx';
+import Content from '../src/pages/Content.tsx';
+import ContentEditor from '../src/pages/ContentEditor.tsx';
+import Episodes from '../src/pages/Episodes.tsx';
+import Assets from '../src/pages/Assets.tsx';
+import Offers from '../src/pages/Offers.tsx';
+import Revenue from '../src/pages/Revenue.tsx';
+import Analytics from '../src/pages/Analytics.tsx';
+import AIStudio from '../src/pages/AIStudio.tsx';
+import Automations from '../src/pages/Automations.tsx';
+import Tasks from '../src/pages/Tasks.tsx';
+import Settings from '../src/pages/Settings.tsx';
 
 const store = new Map();
 globalThis.localStorage = {
@@ -44,22 +53,29 @@ globalThis.CustomEvent = class {
 };
 
 const ROUTES = [
-  ['/auth', AuthPage, 'авторизация'],
-  ['/', DashboardPage, 'главная'],
-  ['/credit', CreditPage, 'кредит'],
-  ['/expenses', ExpensesPage, 'расходы'],
-  ['/service', ServicePage, 'то'],
-  ['/garage', GaragePage, 'гараж'],
-  ['/telegram', TelegramPage, 'telegram-бот'],
+  ['/auth', AuthPage, 'авторизация', false],
+  ['/', Overview, 'обзор', true],
+  ['/fans', Fans, 'фан-база', true],
+  ['/fans/f_demo_01', FanProfile, 'профиль фана', true],
+  ['/conversations', Conversations, 'диалоги', true],
+  ['/content', Content, 'контент', true],
+  ['/content/new', ContentEditor, 'новый контент', true],
+  ['/content/c_demo_01', ContentEditor, 'редактор контента', true],
+  ['/episodes', Episodes, 'эпизоды', true],
+  ['/assets', Assets, 'ассеты', true],
+  ['/offers', Offers, 'офферы', true],
+  ['/revenue', Revenue, 'выручка', true],
+  ['/analytics', Analytics, 'аналитика', true],
+  ['/ai', AIStudio, 'AI-студия', true],
+  ['/automations', Automations, 'автоматизации', true],
+  ['/tasks', Tasks, 'задачи', true],
+  ['/settings', Settings, 'настройки', true],
 ];
 
-const mode = (process.argv.find((a) => a.startsWith('--mode=')) ?? '--mode=data').slice(7);
-const label =
-  mode === 'empty' ? 'настоящие контексты' : mode === 'blank' ? 'пустой аккаунт' : 'с данными';
-
 let failed = 0;
-for (const [path, Page, name] of ROUTES) {
+for (const [path, Page, name, inShell] of ROUTES) {
   try {
+    // Ждём тик, чтобы useResource успел начать загрузку — ловим и ошибки эффектов.
     const html = renderToStaticMarkup(
       h(
         StrictMode,
@@ -71,13 +87,13 @@ for (const [path, Page, name] of ROUTES) {
             AuthProvider,
             null,
             h(
-              AppDataProvider,
+              ToastProvider,
               null,
               h(
                 Routes,
                 null,
                 h(Route, { path: '/auth', element: h(Page) }),
-                h(Route, { element: h(Layout) }, h(Route, { path, element: h(Page) })),
+                h(Route, { element: h(AppShell) }, h(Route, { path, element: h(Page) })),
               ),
             ),
           ),
@@ -95,17 +111,18 @@ for (const [path, Page, name] of ROUTES) {
       fs.writeFileSync(`node_modules/.tmp/dump/${name}.txt`, text.replace(/ · /g, '\n· '));
     }
     console.log(
-      `OK   ${path.padEnd(10)} ${name.padEnd(14)} ${String(html.length).padStart(6)} симв. | ${text.slice(0, 64)}`,
+      `OK   ${path.padEnd(20)} ${name.padEnd(18)} ${String(html.length).padStart(6)} симв. | ${text.slice(0, 56)}`,
     );
+    void inShell;
   } catch (e) {
     failed++;
-    console.log(`FAIL ${path.padEnd(10)} ${name}: ${e?.message ?? e}`);
-    if (e?.stack) console.log(e.stack.split('\n').slice(1, 3).join('\n'));
+    console.log(`FAIL ${path.padEnd(20)} ${name}: ${e?.message ?? e}`);
+    if (e?.stack) console.log(e.stack.split('\n').slice(1, 4).join('\n'));
   }
 }
 console.log(
   failed
-    ? `\n${failed} экранов упало (${label})`
-    : `\nВсе экраны отрендерились без ошибок (${label})`,
+    ? `\n${failed} экранов упало`
+    : `\nВсе экраны отрендерились без ошибок (демо-режим, ${ROUTES.length} маршрутов)`,
 );
 process.exit(failed ? 1 : 0);

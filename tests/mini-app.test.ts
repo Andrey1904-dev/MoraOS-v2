@@ -138,18 +138,18 @@ beforeEach(() => {
 
 describe('startapp / screen: белый список маршрутов', () => {
   it('известные ключи превращаются в разрешённые маршруты', () => {
-    assert.equal(resolveStartRoute('garage'), '/garage')
-    assert.equal(resolveStartRoute('service'), '/service')
-    assert.equal(resolveStartRoute('credit'), '/credit')
-    assert.equal(resolveStartRoute('expenses'), '/expenses')
-    assert.equal(resolveStartRoute('GARAGE'), '/garage')
-    assert.equal(resolveStartRoute('telegram'), '/telegram')
+    assert.equal(resolveStartRoute('fans'), '/fans')
+    assert.equal(resolveStartRoute('messages'), '/conversations')
+    assert.equal(resolveStartRoute('content'), '/content')
+    assert.equal(resolveStartRoute('analytics'), '/analytics')
+    assert.equal(resolveStartRoute('FANS'), '/fans')
+    assert.equal(resolveStartRoute('telegram'), '/settings')
   })
 
   it('неизвестные, пустые и опасные значения не исполняются', () => {
     for (const bad of [
-      '', '   ', 'unknown', '/garage', '../auth', 'https://evil.example', 'javascript:alert(1)',
-      'garage/../../x', '__proto__', 'constructor', 'toString', 'a'.repeat(65), null, undefined, 42, {},
+      '', '   ', 'unknown', '/fans', '../auth', 'https://evil.example', 'javascript:alert(1)',
+      'fans/../../x', '__proto__', 'constructor', 'toString', 'a'.repeat(65), null, undefined, 42, {},
     ]) {
       assert.equal(resolveStartRoute(bad), null, String(bad))
     }
@@ -163,19 +163,19 @@ describe('startapp / screen: белый список маршрутов', () => 
 describe('параметры запуска в hash (совместимость с HashRouter)', () => {
   it('распознаёт параметры Telegram в hash и query', () => {
     assert.equal(hasLaunchParams('#tgWebAppData=abc&tgWebAppVersion=8.0'), true)
-    assert.equal(hasLaunchParams('#/garage?tgWebAppVersion=8.0'), true)
-    assert.equal(hasLaunchParams('#/garage&tgWebAppPlatform=ios'), true)
+    assert.equal(hasLaunchParams('#/fans?tgWebAppVersion=8.0'), true)
+    assert.equal(hasLaunchParams('#/fans&tgWebAppPlatform=ios'), true)
     assert.equal(hasLaunchParams('', '?tgWebAppStartParam=garage'), true)
-    assert.equal(hasLaunchParams('#/garage'), false)
-    assert.equal(hasLaunchParams('#/credit?tab=modeling'), false)
+    assert.equal(hasLaunchParams('#/fans'), false)
+    assert.equal(hasLaunchParams('#/content?tab=modeling'), false)
   })
 
   it('выделяет только известный маршрут', () => {
     assert.deepEqual(splitLaunchHash('#tgWebAppData=x&tgWebAppVersion=8.0'), { route: null, hadLaunchParams: true })
-    assert.deepEqual(splitLaunchHash('#/garage?tgWebAppVersion=8.0'), { route: '/garage', hadLaunchParams: true })
-    assert.deepEqual(splitLaunchHash('#/telegram&tgWebAppVersion=8.0'), { route: '/telegram', hadLaunchParams: true })
+    assert.deepEqual(splitLaunchHash('#/fans?tgWebAppVersion=8.0'), { route: '/fans', hadLaunchParams: true })
+    assert.deepEqual(splitLaunchHash('#/settings&tgWebAppVersion=8.0'), { route: '/settings', hadLaunchParams: true })
     assert.deepEqual(splitLaunchHash('#/admin?tgWebAppVersion=8.0'), { route: null, hadLaunchParams: true })
-    assert.deepEqual(splitLaunchHash('#/credit'), { route: '/credit', hadLaunchParams: false })
+    assert.deepEqual(splitLaunchHash('#/content'), { route: '/content', hadLaunchParams: false })
     assert.deepEqual(splitLaunchHash('#%E0%A4%A'), { route: null, hadLaunchParams: false })
   })
 })
@@ -193,7 +193,7 @@ describe('определение среды и деградация', () => {
 
   it('без SDK initMiniApp ничего не меняет и не бросает', () => {
     const root = fakeRoot()
-    const { win } = fakeWindow('https://site.test/app/#/credit')
+    const { win } = fakeWindow('https://site.test/app/#/content')
     assert.equal(initMiniApp(undefined, { root: root as unknown as HTMLElement, win }), null)
     assert.equal(getMiniApp(), null)
     assert.equal(root.classes.size, 0)
@@ -202,7 +202,7 @@ describe('определение среды и деградация', () => {
   })
 
   it('в обычном браузере SDK не загружается и адрес не трогается', async () => {
-    const { win, replaced } = fakeWindow('https://site.test/app/#/credit')
+    const { win, replaced } = fakeWindow('https://site.test/app/#/content')
     assert.equal(shouldLoadSdk(win), false)
     g.window = win
     assert.equal(await bootstrapTelegramMiniApp(), null)
@@ -210,7 +210,7 @@ describe('определение среды и деградация', () => {
   })
 
   it('после перезагрузки внутри Mini App признаком служит sessionStorage SDK', () => {
-    const { win } = fakeWindow('https://site.test/app/#/credit', { __telegram__initParams: '{}' })
+    const { win } = fakeWindow('https://site.test/app/#/content', { __telegram__initParams: '{}' })
     assert.equal(shouldLoadSdk(win), true)
   })
 
@@ -272,9 +272,9 @@ describe('инициализация внутри Telegram', () => {
 
     assert.ok(calls.includes('expand'))
     assert.ok(!calls.includes('ready'), 'ready вызывается мостом после первого рендера')
-    assert.ok(calls.includes('header:#0E1013'))
-    assert.ok(calls.includes('bg:#0E1013'))
-    assert.ok(calls.includes('bottom:#1A1D22'))
+    assert.ok(calls.includes('header:#08090A'))
+    assert.ok(calls.includes('bg:#08090A'))
+    assert.ok(calls.includes('bottom:#0B0C0E'))
     assert.ok(root.classes.has('tg-mini-app'))
     for (const name of ['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged', 'themeChanged']) {
       assert.ok(events.has(name), name)
@@ -311,7 +311,7 @@ describe('инициализация внутри Telegram', () => {
     const { webApp, calls } = fakeWebApp({}, '6.2')
     applyColors(webApp, root as unknown as HTMLElement)
     assert.ok(!calls.some((c) => c.startsWith('header:')))
-    assert.ok(calls.includes('bg:#0E1013'))
+    assert.ok(calls.includes('bg:#08090A'))
     assert.ok(!calls.some((c) => c.startsWith('bottom:')))
   })
 
@@ -326,12 +326,12 @@ describe('инициализация внутри Telegram', () => {
 
 describe('стартовый адрес Mini App', () => {
   it('известный startapp → маршрут; параметры Telegram убраны из hash', () => {
-    const { webApp } = fakeWebApp({ initDataUnsafe: { start_param: 'garage' } })
+    const { webApp } = fakeWebApp({ initDataUnsafe: { start_param: 'fans' } })
     const { win, replaced } = fakeWindow('https://site.test/LadaGrantaCredit/#tgWebAppData=x&tgWebAppVersion=8.0')
-    assert.equal(prepareStartLocation(webApp, win), '/garage')
-    assert.deepEqual(replaced, ['/LadaGrantaCredit/#/garage'])
-    assert.equal(peekPendingStartRoute(), '/garage')
-    assert.equal(takePendingStartRoute(), '/garage')
+    assert.equal(prepareStartLocation(webApp, win), '/fans')
+    assert.deepEqual(replaced, ['/LadaGrantaCredit/#/fans'])
+    assert.equal(peekPendingStartRoute(), '/fans')
+    assert.equal(takePendingStartRoute(), '/fans')
     assert.equal(takePendingStartRoute(), null, 'deep link применяется один раз')
   })
 
@@ -346,8 +346,8 @@ describe('стартовый адрес Mini App', () => {
   it('кнопка бота ?screen=telegram открывает раздел «Бот» и убирает служебный параметр', () => {
     const { webApp } = fakeWebApp()
     const { win, replaced } = fakeWindow('https://site.test/LadaGrantaCredit/?screen=telegram&utm=bot#tgWebAppVersion=8.0')
-    assert.equal(prepareStartLocation(webApp, win), '/telegram')
-    assert.deepEqual(replaced, ['/LadaGrantaCredit/?utm=bot#/telegram'])
+    assert.equal(prepareStartLocation(webApp, win), '/settings')
+    assert.deepEqual(replaced, ['/LadaGrantaCredit/?utm=bot#/settings'])
   })
 
   it('неизвестный ?screen= игнорируется', () => {
@@ -359,8 +359,8 @@ describe('стартовый адрес Mini App', () => {
 
   it('перезагрузка внутри Mini App без параметров сохраняет текущий маршрут', () => {
     const { webApp } = fakeWebApp()
-    const { win, replaced } = fakeWindow('https://site.test/app/#/credit')
-    assert.equal(prepareStartLocation(webApp, win), '/credit')
+    const { win, replaced } = fakeWindow('https://site.test/app/#/content')
+    assert.equal(prepareStartLocation(webApp, win), '/content')
     assert.equal(replaced.length, 0)
   })
 })
@@ -374,10 +374,10 @@ describe('BackButton и навигация', () => {
   })
 
   it('с внутренней историей — назад по истории, без неё — к родителю', () => {
-    assert.deepEqual(backButtonPlan({ pathname: '/credit', historyIndex: 2, pendingHandlers: 0 }), { visible: true, action: 'history' })
-    assert.deepEqual(backButtonPlan({ pathname: '/garage', historyIndex: 0, pendingHandlers: 0 }), { visible: true, action: 'parent' })
-    assert.equal(parentRoute('/garage'), '/')
-    assert.equal(parentRoute('/credit/schedule'), '/credit')
+    assert.deepEqual(backButtonPlan({ pathname: '/content', historyIndex: 2, pendingHandlers: 0 }), { visible: true, action: 'history' })
+    assert.deepEqual(backButtonPlan({ pathname: '/fans', historyIndex: 0, pendingHandlers: 0 }), { visible: true, action: 'parent' })
+    assert.equal(parentRoute('/fans'), '/')
+    assert.equal(parentRoute('/content/schedule'), '/content')
     assert.equal(parentRoute('/'), '/')
   })
 
@@ -456,7 +456,7 @@ describe('диалоги, ссылки, свайпы и файлы внутри 
     const origin = 'https://andrey1904-dev.github.io'
     assert.equal(classifyLink('https://t.me/LadaGarage_bot?start=site', origin), 'telegram')
     assert.equal(classifyLink('https://mail.yandex.ru/', origin), 'external')
-    assert.equal(classifyLink('/LadaGrantaCredit/#/garage', origin), 'internal')
+    assert.equal(classifyLink('/LadaGrantaCredit/#/fans', origin), 'internal')
     assert.equal(classifyLink('mailto:owner@example.com', origin), 'other')
     assert.equal(classifyLink('javascript:alert(1)', origin), 'other')
   })
@@ -466,7 +466,7 @@ describe('диалоги, ссылки, свайпы и файлы внутри 
     const origin = 'https://site.test'
     assert.equal(openLinkInTelegram('https://t.me/LadaGarage_bot', origin), true)
     assert.equal(openLinkInTelegram('https://gosuslugi.ru/', origin), true)
-    assert.equal(openLinkInTelegram('https://site.test/#/credit', origin), false)
+    assert.equal(openLinkInTelegram('https://site.test/#/content', origin), false)
     assert.ok(calls.includes('tglink:https://t.me/LadaGarage_bot'))
     assert.ok(calls.includes('link:https://gosuslugi.ru/'))
   })

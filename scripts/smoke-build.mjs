@@ -1,9 +1,11 @@
 /**
- * Сборка smoke-теста в Node-бандл.
+ * Сборка smoke-теста рендера в Node-бандл и его запуск.
  *
- *   node scripts/smoke-build.mjs            # страницы с данными (контексты-заглушки)
- *   node scripts/smoke-build.mjs --blank    # пустой аккаунт: онбординг и пустые состояния
- *   node scripts/smoke-build.mjs --empty    # настоящие контексты (состояние загрузки)
+ *   node scripts/smoke-build.mjs   # все экраны Mara OS, демо-режим
+ *
+ * Ранее были режимы с заглушками контекстов автомобильного домена — они ушли
+ * вместе с ним: теперь страницы сами работают поверх `repositories`,
+ * которые без ключей Supabase автоматически переключаются на демо-данные.
  */
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
@@ -13,20 +15,33 @@ import fs from 'node:fs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
-const stub = path.join(here, 'smoke-data.tsx');
-const empty = process.argv.includes('--empty');
-const blank = process.argv.includes('--blank');
-const mode = empty ? 'empty' : blank ? 'blank' : 'data';
-const LABEL = { data: 'с данными', blank: 'пустой аккаунт', empty: 'настоящие контексты' };
-const outfile = path.join(root, 'node_modules', '.tmp', `smoke-${mode}.cjs`);
+const outfile = path.join(root, 'node_modules', '.tmp', 'smoke-render.cjs');
 
-/** В режиме «с данными» подменяем контексты заглушками с готовыми записями. */
-const stubContexts = {
-  name: 'stub-contexts',
+// Алиас @/ из vite.config — esbuild его не читает, резолвим вручную.
+const aliasPlugin = {
+  name: 'at-alias',
   setup(b) {
-    b.onResolve({ filter: /context\/(AppData|Auth)Context$/ }, () => ({
-      path: stub,
-    }));
+    b.onResolve({ filter: /^@\// }, (args) => {
+      const target = path.join(root, 'src', args.path.slice(2));
+      const cands = [target + '.ts', target + '.tsx', target + '.mjs', path.join(target, 'index.ts'), target];
+      for (const cand of cands) {
+        try {
+          if (fs.statSync(cand).isFile()) return { path: cand };
+        } catch {
+          /* не существует */
+        }
+      }
+      return { path: target + '.ts' };
+    });
+  },
+};
+
+// CSS-файлы в бандле не нужны: разметка тестируется, не стили.
+const cssStub = {
+  name: 'css-stub',
+  setup(b) {
+    b.onResolve({ filter: /\.css$/ }, (args) => ({ path: args.path, namespace: 'css' }));
+    b.onLoad({ filter: /.*/, namespace: 'css' }, () => ({ contents: '' }));
   },
 };
 
@@ -42,15 +57,12 @@ await build({
     'process.env.NODE_ENV': '"production"',
     'import.meta.env': JSON.stringify({ VITE_SUPABASE_URL: '', VITE_SUPABASE_ANON_KEY: '' }),
   },
-  plugins: empty ? [] : [stubContexts],
+  plugins: [aliasPlugin, cssStub],
 });
 
-console.log(`сборка: ${path.relative(root, outfile)} (${LABEL[mode]})\n`);
+console.log(`сборка: ${path.relative(root, outfile)}\n`);
 try {
-  execFileSync(process.execPath, [outfile, `--mode=${mode}`], {
-    stdio: 'inherit',
-    env: { ...process.env, SMOKE_BLANK: blank ? '1' : '' },
-  });
+  execFileSync(process.execPath, [outfile], { stdio: 'inherit', env: process.env });
 } catch (e) {
   process.exit(e.status ?? 1);
 }
