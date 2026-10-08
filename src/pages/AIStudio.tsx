@@ -45,7 +45,7 @@ export default function AIStudio() {
     setRunOutput(null);
     try {
       const orchestrator = getAiOrchestrator();
-      if (agent.id === "ag_content") {
+      if (agent.id === "content") {
         const character = await repositories.character.get();
         const result = await orchestrator.contentAgent.generate({
           character: {
@@ -67,18 +67,19 @@ export default function AIStudio() {
           mock: isDemoActive(),
           body: [...result.hooks.map((h, i) => `Hook ${i + 1}: ${h}`), `Caption: ${result.caption}`, ...result.variants.slice(0, 1).map((v) => `Variant: ${v.hook}`)],
         });
-      } else if (agent.id === "ag_analytics") {
-        const metrics = await repositories.analytics.metrics("30d");
+      } else if (agent.id === "analytics") {
+        const metrics = await repositories.analytics.metrics("30 days");
+        const funnel = await repositories.analytics.funnel();
         const result = await orchestrator.analyticsAgent.analyze({
           metrics: metrics.map((m) => ({ key: m.key, label: m.label, value: m.value, delta: m.delta ?? 0 })),
-          funnel: [],
+          funnel: funnel.map((f) => ({ label: f.label, value: f.value })),
         });
         setRunOutput({
           agent: agent.name,
           mock: isDemoActive(),
           body: result.insights.map((i) => `${i.title} — ${i.body} (confidence ${Math.round(i.confidence * 100)}%)`),
         });
-      } else {
+      } else if (agent.id === "conversation" || agent.id === "memory" || agent.id === "sales" || agent.id === "character") {
         push({
           title: `${agent.name} runs in context`,
           description: "Conversation, memory and sales agents work per fan — trigger them from Conversations.",
@@ -325,7 +326,7 @@ export default function AIStudio() {
                 {[
                   { label: "Model", value: "mock-provider" },
                   { label: "Temperature", value: "0.7" },
-                  { label: "Requires approval", value: active.id === "ag_conversation" ? "Always" : "On publish" },
+                  { label: "Requires approval", value: active.id === "conversation" ? "Always" : "On publish" },
                   { label: "Auto-run schedule", value: "Every 5 minutes" },
                 ].map((r) => (
                   <div key={r.label} className="flex items-center justify-between text-[12.5px]">

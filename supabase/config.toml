@@ -4,6 +4,8 @@
 # и секрет webhook, поэтому встроенная проверка JWT выключена:
 # без этого Telegram не смог бы доставлять обновления.
 
+# Replace with your real Supabase project reference (found in Project Settings → General).
+# Do NOT commit a fake or made-up project ID. The local CLI uses this value only.
 project_id = "mara-os"
 
 [functions.telegram-api]

@@ -180,7 +180,7 @@ export const topContent = [
 
 export const agents: Agent[] = [
   {
-    id: "ag_character",
+    id: "character",
     name: "Character Agent",
     role: "Keeps Mara consistent",
     status: "Online",
@@ -192,7 +192,7 @@ export const agents: Agent[] = [
     capabilities: ["Voice checks", "Continuity", "Boundary guardrails"],
   },
   {
-    id: "ag_conversation",
+    id: "conversation",
     name: "Conversation Agent",
     role: "Drafts every reply",
     status: "Online",
@@ -204,7 +204,7 @@ export const agents: Agent[] = [
     capabilities: ["Draft replies", "Intent detection", "Escalation"],
   },
   {
-    id: "ag_memory",
+    id: "memory",
     name: "Memory Agent",
     role: "Remembers the fans",
     status: "Online",
@@ -216,7 +216,7 @@ export const agents: Agent[] = [
     capabilities: ["Fact extraction", "Preference modelling", "Decay"],
   },
   {
-    id: "ag_content",
+    id: "content",
     name: "Content Agent",
     role: "Builds the storyline",
     status: "Online",
@@ -228,7 +228,7 @@ export const agents: Agent[] = [
     capabilities: ["Hooks", "Captions", "Shot lists", "Calendar"],
   },
   {
-    id: "ag_sales",
+    id: "sales",
     name: "Sales Agent",
     role: "Monetizes without pressure",
     status: "Online",
@@ -240,7 +240,7 @@ export const agents: Agent[] = [
     capabilities: ["Offer matching", "Timing", "Win-back"],
   },
   {
-    id: "ag_analytics",
+    id: "analytics",
     name: "Analytics Agent",
     role: "Explains the numbers",
     status: "Idle",

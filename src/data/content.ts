@@ -108,6 +108,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_01",
     title: "The red notebook",
+    description: "Episode 04 hook piece that introduced the red notebook metaphor.",
+    script: "Open on the notebook close-up. Cut to Mara at the window. Voiceover reads page one.",
     hook: "I bought a notebook for $4. It's worth 3,240 hours of my life.",
     caption:
       "Page one: 3,240 hours. That's what I owe before I own my own time again. Every week I cross off what I bought back. This is week one.",
@@ -126,6 +128,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_02",
     title: "Monday again",
+    description: "Monday-morning standalone: relatable week-two feeling.",
+    script: "Cold coffee, missed train. Slow pan. Voiceover, short sentences.",
     hook: "Monday, 6:41am. The notebook is on the table. I already lost.",
     caption:
       "Not every week is a montage. This one started with cold coffee and a train I missed on purpose. Week two of 365.",
@@ -144,6 +148,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_03",
     title: "Debt update",
+    description: "Transparent weekly update when the budget slipped.",
+    script: "Screenshare of the spreadsheet. Cut to Mara on the couch.",
     hook: "Week 3: the number went the wrong way.",
     caption:
       "I said I'd be transparent, so: the number went up by $340. Here's exactly what broke, and what I'm changing for week four.",
@@ -162,6 +168,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_04",
     title: "Apartment, 7am",
+    description: "Soft apartment-morning portrait without offer.",
+    script: "Locked-off tripod shot, window light, no music. Slow push-in.",
     hook: "The only honest hour I have.",
     caption:
       "No script, no hook, no offer. Just the apartment before it becomes a set. Window light, cold coffee, page 41.",
@@ -180,6 +188,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_05",
     title: "Late night",
+    description: "Late-night page-41 reveal — high-intent PPV.",
+    script: "Single practical light, close-up of the page, 20 seconds of silence.",
     hook: "23:04. Page 41.",
     caption:
       "The page I said I wouldn't show anyone. If you have the notebook, you already know which line it is.",
@@ -198,6 +208,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_06",
     title: "The reality check",
+    description: "Episode 05 teaser, scheduled for Friday drop.",
+    script: "Handheld talking head, 16:9 letterboxed, room tone.",
     hook: "Week 5: I missed the payment.",
     caption:
       "The plan slips by nine days. Second column in the notebook: what it actually costs to keep a promise to yourself.",
@@ -216,6 +228,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_07",
     title: "Gym mirror set",
+    description: "Gym PPV photoset tied to the 6am training arc.",
+    script: "Mirror selfie montage, 12 cuts, gym ambience.",
     hook: "6am training, day 31.",
     caption:
       "31 days of showing up at 6am. The mirror doesn't care about the storyline, which is exactly why I keep it in.",
@@ -234,6 +248,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_08",
     title: "Notebook, close up",
+    description: "Quiet story post with no CTA — audience care.",
+    script: "Still frame, 4-second hold, no music, text overlay only.",
     hook: "The notebook has 41 pages. I've shown you four.",
     caption:
       "A quiet one. No offer, no drop. Just the object that started the whole count.",
@@ -252,6 +268,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_09",
     title: "The decision — trailer",
+    description: "Season trailer cut to train rhythm.",
+    script: "Fast 12-cut trailer, train sound design, title card.",
     hook: "365 days. One notebook. Zero excuses.",
     caption: "Trailer for the season. Cut to the beat of a train arriving late.",
     cta: "Watch episode one",
@@ -269,6 +287,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_10",
     title: "First week — honest cut",
+    description: "Voice-note style text post for Telegram.",
+    script: "Black screen, voice note style, static texture.",
     hook: "Three wins. Two collapses. One stranger who started counting too.",
     caption:
       "I read the first message from someone doing their own 365. Then I tell you the two days I completely failed.",
@@ -287,6 +307,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_11",
     title: "Chicago, day one",
+    description: "Chicago episode six location tease.",
+    script: "B-roll of Wicker Park, overcast, footsteps only.",
     hook: "Shooting in the city where the debt started.",
     caption: "Episode six location scout. Same streets, different column.",
     cta: "—",
@@ -303,6 +325,8 @@ export const contentItems: ContentItem[] = [
   {
     id: "cnt_12",
     title: "Behind the notebook",
+    description: "BTS writing-session video planned for episode 05.",
+    script: "Desk close-up, candlelight, keyboard typing, no VO.",
     hook: "Everything on my desk while I write page 42.",
     caption:
       "Coffee, two pens, the spreadsheet printout, and the notebook. The full 4-minute uncut version.",

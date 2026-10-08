@@ -146,19 +146,36 @@ class DemoFanRepository implements FanRepository {
   }
 
   addMemory(fanId: string, memory: { statement: string; category: Memory["category"]; confidence: number; source: string }) {
-    const entry: Memory = {
-      id: demoId("mem"),
-      fanId,
-      statement: memory.statement,
-      category: memory.category,
-      confidence: memory.confidence,
-      source: memory.source,
-      createdAt: now(),
-    };
+    const newText = memory.statement.trim().toLowerCase();
+    const newPrefix = newText.slice(0, 25);
+    let found: Memory | null = null;
     mutateDemoStore((s) => {
+      const existing = [
+        ...fansData.memories.filter((m) => m.fanId === fanId),
+        ...(s.memories[fanId] ?? []),
+      ];
+      const dupe = existing.find((m) => {
+        const existingText = m.statement.trim().toLowerCase();
+        const existingPrefix = existingText.slice(0, 25);
+        return newPrefix === existingPrefix || existingText.startsWith(newPrefix) || newText.startsWith(existingPrefix);
+      });
+      if (dupe) {
+        found = dupe;
+        return;
+      }
+      const entry: Memory = {
+        id: demoId("mem"),
+        fanId,
+        statement: memory.statement,
+        category: memory.category,
+        confidence: memory.confidence,
+        source: memory.source,
+        createdAt: now(),
+      };
       s.memories[fanId] = [...(s.memories[fanId] ?? []), entry];
+      found = entry;
     });
-    return wait(structuredClone(entry), 120);
+    return wait(structuredClone(found!), 120);
   }
 
   setRelationship(id: string, level: Fan["relationship"]) {
@@ -261,7 +278,7 @@ class DemoConversationRepository implements ConversationRepository {
 /* --------------------------------- Content ------------------------------- */
 
 class DemoContentRepository implements ContentRepository {
-  async list(): Promise<ContentItem[]> {
+  async list(query?: { search?: string; status?: string; platform?: string; type?: string }): Promise<ContentItem[]> {
     const state = demoStore();
     const overridden = contentData.contentItems.map((c) =>
       state.contentStatus[c.id] ? { ...c, status: state.contentStatus[c.id] } : c,
@@ -269,7 +286,21 @@ class DemoContentRepository implements ContentRepository {
     const drafts = state.contentDrafts.map((c) =>
       state.contentStatus[c.id] ? { ...c, status: state.contentStatus[c.id] } : c,
     );
-    return wait([...drafts, ...overridden]);
+    // Ensure description/script exist on older demo items
+    const withDefaults = (c: ContentItem): ContentItem => ({
+      ...c,
+      description: c.description ?? "",
+      script: c.script ?? "",
+    });
+    let rows = [...drafts, ...overridden].map(withDefaults);
+    if (query?.search) {
+      const s = query.search.toLowerCase();
+      rows = rows.filter((c) => c.title.toLowerCase().includes(s) || c.caption.toLowerCase().includes(s));
+    }
+    if (query?.status && query.status !== "All") rows = rows.filter((c) => c.status === query.status);
+    if (query?.platform && query.platform !== "All") rows = rows.filter((c) => c.platform === query.platform);
+    if (query?.type && query.type !== "All") rows = rows.filter((c) => c.type === query.type);
+    return wait(rows);
   }
 
   async get(id: string) {
@@ -278,7 +309,9 @@ class DemoContentRepository implements ContentRepository {
   }
 
   episodes(): Promise<Episode[]> {
-    return wait(contentData.episodes);
+    const state = demoStore();
+    const extra = state.addedEpisodes ?? [];
+    return wait([...extra, ...contentData.episodes]);
   }
 
   assets() {
@@ -289,8 +322,10 @@ class DemoContentRepository implements ContentRepository {
     const entry: ContentItem = {
       id: item.id ?? demoId("cnt"),
       title: item.title,
+      description: item.description ?? "",
       hook: item.hook ?? "",
       caption: item.caption ?? "",
+      script: item.script ?? "",
       cta: item.cta ?? "",
       platform: item.platform ?? "TikTok",
       type: item.type ?? "Video",
@@ -319,7 +354,73 @@ class DemoContentRepository implements ContentRepository {
     const base = contentData.contentItems.find((c) => c.id === id);
     const draft = demoStore().contentDrafts.find((c) => c.id === id);
     const found = draft ?? base;
-    return wait(found ? { ...found, status } : null, 120);
+    return wait(found ? { ...found, status, description: found.description ?? "", script: (found as ContentItem).script ?? "" } : null, 120);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    let existed = false;
+    mutateDemoStore((s) => {
+      const before = s.contentDrafts.length;
+      s.contentDrafts = s.contentDrafts.filter((c) => c.id !== id);
+      existed = s.contentDrafts.length < before || contentData.contentItems.some((c) => c.id === id);
+      if (contentData.contentItems.some((c) => c.id === id)) {
+        // Mark base items as deleted via contentStatus set to Archived (cannot actually remove static data).
+        s.contentStatus[id] = "Archived";
+      }
+    });
+    return wait(existed, 120);
+  }
+
+  async createEpisode(episode: Partial<Episode> & { title: string; number: number }): Promise<Episode> {
+    const entry: Episode = {
+      id: demoId("ep"),
+      number: episode.number,
+      title: episode.title,
+      logline: episode.logline ?? episode.description ?? "",
+      description: episode.description ?? episode.logline ?? "",
+      status: episode.status ?? "Outline",
+      publishedAt: episode.publishedAt,
+      beat: episode.beat ?? "",
+      contentIds: [],
+      assetIds: [],
+      performance: { views: 0, followers: 0, retention: 0 },
+    };
+    mutateDemoStore((s) => {
+      if (!s.addedEpisodes) s.addedEpisodes = [];
+      s.addedEpisodes.unshift(entry);
+    });
+    return wait(structuredClone(entry), 140);
+  }
+
+  async updateEpisode(id: string, patch: Partial<Episode>): Promise<Episode | null> {
+    let updated: Episode | null = null;
+    mutateDemoStore((s) => {
+      if (!s.addedEpisodes) s.addedEpisodes = [];
+      const idx = s.addedEpisodes.findIndex((e) => e.id === id);
+      if (idx >= 0) {
+        s.addedEpisodes[idx] = { ...s.addedEpisodes[idx], ...patch };
+        updated = s.addedEpisodes[idx];
+      } else {
+        const base = contentData.episodes.find((e) => e.id === id);
+        if (base) {
+          const mod = { ...base, ...patch };
+          s.addedEpisodes.push(mod);
+          updated = mod;
+        }
+      }
+    });
+    return wait(updated ? structuredClone(updated) : null, 120);
+  }
+
+  async deleteEpisode(id: string): Promise<boolean> {
+    let existed = false;
+    mutateDemoStore((s) => {
+      if (!s.addedEpisodes) s.addedEpisodes = [];
+      const before = s.addedEpisodes.length;
+      s.addedEpisodes = s.addedEpisodes.filter((e) => e.id !== id);
+      existed = s.addedEpisodes.length < before || contentData.episodes.some((e) => e.id === id);
+    });
+    return wait(existed, 120);
   }
 }
 
@@ -363,6 +464,32 @@ class DemoAnalyticsRepository implements AnalyticsRepository {
   }
   topContent() {
     return wait(ops.topContent);
+  }
+  async revenueSummary() {
+    // Demo data: derive from the fictional revenue dataset.
+    const all = await this.revenue("30 days");
+    const total = all.reduce((s, p) => s + p.value, 0);
+    return wait({
+      today: Math.round(total / 30 * 100) / 100,
+      thisWeek: Math.round(total / 4.3 * 100) / 100,
+      thisMonth: Math.round(total * 100) / 100,
+      total: Math.round(total * 3 * 100) / 100,
+      purchases: 684,
+      subscriptions: 184,
+      averageOrderValue: 7.05,
+      byCategory: { subscription: 2610, ppv: 1940, tip: 270 },
+      bySource: ops.revenueBySource,
+    });
+  }
+  async followersByPlatform() {
+    // Demo: fictional CRM distribution.
+    return wait([
+      { label: "TikTok", value: 84 },
+      { label: "Instagram", value: 41 },
+      { label: "Telegram", value: 327 },
+      { label: "Threads", value: 18 },
+      { label: "Fanvue", value: 27 },
+    ]);
   }
 }
 

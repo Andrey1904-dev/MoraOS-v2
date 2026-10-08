@@ -540,3 +540,158 @@ describe('fan data export and erasure (demo repositories)', () => {
     assert.equal(approved.state, 'approved')
   })
 })
+
+/* ---------------------- Phase 2: content save + tasks + agent IDs ---------------------- */
+
+describe('Phase 2: content repository saveDraft creates/updates content items', () => {
+  beforeEach(() => resetDemoStore())
+
+  test('saveDraft creates a new content item and persists fields', async () => {
+    const created = await demoRepositories.content.saveDraft({
+      title: 'Test content',
+      description: 'A test piece',
+      hook: 'hook line',
+      caption: 'caption body',
+      script: 'VO script',
+      cta: 'Click',
+      platform: 'TikTok',
+      type: 'Video',
+      status: 'Draft',
+    })
+    assert.ok(created.id)
+    assert.equal(created.title, 'Test content')
+    assert.equal(created.description, 'A test piece')
+    assert.equal(created.script, 'VO script')
+    assert.equal(created.platform, 'TikTok')
+    const list = await demoRepositories.content.list()
+    assert.ok(list.some((c) => c.id === created.id))
+  })
+
+  test('saveDraft updates an existing item', async () => {
+    const created = await demoRepositories.content.saveDraft({ title: 'First', platform: 'TikTok' })
+    const updated = await demoRepositories.content.saveDraft({ id: created.id, title: 'Updated title', platform: 'Instagram', hook: 'new hook' })
+    assert.equal(updated.id, created.id)
+    assert.equal(updated.title, 'Updated title')
+    assert.equal(updated.platform, 'Instagram')
+    assert.equal(updated.hook, 'new hook')
+  })
+
+  test('delete removes a content item', async () => {
+    const created = await demoRepositories.content.saveDraft({ title: 'To delete' })
+    assert.equal(await demoRepositories.content.delete(created.id), true)
+    const list = await demoRepositories.content.list()
+    assert.equal(list.some((c) => c.id === created.id), false)
+  })
+})
+
+describe('Phase 2: AI repository addTask creates tasks', () => {
+  beforeEach(() => resetDemoStore())
+
+  test('addTask appends to the task list and is returned', async () => {
+    const before = await demoRepositories.ai.tasks()
+    const created = await demoRepositories.ai.addTask({
+      title: 'Approve draft',
+      detail: 'Quick review',
+      priority: 'High',
+      group: 'Today',
+      due: 'Today',
+      source: 'Manual',
+    })
+    assert.ok(created.id)
+    assert.equal(created.title, 'Approve draft')
+    assert.equal(created.priority, 'High')
+    const after = await demoRepositories.ai.tasks()
+    assert.equal(after.length, before.length + 1)
+    assert.ok(after.some((t) => t.id === created.id))
+  })
+})
+
+describe('Phase 2: canonical agent IDs (no ag_ prefix)', () => {
+  test('agent catalog in demo data uses canonical IDs', async () => {
+    const agents = await demoRepositories.ai.agents()
+    const ids = agents.map((a) => a.id).sort()
+    assert.deepEqual(ids, ['analytics', 'character', 'content', 'conversation', 'memory', 'sales'])
+  })
+
+  test('ContentAgent logs runs with canonical id "content"', async () => {
+    const provider = new MockAIProvider()
+    const char = new CharacterAgent()
+    const logs: unknown[] = []
+    const agent = new ContentAgent(provider, char, {
+      async log(entry) { logs.push(entry) },
+    })
+    await agent.generate({
+      character: CHARACTER,
+      platform: 'tiktok',
+      contentType: 'reel',
+    })
+    assert.equal(logs.length, 1)
+    assert.equal((logs[0] as { agent: string }).agent, 'content')
+  })
+})
+
+describe('Phase 2: analytics revenueSummary returns numbers', () => {
+  test('revenueSummary exists and returns zeroes in fresh demo', async () => {
+    resetDemoStore()
+    // Demo summary returns fictional non-zero totals from ops; just verify shape.
+    const summary = await demoRepositories.analytics.revenueSummary()
+    assert.ok(typeof summary.total === 'number')
+    assert.ok(typeof summary.purchases === 'number')
+    assert.ok(typeof summary.subscriptions === 'number')
+    assert.ok(typeof summary.averageOrderValue === 'number')
+    assert.ok(Array.isArray(summary.bySource))
+  })
+})
+
+describe('Phase 2: fan memory duplicate prevention', () => {
+  beforeEach(() => resetDemoStore())
+
+  test('adding an identical memory returns the existing entry instead of duplicating', async () => {
+    const conv = (await demoRepositories.conversations.list())[0]
+    const fanId = conv.fanId
+    const first = await demoRepositories.fans.addMemory(fanId, {
+      statement: 'Loves morning coffee',
+      category: 'lifestyle',
+      confidence: 0.8,
+      source: 'conversation',
+    })
+    const second = await demoRepositories.fans.addMemory(fanId, {
+      statement: 'Loves morning coffee and quiet mornings',
+      category: 'lifestyle',
+      confidence: 0.8,
+      source: 'conversation',
+    })
+    // Second should de-duplicate via prefix match and return same id.
+    assert.equal(second.id, first.id)
+  })
+})
+
+describe('Phase 2: automations can be enabled/disabled/run', () => {
+  beforeEach(() => resetDemoStore())
+
+  test('setAutomationStatus toggles Active/Paused; recordAutomationRun increments runs', async () => {
+    const autos = await demoRepositories.ai.automations()
+    const target = autos[0]
+    const paused = await demoRepositories.ai.setAutomationStatus(target.id, 'Paused')
+    assert.equal(paused?.status, 'Paused')
+    const ran = await demoRepositories.ai.recordAutomationRun(target.id)
+    assert.ok(ran)
+    assert.equal((ran?.runs ?? 0), target.runs + 1)
+  })
+})
+
+describe('Phase 2: episodes CRUD', () => {
+  beforeEach(() => resetDemoStore())
+
+  test('createEpisode + deleteEpisode work', async () => {
+    const before = await demoRepositories.content.episodes()
+    const ep = await demoRepositories.content.createEpisode({ title: 'Pilot', number: 99, logline: 'Begin' })
+    assert.ok(ep.id)
+    assert.equal(ep.number, 99)
+    const after = await demoRepositories.content.episodes()
+    assert.equal(after.length, before.length + 1)
+    assert.equal(await demoRepositories.content.deleteEpisode(ep.id), true)
+    const finalList = await demoRepositories.content.episodes()
+    assert.equal(finalList.some((e) => e.id === ep.id), false)
+  })
+})

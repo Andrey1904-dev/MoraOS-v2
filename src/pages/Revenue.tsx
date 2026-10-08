@@ -4,7 +4,7 @@ import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, Avatar, Divider, Delta } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateRangePicker } from "@/components/ui/Controls";
-import { SkeletonRows } from "@/components/ui/Feedback";
+import { EmptyState, SkeletonRows } from "@/components/ui/Feedback";
 import { AreaChart, BarChart, Donut } from "@/components/ui/charts";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { useResource } from "@/hooks/useResource";
@@ -15,20 +15,36 @@ export default function Revenue() {
   const [period, setPeriod] = useState("30 days");
 
   const { data: revenue, loading } = useResource(() => repositories.analytics.revenue(period), [period]);
+  const { data: summary } = useResource(() => repositories.analytics.revenueSummary());
   const { data: offers } = useResource(() => repositories.commerce.offers());
   const { data: byOffer } = useResource(() => repositories.commerce.revenueByOffer());
   const { data: bySource } = useResource(() => repositories.commerce.revenueBySource());
   const { data: spenders } = useResource(() => repositories.commerce.topSpenders());
   const { data: fans } = useResource(() => repositories.fans.list());
 
+  const total = summary?.total ?? 0;
+  const monthRev = summary?.thisMonth ?? 0;
+  const weekRev = summary?.thisWeek ?? 0;
+  const todayRev = summary?.today ?? 0;
+  const aov = summary?.averageOrderValue ?? 0;
+  const purchases = summary?.purchases ?? 0;
+  const subs = summary?.subscriptions ?? 0;
+  const subRevenue = summary?.byCategory?.subscription ?? 0;
+  const ppvRevenue = summary?.byCategory?.ppv ?? 0;
+  const tipRevenue = summary?.byCategory?.tip ?? 0;
+  // Net = gross minus an estimated 20% platform fees (placeholder; labelled as estimate)
+  const net = Math.round(total * 0.8 * 100) / 100;
+
   const kpis = [
-    { label: "Revenue", value: "$4,820", delta: 12.4, hint: "gross, all platforms", accent: true },
-    { label: "Net Revenue", value: "$3,910", delta: 11.1, hint: "after platform fees" },
-    { label: "PPV", value: "$1,940", delta: 16.1, hint: "one-time unlocks" },
-    { label: "Subscriptions", value: "$2,610", delta: 8.2, hint: "184 active" },
-    { label: "Tips", value: "$270", delta: -4.2, hint: "17 tips" },
-    { label: "ARPU", value: "$26.20", delta: 3.6, hint: "per paying fan" },
+    { label: "Revenue (all time)", value: currency(total), delta: monthRev > 0 ? Number(((monthRev / Math.max(total - monthRev, 1)) * 100).toFixed(1)) : 0, hint: "gross, all platforms", accent: true },
+    { label: "This month", value: currency(monthRev), delta: 0, hint: "last 30 days" },
+    { label: "This week", value: currency(weekRev), delta: 0, hint: "last 7 days" },
+    { label: "Today", value: currency(todayRev), delta: 0, hint: "since midnight" },
+    { label: "Purchases", value: String(purchases), delta: 0, hint: "paid orders" },
+    { label: "Subscriptions", value: String(subs), delta: 0, hint: "active subs" },
   ];
+
+  const hasData = total > 0 || purchases > 0 || (offers && offers.length > 0);
 
   return (
     <PageContainer>
@@ -56,14 +72,16 @@ export default function Revenue() {
         <Card className="lg:col-span-2">
           <CardHeader
             title="Revenue over time"
-            subtitle={`${period} · gross vs previous period`}
-            action={<Badge tone="pos"><Delta value={12.4} /> period over period</Badge>}
+            subtitle={`${period} · gross`}
+            action={<Badge tone={monthRev > 0 ? "pos" : "neutral"}>{monthRev > 0 ? <Delta value={kpis[1].delta} /> : "no data"} period over period</Badge>}
           />
           <div className="px-5 pb-5">
             {loading ? (
               <div className="h-[240px] animate-pulse rounded-lg bg-surface-2" />
+            ) : revenue && revenue.length > 0 ? (
+              <AreaChart data={revenue} height={240} format="currency" />
             ) : (
-              <AreaChart data={revenue ?? []} height={240} format="currency" />
+              <EmptyState icon={<Wallet className="size-4" />} title="No revenue data yet" description="Connect payment sources or post a paid offer to see revenue here." />
             )}
           </div>
         </Card>
@@ -71,15 +89,21 @@ export default function Revenue() {
         <Card>
           <CardHeader title="Revenue by source" subtitle="Platform attribution" />
           <div className="px-5 pb-5">
-            <Donut
-              segments={bySource ?? []}
-              centerValue="$4,820"
-              centerLabel="gross"
-            />
+            {(bySource && bySource.length > 0) ? (
+              <Donut
+                segments={bySource}
+                centerValue={currency(total, { compact: true })}
+                centerLabel="gross"
+              />
+            ) : (
+              <EmptyState title="No sources yet" description="Revenue events will be attributed here when recorded." />
+            )}
             <Divider className="my-4" />
             <div className="flex items-center gap-2 text-[11.5px] text-muted">
               <Wallet className="size-3.5" />
-              Fanvue carries 58% of revenue; Telegram is the fastest growing source.
+              {hasData
+                ? `AOV ${currency(aov)} across ${purchases} purchase${purchases === 1 ? "" : "s"}.`
+                : "No revenue events recorded."}
             </div>
           </div>
         </Card>
@@ -89,7 +113,11 @@ export default function Revenue() {
         <Card>
           <CardHeader title="Revenue by offer" subtitle="Which products actually sell" />
           <div className="px-5 pb-5">
-            <BarChart data={byOffer ?? []} horizontal format="currency" />
+            {byOffer && byOffer.length > 0 ? (
+              <BarChart data={byOffer} horizontal format="currency" />
+            ) : (
+              <EmptyState title="No offers yet" description="Create offers to see revenue breakdown." />
+            )}
           </div>
         </Card>
 
@@ -115,6 +143,11 @@ export default function Revenue() {
               );
             })}
             {!spenders && <SkeletonRows rows={4} />}
+            {spenders && spenders.length === 0 && (
+              <div className="p-5">
+                <EmptyState title="No spenders yet" description="Purchase events will appear here." />
+              </div>
+            )}
           </div>
         </Card>
       </Grid>
@@ -123,21 +156,31 @@ export default function Revenue() {
         <Card>
           <CardHeader title="Revenue per fan" subtitle="Distribution across the base" />
           <div className="px-5 pb-5">
-            <BarChart
-              data={[
-                { label: "$0", value: 1797 },
-                { label: "$1–50", value: 402 },
-                { label: "$51–150", value: 186 },
-                { label: "$151–400", value: 71 },
-                { label: "$401+", value: 25 },
-              ]}
-              height={150}
-              format="currency"
-            />
-            <Divider className="my-4" />
-            <p className="text-[11.5px] leading-relaxed text-muted">
-              72% of the base has never paid. Moving 2% of them to a first purchase adds roughly $1,040 / month.
-            </p>
+            {hasData ? (
+              <>
+                <div className="grid grid-cols-3 gap-4 pb-4">
+                  <div>
+                    <div className="label">AOV</div>
+                    <div className="num mt-1 text-[15px] font-medium text-ink">{currency(aov)}</div>
+                  </div>
+                  <div>
+                    <div className="label">Subs</div>
+                    <div className="num mt-1 text-[15px] font-medium text-ink">{subs}</div>
+                  </div>
+                  <div>
+                    <div className="label">PPV</div>
+                    <div className="num mt-1 text-[15px] font-medium text-ink">{currency(ppvRevenue)}</div>
+                  </div>
+                </div>
+                <Divider />
+                <p className="mt-4 text-[11.5px] leading-relaxed text-muted">
+                  Tips: {currency(tipRevenue)} · Subscriptions: {currency(subRevenue)}.
+                  Distribution histogram appears once more purchase data is recorded.
+                </p>
+              </>
+            ) : (
+              <EmptyState title="No revenue distribution" description="Wait for purchase events to calculate fan-level distribution." />
+            )}
           </div>
         </Card>
 
@@ -158,36 +201,40 @@ export default function Revenue() {
                 </Badge>
               </div>
             ))}
+            {(!offers || offers.length === 0) && (
+              <EmptyState title="No offers" description="Create an offer to start tracking revenue." />
+            )}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Payout ledger" subtitle="Mock reconciliation" />
+          <CardHeader title="Summary" subtitle="Real data from revenue_events" />
           <div className="space-y-3 px-5 pb-5">
             {[
-              { label: "Fanvue · February", value: 2810, status: "Paid" },
-              { label: "TikTok Creator · February", value: 640, status: "Paid" },
-              { label: "Instagram bonuses", value: 512, status: "Pending" },
-              { label: "Telegram Stars", value: 486, status: "Paid" },
+              { label: "Gross revenue", value: currency(total) },
+              { label: "Est. net after fees", value: currency(net) },
+              { label: "Paid purchases", value: String(purchases) },
+              { label: "Active subscriptions", value: String(subs) },
+              { label: "Average order", value: currency(aov) },
             ].map((r) => (
-              <div key={r.label} className="flex items-center gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[12.5px] text-ink-2">{r.label}</div>
-                </div>
-                <span className="num text-[12.5px] text-ink">{currency(r.value)}</span>
-                <Badge tone={r.status === "Paid" ? "pos" : "warn"} dot>
-                  {r.status}
-                </Badge>
+              <div key={r.label} className="flex items-center justify-between">
+                <div className="text-[12.5px] text-muted">{r.label}</div>
+                <div className="num text-[12.5px] font-medium text-ink">{r.value}</div>
               </div>
             ))}
             <Divider />
-            <div className="flex items-center justify-between">
-              <span className="text-[12.5px] text-muted">Net after fees</span>
-              <span className="num text-[14px] font-medium text-accent-hi">{currency(3910)}</span>
-            </div>
+            <p className="text-[11.5px] leading-relaxed text-muted">
+              Net is an estimate (≈20% platform fees). Real payout reconciliation depends on platform APIs.
+            </p>
           </div>
         </Card>
       </Grid>
+
+      {!hasData && (
+        <div className="mt-4 rounded-lg border border-line bg-canvas-2 p-5 text-center">
+          <p className="text-[12.5px] text-muted">No revenue recorded yet. Switch to demo mode to see a fictional dataset.</p>
+        </div>
+      )}
     </PageContainer>
   );
 }

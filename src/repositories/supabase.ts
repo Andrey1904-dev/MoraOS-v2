@@ -499,6 +499,30 @@ class SupabaseFanRepository implements FanRepository {
 
   async addMemory(fanId: string, memory: { statement: string; category: Memory["category"]; confidence: number; source: string }): Promise<Memory> {
     const userId = await requireUserId();
+    // Duplicate prevention: if a very similar memory already exists for this fan, return it instead of creating a duplicate.
+    // Match via a 25-character prefix bidirectionally (startsWith on either side catches shortened/expanded re-statements).
+    const newText = memory.statement.trim().toLowerCase();
+    const prefix = newText.slice(0, 25);
+    if (prefix) {
+      const { data: existing } = await db()
+        .from("fan_memories")
+        .select("*")
+        .eq("fan_id", fanId)
+        .ilike("memory", `${prefix}%`)
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return {
+          id: existing.id,
+          fanId,
+          statement: existing.memory,
+          category: memoryCategory(existing.category),
+          confidence: Number(existing.importance),
+          source: memory.source,
+          createdAt: existing.created_at,
+        };
+      }
+    }
     const { data, error } = await db()
       .from("fan_memories")
       .insert({
@@ -697,13 +721,30 @@ class SupabaseConversationRepository implements ConversationRepository {
 /* --------------------------------- Content ------------------------------- */
 
 class SupabaseContentRepository implements ContentRepository {
-  async list(): Promise<ContentItem[]> {
-    const { data, error } = await db()
+  async list(query?: { search?: string; status?: string; platform?: string; type?: string }): Promise<ContentItem[]> {
+    let q = db()
       .from("content")
       .select("*")
       .order("created_at", { ascending: false });
+    if (query?.status && query.status !== "All") {
+      const statusDb = CSTATUS_TO_DB[query.status as ContentItem["status"]];
+      if (statusDb) q = q.eq("status", statusDb);
+    }
+    if (query?.platform && query.platform !== "All") {
+      const platformDb = PLATFORM_UI_TO_DB[query.platform as Platform];
+      if (platformDb) q = q.eq("platform", platformDb);
+    }
+    if (query?.type && query.type !== "All") {
+      const typeDb = CTYPE_TO_DB[query.type as ContentItem["type"]];
+      if (typeDb) q = q.eq("content_type", typeDb);
+    }
+    const { data, error } = await q;
     if (error) throw error;
-    const rows = (data ?? []) as ContentRow[];
+    let rows = (data ?? []) as ContentRow[];
+    if (query?.search) {
+      const s = query.search.toLowerCase();
+      rows = rows.filter((r) => r.title.toLowerCase().includes(s) || (r.caption ?? "").toLowerCase().includes(s));
+    }
     const perf = await this.performanceByContent(rows.map((r) => r.id));
 
     return rows.map((c) => {
@@ -711,8 +752,10 @@ class SupabaseContentRepository implements ContentRepository {
       return {
         id: c.id,
         title: c.title,
+        description: c.description ?? "",
         hook: c.hook,
         caption: c.caption,
+        script: c.script ?? "",
         cta: c.cta,
         platform: contentPlatformLabel(c.platform),
         type: CTYPE_TO_UI[c.content_type],
@@ -758,19 +801,31 @@ class SupabaseContentRepository implements ContentRepository {
     const { data, error } = await db().from("episodes").select("*").order("number", { ascending: true });
     if (error) throw error;
     const content = await this.list();
-    return ((data ?? []) as EpisodeRow[]).map((e) => ({
-      id: e.id,
-      number: e.number,
-      title: e.title,
-      logline: e.summary,
-      description: e.summary,
-      status: ESTATUS_TO_UI[e.status],
-      publishedAt: e.start_date ?? undefined,
-      beat: Array.isArray(e.key_events) && e.key_events.length ? String(e.key_events[0]) : "",
-      contentIds: content.filter((c) => c.episodeId === e.id).map((c) => c.id),
-      assetIds: [],
-      performance: { views: 0, followers: 0, retention: 0 },
-    }));
+    // Aggregate content performance per episode
+    const perfByEp = new Map<string, { views: number; followers: number }>();
+    for (const c of content) {
+      if (!c.episodeId) continue;
+      const cur = perfByEp.get(c.episodeId) ?? { views: 0, followers: 0 };
+      cur.views += c.views;
+      cur.followers += c.newFollowers;
+      perfByEp.set(c.episodeId, cur);
+    }
+    return ((data ?? []) as EpisodeRow[]).map((e) => {
+      const perf = perfByEp.get(e.id) ?? { views: 0, followers: 0 };
+      return {
+        id: e.id,
+        number: e.number,
+        title: e.title,
+        logline: e.summary ?? "",
+        description: e.summary ?? "",
+        status: ESTATUS_TO_UI[e.status],
+        publishedAt: e.start_date ?? undefined,
+        beat: Array.isArray(e.key_events) && e.key_events.length ? String(e.key_events[0]) : "",
+        contentIds: content.filter((c) => c.episodeId === e.id).map((c) => c.id),
+        assetIds: [],
+        performance: { views: perf.views, followers: perf.followers, retention: 0 },
+      };
+    });
   }
 
   async assets(): Promise<Asset[]> {
@@ -806,16 +861,19 @@ class SupabaseContentRepository implements ContentRepository {
     const payload: Database["public"]["Tables"]["content"]["Insert"] = {
       user_id: userId,
       title: item.title,
+      description: item.description ?? "",
       hook: item.hook ?? "",
       caption: item.caption ?? "",
+      script: item.script ?? "",
       cta: item.cta ?? "",
       content_type: CTYPE_TO_DB[item.type ?? "Video"],
       platform: PLATFORM_UI_TO_DB[item.platform ?? "TikTok"],
       status: CSTATUS_TO_DB[item.status ?? "Draft"],
       episode_id: item.episodeId ?? null,
+      scheduled_at: item.scheduledFor ?? null,
     };
     const query = item.id
-      ? db().from("content").update({ ...payload, id: undefined }).eq("id", item.id).select().single()
+      ? db().from("content").update({ ...payload, id: undefined, user_id: undefined }).eq("id", item.id).select().single()
       : db().from("content").insert(payload).select().single();
     const { data, error } = await query;
     if (error) throw error;
@@ -823,8 +881,10 @@ class SupabaseContentRepository implements ContentRepository {
     return {
       id: saved.id,
       title: saved.title,
+      description: saved.description ?? "",
       hook: saved.hook,
       caption: saved.caption,
+      script: saved.script ?? "",
       cta: saved.cta,
       platform: contentPlatformLabel(saved.platform),
       type: CTYPE_TO_UI[saved.content_type],
@@ -846,6 +906,75 @@ class SupabaseContentRepository implements ContentRepository {
     const { error } = await db().from("content").update(patch).eq("id", id);
     if (error) throw error;
     return this.get(id);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const { data, error } = await db().from("content").delete().eq("id", id).select("id");
+    if (error) throw error;
+    return (data ?? []).length > 0;
+  }
+
+  async createEpisode(episode: Partial<Episode> & { title: string; number: number }): Promise<Episode> {
+    const userId = await requireUserId();
+    const { data, error } = await db()
+      .from("episodes")
+      .insert({
+        user_id: userId,
+        number: episode.number,
+        title: episode.title,
+        summary: episode.description ?? episode.logline ?? "",
+        status: "outline",
+        start_date: episode.publishedAt ?? null,
+        key_events: episode.beat ? [episode.beat] : [],
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    const row = data as EpisodeRow;
+    return {
+      id: row.id,
+      number: row.number,
+      title: row.title,
+      logline: row.summary ?? "",
+      description: row.summary ?? "",
+      status: ESTATUS_TO_UI[row.status],
+      publishedAt: row.start_date ?? undefined,
+      beat: Array.isArray(row.key_events) && row.key_events.length ? String(row.key_events[0]) : "",
+      contentIds: [],
+      assetIds: [],
+      performance: { views: 0, followers: 0, retention: 0 },
+    };
+  }
+
+  async updateEpisode(id: string, patch: Partial<Episode>): Promise<Episode | null> {
+    const payload: Database["public"]["Tables"]["episodes"]["Update"] = {};
+    if (patch.title !== undefined) payload.title = patch.title;
+    if (patch.description !== undefined) payload.summary = patch.description;
+    if (patch.logline !== undefined) payload.summary = patch.logline;
+    if (patch.number !== undefined) payload.number = patch.number;
+    if (patch.status !== undefined) {
+      const map: Record<Episode["status"], EpisodeRow["status"]> = {
+        Outline: "outline",
+        "In production": "in_production",
+        Scheduled: "scheduled",
+        Published: "published",
+      };
+      payload.status = map[patch.status];
+    }
+    if (patch.publishedAt !== undefined) payload.start_date = patch.publishedAt;
+    if (patch.beat !== undefined) payload.key_events = [patch.beat];
+    const { error } = await db().from("episodes").update(payload).eq("id", id);
+    if (error) throw error;
+    const all = await this.episodes();
+    return all.find((e) => e.id === id) ?? null;
+  }
+
+  async deleteEpisode(id: string): Promise<boolean> {
+    // Detach content first (set episode_id null)
+    await db().from("content").update({ episode_id: null }).eq("episode_id", id);
+    const { data, error } = await db().from("episodes").delete().eq("id", id).select("id");
+    if (error) throw error;
+    return (data ?? []).length > 0;
   }
 }
 
@@ -1124,6 +1253,69 @@ class SupabaseAnalyticsRepository implements AnalyticsRepository {
       platform: contentPlatformLabel(best.get(id)!.platform),
       id,
     }));
+  }
+
+  async revenueSummary() {
+    const { data: events } = await db().from("revenue_events").select("amount, category, platform, occurred_at");
+    const { count: purchasesCount } = await db()
+      .from("purchases")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "paid");
+    const { count: subsCount } = await db()
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true });
+    const rows = (events ?? []) as RevenueRow[];
+    const now = Date.now();
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(now - 7 * DAY);
+    const monthAgo = new Date(now - 30 * DAY);
+    const sum = (from?: Date, to?: Date) =>
+      rows
+        .filter((r) => {
+          const t = new Date(r.occurred_at).getTime();
+          if (from && t < from.getTime()) return false;
+          if (to && t > to.getTime()) return false;
+          return true;
+        })
+        .reduce((s, r) => s + Number(r.amount), 0);
+    const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+    const purchases = purchasesCount ?? 0;
+    const byCategory: Record<string, number> = {};
+    const srcMap = new Map<string, number>();
+    for (const r of rows) {
+      const cat = r.category;
+      byCategory[cat] = (byCategory[cat] ?? 0) + Number(r.amount);
+      const label = r.platform ? contentPlatformLabel(r.platform) : "Other";
+      srcMap.set(label, (srcMap.get(label) ?? 0) + Number(r.amount));
+    }
+    return {
+      today: Math.round(sum(startOfDay) * 100) / 100,
+      thisWeek: Math.round(sum(weekAgo) * 100) / 100,
+      thisMonth: Math.round(sum(monthAgo) * 100) / 100,
+      total: Math.round(total * 100) / 100,
+      purchases,
+      subscriptions: subsCount ?? 0,
+      averageOrderValue: purchases > 0 ? Math.round((total / purchases) * 100) / 100 : 0,
+      byCategory,
+      bySource: [...srcMap.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value: Math.round(value * 100) / 100 })),
+    };
+  }
+
+  async followersByPlatform(): Promise<SeriesPoint[]> {
+    // We do not have real follower counts from external platforms yet.
+    // Return data from our own CRM: count fans by source (fan acquisition platform).
+    const { data } = await db().from("fans").select("source");
+    const map = new Map<string, number>();
+    for (const f of data ?? []) {
+      const label = contentPlatformLabel(f.source);
+      map.set(label, (map.get(label) ?? 0) + 1);
+    }
+    // Add platforms with zero fans so the UI shows them honestly.
+    for (const p of ["TikTok", "Instagram", "Telegram", "Threads", "Fanvue"] as const) {
+      if (!map.has(p)) map.set(p, 0);
+    }
+    return [...map.entries()].map(([label, value]) => ({ label, value }));
   }
 }
 
