@@ -4,10 +4,8 @@
 -- Все данные ФИКТИВНЫЕ: персонаж, фанаты, переписки и покупки придуманы
 -- для демонстрации интерфейса. Реальных персональных данных здесь нет.
 --
--- Применение (после schema.sql): Supabase Dashboard → SQL Editor → Run.
--- Сид привязывается к ПЕРВОМУ пользователю проекта; чтобы выбрать другого,
--- замените вызов в конце файла на
---   select public.mara_seed('<user-uuid>');
+-- Применение (после миграций 0001–0004): Supabase Dashboard → SQL Editor → Run,
+-- затем вызов с uuid владельца (см. строку в конце файла).
 -- Повторный запуск безопасен: если персонаж Mara уже существует, сид
 -- ничего не дублирует.
 -- ============================================================================
@@ -211,7 +209,7 @@ end $$;
 revoke all on function public.mara_seed(uuid) from public, anon, authenticated;
 grant execute on function public.mara_seed(uuid) to service_role;
 
--- Применить к первому пользователю проекта (или замените на свой uuid):
-select public.mara_seed((select id from auth.users order by created_at limit 1))
-  where exists (select 1 from auth.users)
-    and not exists (select 1 from public.characters where slug = 'mara-quinn');
+-- Автозапуска нет: сид никогда не привязывается к «первому попавшемуся» пользователю
+-- (на проекте с несколькими аккаунтами это сделало бы чужие данные видимыми владельцу).
+-- Выполните вручную, подставив uuid владельца из Authentication → Users:
+--   select public.mara_seed('<uuid владельца>');

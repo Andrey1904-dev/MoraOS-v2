@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Mara OS — Supabase Storage: бакеты и политики доступа
 --
--- Применять ПОСЛЕ supabase/schema.sql (Dashboard → SQL Editor → Run).
+-- Миграция 0003. Применять ПОСЛЕ 0002 (Dashboard → SQL Editor → Run).
 --
 -- Модель доступа: все бакеты приватные. Владелец кладёт файлы в папку
 -- вида `<user_id>/...` и читает/меняет только свою папку. Приватный контент
@@ -22,7 +22,7 @@ on conflict (id) do nothing;
 create or replace function public.storage_owner_folder(name text)
 returns boolean
 language sql
-immutable
+stable
 as $$
   select coalesce((storage.foldername(name))[1] = auth.uid()::text, false);
 $$;

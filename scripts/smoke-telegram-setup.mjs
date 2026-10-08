@@ -26,7 +26,7 @@ const dir = mkdtempSync(path.join(tmpdir(), 'tg-setup-'))
 // Фиктивные значения нужного формата — не настоящие секреты.
 const TOKEN = '1234567890:SMOKE_fake_token_abcdefghijklmnopqrstuv'
 const SECRET = 'smoke-webhook-secret-0123456789abcdef'
-const SITE = 'https://andrey1904-dev.github.io/LadaGrantaCredit/'
+const SITE = 'https://andrey1904-dev.github.io/MoraOS-v2/'
 
 let failed = 0
 const check = (name, ok, detail = '') => {
@@ -83,7 +83,7 @@ function runSetup(name, env, args = []) {
 /* -------------------------------------------------------- ошибки конфигурации --- */
 for (const [name, url] of [
   ['нет WEB_APP_URL', ''],
-  ['HTTP вместо HTTPS', 'http://andrey1904-dev.github.io/LadaGrantaCredit/'],
+  ['HTTP вместо HTTPS', 'http://andrey1904-dev.github.io/MoraOS-v2/'],
   ['localhost', 'https://localhost:5173/'],
 ]) {
   const { status, output, calls } = runSetup(`bad-${name}`, { WEB_APP_URL: url })

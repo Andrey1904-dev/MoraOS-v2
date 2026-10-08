@@ -154,7 +154,7 @@ const server = createServer((req, res) => {
   })
 })
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`Mock Supabase Auth: http://0.0.0.0:${PORT}`)
   console.log(`  подтверждение email: ${AUTOCONFIRM ? 'выключено' : 'включено'}`)
   console.log(`  лимит писем: ${QUOTA} в час (дальше — over_email_send_rate_limit)`)

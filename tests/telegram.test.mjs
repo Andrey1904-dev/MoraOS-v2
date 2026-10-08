@@ -14,7 +14,7 @@ import {
 } from '../bot/format.mjs'
 import { MINI_APP_SCREENS } from '../bot/format.mjs'
 
-const SITE = 'https://andrey1904-dev.github.io/LadaGrantaCredit/'
+const SITE = 'https://andrey1904-dev.github.io/MoraOS-v2/'
 
 test('one-time Telegram codes are readable, normalized and hashed consistently', () => {
   const code = createLinkCode((size) => Buffer.from([0, 1, 2, 3, 4].slice(0, size)))
@@ -293,7 +293,7 @@ test('normalizeMiniAppUrl accepts only public HTTPS and strips the hash', async 
   assert.equal(normalizeMiniAppUrl(SITE), SITE)
   assert.equal(normalizeMiniAppUrl(` ${SITE}#/fans `), SITE)
   for (const bad of [
-    '', '   ', null, undefined, 'not a url', 'http://andrey1904-dev.github.io/LadaGrantaCredit/',
+    '', '   ', null, undefined, 'not a url', 'http://andrey1904-dev.github.io/MoraOS-v2/',
     'https://localhost:5173/', 'https://127.0.0.1/', 'https://user:pass@example.com/', 'javascript:alert(1)',
     'tg://resolve?domain=x',
   ]) {
@@ -347,7 +347,7 @@ test('link-code message points at the Telegram section via ?screen=telegram', as
 })
 
 test('without WEB_APP_URL — or with a bad one — the console button is hidden', async () => {
-  for (const url of ['', 'http://andrey1904-dev.github.io/LadaGrantaCredit/', 'junk']) {
+  for (const url of ['', 'http://andrey1904-dev.github.io/MoraOS-v2/', 'junk']) {
     const { bot, sent } = await recordingBot(url)
     await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/menu' } })
     const buttons = allButtons(sent.findLast((m) => m.method === 'sendMessage' || m.method === 'sendPhoto'))

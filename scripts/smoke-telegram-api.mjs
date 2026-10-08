@@ -97,7 +97,7 @@ const app = createApp({
   supabaseServiceRoleKey: 'service-role-key',
   telegramToken: '8703956173:TEST-TOKEN-0123456789abcdefghij',
   webhookSecret: 'webhook-secret',
-  webAppUrl: 'https://andrey1904-dev.github.io/LadaGrantaCredit/',
+  webAppUrl: 'https://andrey1904-dev.github.io/MoraOS-v2/',
   fetchImpl: (...args) => globalThis.fetch(...args),
   now: () => clock,
   logger: { warn() {}, error() {} },

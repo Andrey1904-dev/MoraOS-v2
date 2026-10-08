@@ -9,7 +9,7 @@ import { supabaseBackend } from './supabase'
  * Раньше выбор был «жёстким»: если ключи Supabase заданы — только Supabase,
  * иначе — localStorage. Из-за этого на опубликованной сборке (а ключи в
  * GitHub Actions задаются всегда) кнопка «Войти в демо-режим» пыталась
- * залогиниться в Supabase под несуществующим `demo@lada.ru` и молча падала:
+ * залогиниться в Supabase под несуществующим `demo@mara.app` и молча падала:
  * демо-режим был недоступен в принципе.
  *
  * Теперь демо — это переключатель во время работы приложения:
@@ -18,7 +18,7 @@ import { supabaseBackend } from './supabase'
  * Выход из аккаунта возвращает приложение в облачный режим.
  */
 
-const DEMO_FLAG = 'lgc_demo_mode'
+const DEMO_FLAG = 'mara_os.demo_mode'
 
 type Listener = () => void
 const listeners = new Set<Listener>()

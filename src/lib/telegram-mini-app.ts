@@ -131,8 +131,8 @@ export function hasLaunchParams(hash: string, search = ''): boolean {
 }
 
 /**
- * Разбирает hash, который получил Mini App: `#tgWebAppData=…`, `#/garage?tgWebApp…`
- * или `#/garage&tgWebApp…`. Возвращает маршрут HashRouter (только из известных)
+ * Разбирает hash, который получил Mini App: `#tgWebAppData=…`, `#/fans?tgWebApp…`
+ * или `#/fans&tgWebApp…`. Возвращает маршрут HashRouter (только из известных)
  * и признак того, что в hash были параметры Telegram.
  */
 export function splitLaunchHash(hash: string): { route: string | null; hadLaunchParams: boolean } {
