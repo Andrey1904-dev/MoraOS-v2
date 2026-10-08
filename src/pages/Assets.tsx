@@ -47,7 +47,7 @@ export default function Assets() {
         title="Assets"
         description="Visual library of everything Mara can appear in — generations, references, outfits, locations and expressions."
         actions={
-          <Button variant="primary" onClick={() => push({ title: "Generation queued", description: "8 images requested from the local model.", tone: "success" })}>
+          <Button variant="primary" disabled title="Not available yet">
             <ImagePlus className="size-3.5" /> Generate assets
           </Button>
         }
@@ -164,7 +164,7 @@ export default function Assets() {
                   variant="subtle"
                   onClick={() => {
                     setActive({ ...active, approval: "Rejected" });
-                    push({ title: "Asset rejected", description: "It will not be matched to new content.", tone: "warn" });
+                    push({ title: "Asset rejected here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "warn" });
                   }}
                 >
                   <X className="size-3.5" /> Reject
@@ -174,7 +174,7 @@ export default function Assets() {
                   variant="primary"
                   onClick={() => {
                     setActive({ ...active, approval: "Approved" });
-                    push({ title: "Asset approved", description: "Available for the Content Agent.", tone: "success" });
+                    push({ title: "Asset approved here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "success" });
                   }}
                 >
                   <Check className="size-3.5" /> Approve

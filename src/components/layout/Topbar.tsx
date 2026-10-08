@@ -18,11 +18,15 @@ import { media } from "@/data/media";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/utils/cn";
 
-const notifications = [
-  { id: 1, title: "12 conversations awaiting approval", meta: "Conversation Agent · 41 min oldest", tone: "warn" },
-  { id: 2, title: "Episode 05 ready to publish", meta: "Scheduled Friday 18:00", tone: "info" },
-  { id: 3, title: "Ben Adler cancelled subscription", meta: "Churn risk · LTV $306", tone: "neg" },
-  { id: 4, title: "Asset approved: Mara · late night", meta: "Quality 97 · used in 3 items", tone: "pos" },
+/**
+ * Примеры уведомлений — только в демо-режиме (вымышленные данные). В облачном
+ * режиме уведомлений пока нет: показываем пустое состояние, а не выдуманные события.
+ */
+const demoNotifications = [
+  { id: 1, title: "12 conversations awaiting approval", meta: "Sample data · Conversation Agent", tone: "warn" },
+  { id: 2, title: "Episode 05 ready to publish", meta: "Sample data · Scheduled Friday 18:00", tone: "info" },
+  { id: 3, title: "Ben Adler cancelled subscription", meta: "Sample data · Churn risk", tone: "neg" },
+  { id: 4, title: "Asset approved: Mara · late night", meta: "Sample data · Quality 97", tone: "pos" },
 ];
 
 export function Topbar({
@@ -36,6 +40,7 @@ export function Topbar({
   const navigate = useNavigate();
   const { user, mode, demoOnly, signOut } = useAuth();
   const [read, setRead] = useState(false);
+  const notifications = mode === "demo" ? demoNotifications : [];
 
   const crumbs = pathname.split("/").filter(Boolean);
 
@@ -86,10 +91,12 @@ export function Topbar({
             <span className="text-[11.5px] font-medium text-warn">Demo mode</span>
           </div>
         )}
-        <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-canvas-2 px-2.5 py-1.5 xl:flex">
-          <Circle className="size-1.5 fill-pos text-pos" />
-          <span className="text-[11.5px] text-muted">6 agents online</span>
-        </div>
+        {mode === "demo" && (
+          <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-canvas-2 px-2.5 py-1.5 xl:flex">
+            <Circle className="size-1.5 fill-warn text-warn" />
+            <span className="text-[11.5px] text-muted">Sample agents</span>
+          </div>
+        )}
 
         <Dropdown
           align="end"
@@ -99,7 +106,7 @@ export function Topbar({
               aria-label="Notifications"
             >
               <Bell className="size-4" strokeWidth={1.75} />
-              {!read && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
+              {!read && notifications.length > 0 && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
             </button>
           }
         >
@@ -107,17 +114,22 @@ export function Topbar({
             <div className="w-80">
               <div className="flex items-center justify-between px-2.5 py-2">
                 <span className="text-[12.5px] font-medium text-ink">Notifications</span>
-                <button
-                  onClick={() => {
-                    setRead(true);
-                    close();
-                  }}
-                  className="text-[11px] text-muted transition-colors hover:text-ink"
-                >
-                  Mark all read
-                </button>
+                {notifications.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setRead(true);
+                      close();
+                    }}
+                    className="text-[11px] text-muted transition-colors hover:text-ink"
+                  >
+                    Mark all read
+                  </button>
+                )}
               </div>
               <MenuSeparator />
+              {notifications.length === 0 && (
+                <div className="px-2.5 py-3 text-[12px] text-muted">No notifications yet.</div>
+              )}
               {notifications.map((n) => (
                 <div key={n.id} className="flex gap-2.5 rounded-md px-2.5 py-2 hover:bg-surface-3">
                   <Circle
@@ -143,7 +155,7 @@ export function Topbar({
           align="end"
           trigger={
             <button className="flex items-center gap-2 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-surface-2">
-              <img src={media.mara} alt="Mara Quinn" className="size-6 rounded-full object-cover" />
+              <img src={media.mara} alt="Mara Quinn" className="size-6 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
               <ChevronDown className="size-3.5 text-faint" />
             </button>
           }

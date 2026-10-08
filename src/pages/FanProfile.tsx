@@ -5,10 +5,12 @@ import {
   Brain,
   CalendarClock,
   CircleDollarSign,
+  Download,
   MessagesSquare,
   Pencil,
   Send,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { PageContainer } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, StatusBadge, Avatar, KeyStat, Divider, ProgressBar } from "@/components/ui/Card";
@@ -19,6 +21,10 @@ import { AINote } from "@/components/common/AICard";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { ago, currency, longDate, number as fmtNum } from "@/lib/format";
+import { exportFileName, fanDossierToJson } from "@/lib/export";
+import { downloadTextFile } from "@/lib/download";
+import { trackEvent } from "@/lib/events";
+import { confirmAction } from "@/lib/telegram-mini-app";
 import { cn } from "@/utils/cn";
 
 const TABS = ["Overview", "Conversations", "Purchases", "Memories", "Events"] as const;
@@ -34,6 +40,45 @@ export default function FanProfile() {
   const { data: events } = useResource(() => repositories.fans.events(id), [id]);
   const { data: purchases } = useResource(() => repositories.fans.purchases(id), [id]);
   const { data: conversations } = useResource(() => repositories.conversations.list());
+
+  /** Досье фана в JSON: всё, что хранится о нём (право на доступ и переносимость). */
+  const exportFan = async () => {
+    const dossier = await repositories.fans.exportData(id);
+    if (!dossier) {
+      push({ title: "Not found", description: "This fan no longer exists.", tone: "error" });
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    const outcome = await downloadTextFile(
+      `${exportFileName("fan", stamp, id)}.json`,
+      fanDossierToJson(dossier),
+      "application/json;charset=utf-8",
+    );
+    void trackEvent({ type: "fan_exported", entityType: "fan", entityId: id });
+    if (outcome === "downloaded" || outcome === "shared") {
+      push({ title: "Export ready", description: "The data file for this fan is ready.", tone: "success" });
+    }
+  };
+
+  /** Удаление данных фана: профиль, переписки, воспоминания, покупки и подписки. Необратимо. */
+  const eraseFan = async () => {
+    const ok = await confirmAction(
+      `Delete ${fan?.name ?? "this fan"} and all related messages, memories, purchases and subscriptions? This cannot be undone.`,
+    );
+    if (!ok) return;
+    try {
+      const removed = await repositories.fans.erase(id);
+      if (!removed) {
+        push({ title: "Not found", description: "This fan no longer exists.", tone: "error" });
+        return;
+      }
+      void trackEvent({ type: "fan_erased", entityType: "fan", entityId: id });
+      push({ title: "Fan data deleted", description: "The profile and related records were removed.", tone: "success" });
+      navigate("/fans");
+    } catch (error) {
+      push({ title: "Delete failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    }
+  };
 
   const fanConversations = useMemo(
     () => (conversations ?? []).filter((c) => c.fanId === id),
@@ -116,8 +161,15 @@ export default function FanProfile() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => push({ title: "Profile edit", description: "Manual edits land with the CRM layer.", tone: "default" })}>
+            {/* Ручное редактирование фанов ещё не реализовано: неактивно, без имитации. */}
+            <Button variant="outline" disabled title="Editing fans is not available yet" aria-label="Edit fan (not available yet)">
               <Pencil className="size-3.5" /> Edit
+            </Button>
+            <Button variant="outline" onClick={() => void exportFan()}>
+              <Download className="size-3.5" /> Export data
+            </Button>
+            <Button variant="danger" onClick={() => void eraseFan()}>
+              <Trash2 className="size-3.5" /> Delete data
             </Button>
             <Link to={`/conversations?fan=${fan.id}`}>
               <Button variant="secondary">
@@ -356,18 +408,8 @@ export default function FanProfile() {
                     {recommendation.confidence}%
                   </span>
                 </div>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() =>
-                    push({
-                      title: "Draft created",
-                      description: "The message was saved as a draft — nothing was sent.",
-                      tone: "success",
-                    })
-                  }
-                >
-                  <Send className="size-3.5" /> Draft message
+                <Button variant="primary" size="sm" onClick={() => navigate(`/conversations?fan=${fan.id}`)}>
+                  <Send className="size-3.5" /> Open in inbox
                 </Button>
               </div>
             </div>

@@ -463,7 +463,6 @@ describe('Demo store', () => {
 /* ------------------------------------------ выгрузки, удаление и пароли --- */
 import { csvCell, fansToCsv, fanDossierToJson, exportFileName, toCsv } from '../src/lib/export'
 import { passwordProblem, PASSWORD_MIN_LENGTH } from '../src/lib/passwordPolicy'
-import { demoRepositories } from '../src/repositories/demo'
 
 describe('CSV exports', () => {
   test('cells are quoted and protected against spreadsheet formula injection', () => {

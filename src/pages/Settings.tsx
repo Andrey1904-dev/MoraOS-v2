@@ -10,10 +10,10 @@ import {
   Users,
 } from "lucide-react";
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
-import { Card, CardHeader, Badge, Avatar, Divider, KeyStat, StatusBadge } from "@/components/ui/Card";
+import { Card, CardHeader, Badge, Avatar, Divider, KeyStat } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, textareaClass, Select, Switch } from "@/components/ui/Controls";
-import { useToast } from "@/components/ui/Feedback";
+
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { media } from "@/data/media";
@@ -23,7 +23,6 @@ import { cn } from "@/utils/cn";
 const SECTIONS = ["Character", "AI", "Platforms", "Notifications", "Team", "Security", "Telegram"] as const;
 
 export default function Settings() {
-  const { push } = useToast();
   const { data: character } = useResource(() => repositories.character.get());
   const [section, setSection] = useState<(typeof SECTIONS)[number]>("Character");
 
@@ -51,7 +50,7 @@ export default function Settings() {
         title="Settings"
         description="Character definition, AI behaviour, platform connections and workspace controls."
         actions={
-          <Button variant="primary" onClick={() => push({ title: "Settings saved", description: "Applied to all agents on the next run.", tone: "success" })}>
+          <Button variant="primary" disabled title="Settings cannot be saved yet" aria-label="Save changes (not available yet)">
             Save changes
           </Button>
         }
@@ -242,10 +241,10 @@ export default function Settings() {
               <CardHeader title="Platforms" subtitle="Connectors are UI-only in v1" />
               <div className="divide-y divide-line px-5 pb-3">
                 {[
-                  { name: "Fanvue", detail: "Subscription, PPV, messaging", status: "Connected" },
-                  { name: "Telegram", detail: "Broadcast + DM channel", status: "Connected" },
-                  { name: "TikTok", detail: "Publishing + analytics", status: "Read only" },
-                  { name: "Instagram", detail: "Publishing + DM inbox", status: "Read only" },
+                  { name: "Fanvue", detail: "Subscription, PPV, messaging", status: "Not connected" },
+                  { name: "Telegram", detail: "Assistant bot and Mini App · fan DMs not connected", status: "Bot only" },
+                  { name: "TikTok", detail: "Publishing + analytics", status: "Not connected" },
+                  { name: "Instagram", detail: "Publishing + DM inbox", status: "Not connected" },
                   { name: "Threads", detail: "Text posts + replies", status: "Not connected" },
                 ].map((p) => (
                   <div key={p.name} className="flex flex-wrap items-center gap-3 py-3.5">
@@ -256,10 +255,10 @@ export default function Settings() {
                       <div className="text-[13px] font-medium text-ink">{p.name}</div>
                       <div className="text-[11.5px] text-muted">{p.detail}</div>
                     </div>
-                    <Badge tone={p.status === "Connected" ? "pos" : p.status === "Read only" ? "info" : "neutral"} dot>
+                    <Badge tone={p.status === "Bot only" ? "info" : "neutral"} dot>
                       {p.status}
                     </Badge>
-                    <Button size="sm" variant="subtle" onClick={() => push({ title: `${p.name}`, description: "Connectors arrive with the integrations phase.", tone: "default" })}>
+                    <Button size="sm" variant="subtle" disabled title="Connectors are not available yet" aria-label={`Manage ${p.name} (not available yet)`}>
                       Manage
                     </Button>
                   </div>
@@ -286,7 +285,7 @@ export default function Settings() {
               <CardHeader
                 title="Team"
                 subtitle="Roles for the workspace"
-                action={<Button size="sm" variant="subtle" onClick={() => push({ title: "Invite flow", description: "Available with authentication.", tone: "default" })}>Invite</Button>}
+                action={<Button size="sm" variant="subtle" disabled title="Not available yet">Invite</Button>}
               />
               <div>
                 {[
@@ -337,27 +336,27 @@ export default function Settings() {
               </Card>
 
               <Card>
-                <CardHeader title="Architecture" subtitle="What is mock today" />
+                <CardHeader title="Architecture" subtitle="What is implemented today" />
                 <div className="px-5 pb-5">
                   <div className="grid grid-cols-2 gap-5">
                     <KeyStat label="UI layer" value="Complete" hint="this build" />
-                    <KeyStat label="Repositories" value="Mock" hint="interface ready" />
+                    <KeyStat label="Repositories" value="Implemented" hint="demo and Supabase share one interface" />
                   </div>
                   <Divider className="my-4" />
                   <div className="space-y-2">
                     {[
-                      { name: "FanRepository", status: "Mock" },
-                      { name: "ContentRepository", status: "Mock" },
-                      { name: "ConversationRepository", status: "Mock" },
-                      { name: "CommerceRepository", status: "Mock" },
-                      { name: "AnalyticsRepository", status: "Mock" },
-                      { name: "AIProvider", status: "Interface" },
-                      { name: "FanvueAdapter", status: "Interface" },
-                      { name: "TelegramAdapter", status: "Interface" },
+                      { name: "FanRepository", status: "Implemented" },
+                      { name: "ContentRepository", status: "Implemented" },
+                      { name: "ConversationRepository", status: "Implemented" },
+                      { name: "CommerceRepository", status: "Implemented" },
+                      { name: "AnalyticsRepository", status: "Implemented" },
+                      { name: "AIProvider", status: "Mock provider until configured" },
+                      { name: "FanvueAdapter", status: "Not started" },
+                      { name: "TelegramAdapter", status: "Bot and Mini App live" },
                     ].map((r) => (
                       <div key={r.name} className="flex items-center justify-between rounded-lg border border-line bg-canvas-2/40 px-3 py-2">
                         <span className="font-mono text-[11.5px] text-ink-2">{r.name}</span>
-                        <StatusBadge status={r.status === "Mock" ? "Draft" : "Scheduled"} dot={false} />
+                        <span className="text-right text-[11.5px] text-muted">{r.status}</span>
                       </div>
                     ))}
                   </div>

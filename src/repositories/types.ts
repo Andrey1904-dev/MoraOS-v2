@@ -17,6 +17,7 @@ import type {
   SeriesPoint,
   Task,
 } from "@/types";
+import type { FanDossier } from "@/lib/export";
 
 /**
  * Контракт слоя данных Mara OS.
@@ -38,6 +39,10 @@ export interface FanRepository {
     memory: { statement: string; category: Memory["category"]; confidence: number; source: string },
   ): Promise<Memory>;
   setRelationship(id: string, level: Fan["relationship"]): Promise<Fan | null>;
+  /** Всё, что хранится о фане (экспорт по запросу). null — фана нет. */
+  exportData(fanId: string): Promise<FanDossier | null>;
+  /** Удаляет фана и связанные персональные данные. false — фана не было. */
+  erase(fanId: string): Promise<boolean>;
 }
 
 export interface SendMessageInput {
@@ -49,11 +54,14 @@ export interface SendMessageInput {
 export interface ConversationRepository {
   list(): Promise<Conversation[]>;
   messages(conversationId: string): Promise<Message[]>;
-  /** Отправить одобренное сообщение (human approval уже получен в UI). */
+  /**
+   * Записать сообщение. Ответ оператора получает статус approved: доставка фану
+   * в приложении пока не подключена, поэтому «sent» здесь не ставится.
+   */
   sendMessage(conversationId: string, input: SendMessageInput): Promise<Message>;
   /** Сохранить AI-черновик: ждёт Edit/Approve/Send в инбоксе. */
   saveDraft(conversationId: string, body: string, meta?: { tone?: string; intent?: string; confidence?: number }): Promise<Message>;
-  /** Одобрить и отправить черновик. */
+  /** Одобрить черновик (статус approved). Доставка фану не выполняется. */
   approveDraft(conversationId: string, messageId: string, body?: string): Promise<Message>;
   markRead(conversationId: string): Promise<void>;
 }

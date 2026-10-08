@@ -97,7 +97,7 @@ const user = await demo.getBackend().auth.signIn('demo@mara.app', 'demo');
 check('вход в демо выполнен', user?.email === 'demo@mara.app');
 check('сессия демо сохраняется', (await demo.getBackend().auth.getUser())?.id === 'demo-user');
 
-const repos = demo.getRepositories();
+const repos = await demo.getRepositories();
 
 const fans = await repos.fans.list();
 check('демо-фан-база заполнена', fans.length >= 15, `фанов: ${fans.length}`);
@@ -120,7 +120,7 @@ const conv = conversations[0];
 const draft = await repos.conversations.saveDraft(conv.id, 'smoke draft');
 check('черновик AI ждёт одобрения', draft.state === 'awaiting_approval');
 const approved = await repos.conversations.approveDraft(conv.id, draft.id, 'approved by human');
-check('одобрение превращает черновик в отправленное', approved.state === 'sent' && approved.body === 'approved by human');
+check('одобрение фиксирует решение (approved), а не доставку (sent)', approved.state === 'approved' && approved.body === 'approved by human');
 
 /* Полный AI-пайплайн на mock-провайдере (работает без API-ключа). */
 const fan = await repos.fans.get(conversations[0].fanId);

@@ -131,7 +131,7 @@ export default function Offers() {
                     size="sm"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => push({ title: "Link copied", description: `${o.name} share link copied.`, tone: "success" })}
+                    disabled title="Share links are not available yet"
                   >
                     Share
                   </Button>
@@ -190,10 +190,9 @@ export default function Offers() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => {
-                setParams({});
-                push({ title: "Offer created as draft", description: "Publish it once the commerce layer is live.", tone: "success" });
-              }}
+              disabled
+              title="Offer creation is not available yet"
+              onClick={() => setParams({})}
             >
               Create draft
             </Button>

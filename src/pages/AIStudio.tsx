@@ -116,7 +116,7 @@ export default function AIStudio() {
         actions={
           <Button
             variant="primary"
-            onClick={() => push({ title: "All agents triggered", description: "A full sync run was queued.", tone: "success" })}
+            disabled title="Not available yet"
           >
             <Play className="size-3.5" /> Run all agents
           </Button>

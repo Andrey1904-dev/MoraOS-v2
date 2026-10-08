@@ -453,7 +453,7 @@ export async function deliverFileInMiniApp(file: File, browserUrl: string): Prom
       }
     }
   }
-  const open = await confirmAction('Скачать файл внутри Telegram нельзя. Открыть кабинет в браузере, чтобы сохранить выгрузку?')
+  const open = await confirmAction('Files cannot be downloaded inside Telegram. Open Mara OS in the browser to save the export?')
   if (open && openInExternalBrowser(browserUrl)) return 'browser'
   return 'dismissed'
 }

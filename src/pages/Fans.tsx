@@ -11,6 +11,8 @@ import { useToast } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { ago, currency } from "@/lib/format";
+import { exportFileName, fansToCsv } from "@/lib/export";
+import { downloadTextFile } from "@/lib/download";
 import { cn } from "@/utils/cn";
 
 const SEGMENTS = ["All", "New", "Active", "Subscribers", "Buyers", "Inner circle", "At Risk"] as const;
@@ -70,18 +72,34 @@ export default function Fans() {
 
   const totalCount = data?.length ?? 0;
 
+  /** Выгрузка того, что видно сейчас: поиск, сегмент и сортировка учитываются. */
+  const exportCsv = async () => {
+    if (rows.length === 0) {
+      push({ title: "Nothing to export", description: "This view has no fans.", tone: "default" });
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    const outcome = await downloadTextFile(`${exportFileName("fans", stamp)}.csv`, fansToCsv(rows), "text/csv;charset=utf-8");
+    if (outcome === "downloaded" || outcome === "shared") {
+      push({ title: "Export ready", description: `${rows.length} fans exported as CSV.`, tone: "success" });
+    } else if (outcome === "dismissed" || outcome === "cancelled") {
+      push({ title: "Export cancelled", description: "The file was not saved.", tone: "default" });
+    }
+  };
+
   return (
     <PageContainer>
       <PageHeader
         eyebrow="Audience"
         title="Fans"
-        description={`2,481 total fans · ${totalCount} shown in ${segment.toLowerCase()} view`}
+        description={`${totalCount} ${totalCount === 1 ? "fan" : "fans"} in the ${segment.toLowerCase()} view`}
         actions={
           <>
-            <Button variant="outline" onClick={() => push({ title: "Export queued", description: "CSV export of the current view.", tone: "default" })}>
-              <Download className="size-3.5" /> Export
+            <Button variant="outline" onClick={() => void exportCsv()}>
+              <Download className="size-3.5" /> Export CSV
             </Button>
-            <Button variant="primary" onClick={() => push({ title: "Manual fan creation", description: "Available once the CRM repository is connected.", tone: "default" })}>
+            {/* Ручное создание фанов ещё не реализовано: кнопка неактивна, а не имитирует действие. */}
+            <Button variant="primary" disabled title="Manual fan creation is not available yet" aria-label="Add fan (not available yet)">
               <Plus className="size-3.5" /> Add fan
             </Button>
           </>
@@ -129,13 +147,13 @@ export default function Fans() {
               LTV {currency([...selected].reduce((s, id) => s + (data?.find((f) => f.id === id)?.ltv ?? 0), 0))}
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="subtle" onClick={() => push({ title: "Tag applied", description: `${selected.size} fans tagged “priority”.`, tone: "success" })}>
+              <Button size="sm" variant="subtle" disabled title="Not available yet">
                 Tag
               </Button>
-              <Button size="sm" variant="subtle" onClick={() => push({ title: "Draft queued", description: "AI will draft a message per selected fan.", tone: "success" })}>
+              <Button size="sm" variant="subtle" disabled title="Not available yet">
                 Draft message
               </Button>
-              <Button size="sm" variant="subtle" onClick={() => push({ title: "Offer assigned", description: "Welcome bundle assigned to selection.", tone: "success" })}>
+              <Button size="sm" variant="subtle" disabled title="Not available yet">
                 Assign offer
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>

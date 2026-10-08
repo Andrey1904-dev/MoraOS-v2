@@ -20,6 +20,7 @@ import { EmptyState, SkeletonRows, useToast } from "@/components/ui/Feedback";
 import { AINote } from "@/components/common/AICard";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
+import { trackEvent } from "@/lib/events";
 import { getAiOrchestrator, runReplyPipeline } from "@/lib/ai";
 import { isDemoActive } from "@/lib";
 import type { RelationshipLevel as Rel } from "@/types";
@@ -94,8 +95,9 @@ export default function Conversations() {
   };
 
   /**
-   * Human-in-the-loop: агенты только черновят. Результат уходит в инбокс как
-   * draft/awaiting_approval — отправку подтверждает человек кнопкой Approve.
+   * Human-in-the-loop: agents only draft. The result lands in the inbox as
+   * awaiting_approval; a person approves it. Approval records the decision;
+   * delivery to fans is not connected yet.
    */
   const generateReply = async () => {
     if (!activeId || !activeFan || generating) return;
@@ -141,6 +143,12 @@ export default function Conversations() {
         intent: result.draft.intent,
         confidence: result.draft.confidence,
       });
+      void trackEvent({
+        type: "ai_generated",
+        entityType: "conversation",
+        entityId: activeId,
+        payload: { intent: result.draft.intent, confidence: result.draft.confidence, mock: result.mock },
+      });
       refetch();
       refetchList();
       push({
@@ -173,7 +181,8 @@ export default function Conversations() {
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Badge tone="accent">{totalUnread} unread</Badge>
             <Badge tone="warn">{totalDrafts} awaiting approval</Badge>
-            <Button variant="outline" size="sm" onClick={() => push({ title: "Inbox synced", description: "Fanvue + Telegram connectors refreshed.", tone: "default" })}>
+            {/* Коннекторов (Fanvue, Telegram-инбокс) в приложении пока нет: честно выключено. */}
+            <Button variant="outline" size="sm" disabled title="Connectors are not connected yet" aria-label="Sync inbox (connectors not connected yet)">
               <RefreshCw className="size-3.5" /> Sync
             </Button>
             <Button
@@ -281,7 +290,7 @@ export default function Conversations() {
 
                   {(messages ?? []).map((m) => {
                     if (m.author === "ai_draft") {
-                      const isApproved = approved[m.id];
+                      const isApproved = Boolean(approved[m.id]) || m.state === "approved";
                       return (
                         <div key={m.id} className="anim-fade ml-auto max-w-[520px]">
                           <div className="rounded-xl border border-accent/30 bg-accent/[0.06] p-3.5">
@@ -309,7 +318,7 @@ export default function Conversations() {
 
                             {isApproved ? (
                               <div className="mt-3 flex items-center gap-2 rounded-lg border border-pos/25 bg-pos/10 px-3 py-2 text-[12px] text-pos">
-                                <CheckCheck className="size-3.5" /> Approved — queued for review window
+                                <CheckCheck className="size-3.5" /> Approved — recorded, not delivered to the fan yet
                               </div>
                             ) : (
                               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -333,12 +342,13 @@ export default function Conversations() {
                                       try {
                                         if (!activeId) return;
                                         await repositories.conversations.approveDraft(activeId, m.id);
+                                        void trackEvent({ type: "reply_approved", entityType: "message", entityId: m.id });
                                         setApproved((prev) => ({ ...prev, [m.id]: true }));
                                         refetch();
                                         refetchList();
                                         push({
                                           title: "Draft approved",
-                                          description: "Marked as sent — human approval recorded for every outgoing message.",
+                                          description: "Recorded as approved. Delivery to the fan is not connected yet, so nothing was sent.",
                                           tone: "success",
                                         });
                                       } catch (error) {
@@ -357,7 +367,7 @@ export default function Conversations() {
                             )}
                           </div>
                           <div className="mt-1.5 text-right text-[10.5px] text-faint">
-                            AI never sends without approval
+                            AI drafts wait for your approval. Delivery to fans is not connected yet.
                           </div>
                         </div>
                       );
@@ -388,6 +398,7 @@ export default function Conversations() {
                           )}
                           <div className="mt-1 flex items-center gap-2 text-[10.5px] text-faint">
                             {mine && <span className="ml-auto">{mine ? "Mara" : activeFan?.name}</span>}
+                            {mine && m.state === "approved" && <span className="text-warn">Approved · not delivered</span>}
                             <span className="num">{clock(m.at)}</span>
                           </div>
                         </div>
@@ -412,7 +423,8 @@ export default function Conversations() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={2}
-                      placeholder={`Reply as Mara… (draft only — nothing sends automatically)`}
+                      placeholder="Reply as Mara… (saved as approved; not delivered to the fan yet)"
+                      aria-label="Reply as Mara"
                       className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[10px] border border-line bg-canvas-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink transition-colors placeholder:text-faint focus:border-line-2 focus:outline-none"
                     />
                     <Button
@@ -423,19 +435,24 @@ export default function Conversations() {
                         if (!body || !activeId) return;
                         void (async () => {
                           try {
-                            const saved = await repositories.conversations.saveDraft(activeId, body);
-                            await repositories.conversations.approveDraft(activeId, saved.id);
+                            // Один вызов: сообщение записывается сразу как approved (решение оператора).
+                            await repositories.conversations.sendMessage(activeId, { body, author: "mara" });
+                            void trackEvent({ type: "reply_approved", entityType: "conversation", entityId: activeId });
                             setDraft("");
                             refetch();
                             refetchList();
-                            push({ title: "Approved & queued", description: "Message approved in UI before any send — audit trail kept.", tone: "success" });
+                            push({
+                              title: "Reply recorded",
+                              description: "Saved as approved. Delivery to the fan is not connected yet, so nothing was sent.",
+                              tone: "success",
+                            });
                           } catch (error) {
-                            push({ title: "Send failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+                            push({ title: "Could not save reply", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
                           }
                         })();
                       }}
                     >
-                      <Send className="size-3.5" /> Approve & queue
+                      <Send className="size-3.5" /> Record reply
                     </Button>
                   </div>
                 </div>
@@ -492,8 +509,8 @@ export default function Conversations() {
                 <AINote
                   title="AI Recommendation"
                   footer={
-                    <Button variant="primary" size="sm" onClick={() => push({ title: "Draft created", description: "Saved as a draft for approval.", tone: "success" })}>
-                      Draft message
+                    <Button variant="primary" size="sm" loading={generating} onClick={() => void generateReply()}>
+                      Draft reply
                     </Button>
                   }
                 >

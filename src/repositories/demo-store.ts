@@ -37,6 +37,8 @@ export interface DemoStoreState {
   contentStatus: Record<string, ContentItem["status"]>;
   fansRelationship: Record<string, Fan["relationship"]>;
   events: DemoFanEvent[];
+  /** Фаны, чьи данные «удалены» в демо (право на удаление): скрываются из всех экранов. */
+  erasedFanIds: string[];
 }
 
 const EMPTY: DemoStoreState = {
@@ -52,6 +54,7 @@ const EMPTY: DemoStoreState = {
   contentStatus: {},
   fansRelationship: {},
   events: [],
+  erasedFanIds: [],
 };
 
 let cache: DemoStoreState | null = null;

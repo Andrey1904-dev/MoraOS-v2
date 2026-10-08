@@ -19,6 +19,7 @@ import * as fansData from "@/data/fans";
 import * as contentData from "@/data/content";
 import * as ops from "@/data/ops";
 import { demoId, demoStore, mutateDemoStore } from "./demo-store";
+import type { FanDossier } from "@/lib/export";
 import type {
   AIRepository,
   AiRunEntry,
@@ -51,8 +52,10 @@ const now = () => new Date().toISOString();
 
 class DemoFanRepository implements FanRepository {
   list(query?: { search?: string; segment?: string }) {
-    const rel = demoStore().fansRelationship;
-    let rows = fansData.fans.map((f) => (rel[f.id] ? { ...f, relationship: rel[f.id] } : f));
+    const { fansRelationship: rel, erasedFanIds } = demoStore();
+    let rows = fansData.fans
+      .filter((f) => !erasedFanIds.includes(f.id))
+      .map((f) => (rel[f.id] ? { ...f, relationship: rel[f.id] } : f));
     if (query?.search) {
       const q = query.search.toLowerCase();
       rows = rows.filter(
@@ -80,6 +83,39 @@ class DemoFanRepository implements FanRepository {
   async get(id: string) {
     const all = await this.list();
     return wait(all.find((f) => f.id === id) ?? null, 60);
+  }
+
+  async exportData(fanId: string): Promise<FanDossier | null> {
+    const fan = await this.get(fanId);
+    if (!fan) return wait(null);
+    const [memories, events, purchases] = await Promise.all([
+      this.memories(fanId),
+      this.events(fanId),
+      this.purchases(fanId),
+    ]);
+    const state = demoStore();
+    const conversations = fansData.conversations
+      .filter((c) => c.fanId === fanId)
+      .map((c) => ({
+        id: c.id,
+        channel: c.channel,
+        messages: [
+          ...fansData.messages.filter((m) => m.conversationId === c.id),
+          ...(state.messages[c.id] ?? []),
+        ],
+      }));
+    return wait({ exportedAt: new Date().toISOString(), fan, memories, events, purchases, conversations });
+  }
+
+  async erase(fanId: string): Promise<boolean> {
+    const fan = await this.get(fanId);
+    if (!fan) return wait(false);
+    mutateDemoStore((s) => {
+      s.erasedFanIds = [...new Set([...s.erasedFanIds, fanId])];
+      s.events = s.events.filter((e) => e.fanId !== fanId);
+      delete s.memories[fanId];
+    });
+    return wait(true);
   }
 
   memories(fanId: string) {
@@ -139,7 +175,7 @@ class DemoFanRepository implements FanRepository {
 class DemoConversationRepository implements ConversationRepository {
   list(): Promise<Conversation[]> {
     const state = demoStore();
-    const rows = fansData.conversations.map((c) => {
+    const rows = fansData.conversations.filter((c) => !state.erasedFanIds.includes(c.fanId)).map((c) => {
       const extra = state.messages[c.id] ?? [];
       const hasDraft = extra.some((m) => m.state === "awaiting_approval" || m.state === "draft");
       const last = extra[extra.length - 1];
@@ -166,7 +202,8 @@ class DemoConversationRepository implements ConversationRepository {
       author: input.author,
       body: input.body,
       at: now(),
-      state: "sent",
+      // Ответ оператора не доставляется: в демо он тоже только «approved».
+      state: input.author === "mara" ? "approved" : "sent",
     };
     mutateDemoStore((s) => {
       s.messages[conversationId] = [...(s.messages[conversationId] ?? []), message];
@@ -196,7 +233,7 @@ class DemoConversationRepository implements ConversationRepository {
       const list = s.messages[conversationId] ?? [];
       s.messages[conversationId] = list.map((m) => {
         if (m.id !== messageId) return m;
-        approved = { ...m, author: "mara" as const, body: body ?? m.body, state: "sent" as const, at: now() };
+        approved = { ...m, author: "mara" as const, body: body ?? m.body, state: "approved" as const, at: now() };
         return approved;
       });
     });
@@ -207,7 +244,7 @@ class DemoConversationRepository implements ConversationRepository {
         author: "mara",
         body: body ?? "",
         at: now(),
-        state: "sent",
+        state: "approved",
       } as Message, 120);
     }
     return wait(structuredClone(approved), 120);

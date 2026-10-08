@@ -87,7 +87,8 @@ export interface Message {
   body: string;
   at: string;
   media?: { kind: "image" | "video"; label: string; thumb: string };
-  state?: "sent" | "awaiting_approval" | "draft";
+  /** sent — доставлено фану; approved — одобрено оператором, доставка не подключена; */
+  state?: "sent" | "approved" | "awaiting_approval" | "draft" | "failed";
 }
 
 export interface Conversation {
