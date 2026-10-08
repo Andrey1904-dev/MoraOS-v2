@@ -120,15 +120,6 @@ export function unlinkedMessage() {
   ].join('\n')
 }
 
-const SECTION_EMOJI = {
-  fans: '👥',
-  messages: '💬',
-  content: '🎬',
-  analytics: '📊',
-  tasks: '✅',
-  ai: '🤖',
-}
-
 function screenTitle(emoji, title) {
   return [`<b>${emoji} ${title.toUpperCase()}</b>`, RULE, '']
 }

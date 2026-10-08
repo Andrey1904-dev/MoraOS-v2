@@ -92,7 +92,7 @@ export function telegramDisplayName(user) {
   return [name, handle]
     .filter(Boolean)
     .join(' ')
-    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\p{Cc}/gu, '')
     .trim()
     .slice(0, 80)
 }

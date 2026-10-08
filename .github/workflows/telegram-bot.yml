@@ -4,8 +4,11 @@ name: Telegram bot — Mini App setup
 # Секреты (Settings → Secrets and variables → Actions):
 #   TELEGRAM_BOT_TOKEN      — токен из @BotFather (обязателен)
 #   SUPABASE_ACCESS_TOKEN   — только для режима full + deploy
+#   TELEGRAM_WEBHOOK_SECRET — секрет вебхука; обязателен для режима full без deploy
+#                             (тот же, что записан у функции telegram-api)
 # Переменные (вкладка Variables):
 #   WEB_APP_URL             — HTTPS-адрес сайта; по умолчанию адрес GitHub Pages этого репозитория
+#   SUPABASE_PROJECT_REF    — ref проекта Supabase; по умолчанию проект из README
 on:
   workflow_dispatch:
     inputs:
@@ -31,9 +34,9 @@ jobs:
     runs-on: ubuntu-24.04
     environment: telegram-bot
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
@@ -49,6 +52,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           WEB_APP_URL: ${{ vars.WEB_APP_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+          # Ref проекта Supabase (не секрет). Без него скрипт не знает, какую функцию настраивать.
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || 'dcgurmwvpgzmlfivxoso' }}
+          # Секрет вебхука должен совпадать с секретом функции (без --deploy он обязан быть задан).
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
           MODE: ${{ inputs.mode }}
           DEPLOY: ${{ inputs.deploy }}
         run: |
