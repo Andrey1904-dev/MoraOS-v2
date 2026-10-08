@@ -1,181 +1,143 @@
 /**
- * Ядро бота LADA Assistant.
+ * Mara OS Assistant — Telegram bot core.
  *
- * Одна и та же логика используется двумя транспортами:
- *   1. `bot/server.mjs` — Node.js long-polling сервис (npm run bot:start);
+ * The same logic serves two transports:
+ *   1. `bot/server.mjs` — Node.js long-polling service (npm run bot:start);
  *   2. `supabase/functions/telegram-api/` — Supabase Edge Function (webhook).
  *
- * Здесь нет ничего платформенно-зависимого: только `fetch` и чистые функции
- * из `format.mjs`. Поэтому файл можно копировать в каталог edge-функции —
- * синхронность копий проверяет тест `tests/telegram.test.mjs`.
+ * Nothing platform-specific lives here: only `fetch` plus pure helpers from
+ * `format.mjs`. The file is copied to the Edge Function directory — the copy
+ * stays in sync, enforced by `tests/telegram.test.mjs`.
+ *
+ * The bot is a read-mostly companion of the web console: fan stats, inbox
+ * triage, content pipeline, revenue, tasks and AI runs. Anything that sends
+ * messages to fans or changes money stays behind human approval in the
+ * web app — the bot only ever *suggests*.
  */
 import {
   createLinkCode,
   daysUntil,
   escapeHtml,
   formatDate,
-  formatMileage,
   formatMoney,
+  formatMonth,
   hashLinkCode,
+  inCurrentMonth,
   miniAppMenuButton,
   miniAppUrl,
-  monthTransactions,
-  nextPaymentDate,
   normalizeLinkCode,
   plural,
-  remainingLoanBalance,
 } from './format.mjs'
 
-/** Сколько живёт одноразовый код привязки. */
+/** How long a one-time link code lives. */
 export const CODE_TTL_MS = 10 * 60 * 1000
-/** Формат кода без дефиса: 10 символов A-Z0-9. */
+/** Code format without the dash: 10 chars A-Z0-9. */
 export const LINK_CODE_PATTERN = /^[A-Z0-9]{10}$/
 
-export const CATEGORY_LABELS = {
-  fuel: 'Топливо',
-  loan: 'Автокредит',
-  maintenance: 'ТО и сервис',
-  insurance: 'Страхование',
-  other: 'Прочее',
-}
-const CATEGORY_EMOJI = {
-  fuel: '⛽',
-  loan: '💳',
-  maintenance: '🧰',
-  insurance: '🛡',
-  other: '📦',
+export const RELATIONSHIP_LABELS = {
+  visitor: 'Visitors',
+  follower: 'Followers',
+  subscriber: 'Subscribers',
+  admirer: 'Admirers',
+  supporter: 'Supporters',
+  inner_circle: 'Inner circle',
 }
 
-/** Визуальный разделитель экранов бота — единый «брендовый» штрих. */
-const RULE = '<b>━━━━━━━━━━━━</b>'
+const RULE = '━━━━━━━━━━━━━━━━'
 
 export const HELP_TEXT = [
-  '<b>ℹ️ ПОМОЩЬ · LADA ASSISTANT</b>',
+  '<b>🤖 MARA OS ASSISTANT — HELP</b>',
   RULE,
   '',
-  '<b>Разделы кабинета</b>',
-  '/garage — автомобиль и ОСАГО',
-  '/service — записи ТО и документы',
-  '/spending — расходы текущего месяца',
-  '/credit — остаток и дата платежа',
+  '/menu — dashboard and sections',
+  '/fans — audience by relationship level',
+  '/messages — inbox: unread and drafts awaiting approval',
+  '/content — pipeline: ready, scheduled, published',
+  '/analytics — revenue this month by source',
+  '/tasks — open tasks by priority',
+  '/ai — today’s AI agent runs',
+  '/link — connect this chat to your Mara OS account',
+  '/unlink — disconnect (two-step confirmation)',
   '',
-  '<b>Управление</b>',
-  '/menu — главное меню',
-  '/link — подключить личный кабинет',
-  '/unlink — отозвать доступ',
-  '',
-  '<i>Подсказка: работают и слова — «гараж», «то», «расходы», «кредит», «меню».</i>',
+  '<i>Bot reads from your account only. Replies to fans, PPV sends and',
+  'price changes always wait for your approval in the web console.</i>',
 ].join('\n')
 
 export const BOT_DESCRIPTION =
-  'Персональный помощник владельца LADA Granta и Vesta. Сводки об автомобиле, ТО, расходах и автокредите — из вашего личного кабинета. Безопасное подключение по одноразовому коду.'
-export const BOT_SHORT_DESCRIPTION = 'Цифровой гараж LADA: автомобиль, ТО, расходы и кредит.'
+  'Mara OS Assistant — the Telegram companion of the creator operating system. ' +
+  'Audience stats, inbox triage, content pipeline, revenue and AI runs from your Mara OS account. ' +
+  'One-time /link code connects this chat to your console; everything sensitive stays behind your approval in the web app.'
+export const BOT_SHORT_DESCRIPTION = 'Mara OS: fans, inbox, content, revenue and AI — in your pocket.'
+
 export const BOT_COMMANDS = [
-  { command: 'start', description: 'Главное меню' },
-  { command: 'menu', description: 'Главное меню' },
-  { command: 'garage', description: 'Автомобиль и ОСАГО' },
-  { command: 'service', description: 'ТО и документы' },
-  { command: 'spending', description: 'Расходы за месяц' },
-  { command: 'credit', description: 'Остаток и платёж по кредиту' },
-  { command: 'link', description: 'Подключить личный кабинет' },
-  { command: 'unlink', description: 'Отключить личный кабинет' },
-  { command: 'help', description: 'Список команд' },
+  { command: 'start', description: 'Welcome screen and quick tour' },
+  { command: 'menu', description: 'Dashboard and sections' },
+  { command: 'fans', description: 'Audience by relationship level' },
+  { command: 'messages', description: 'Inbox: unread and pending drafts' },
+  { command: 'content', description: 'Content pipeline snapshot' },
+  { command: 'analytics', description: 'Revenue this month' },
+  { command: 'tasks', description: 'Open tasks' },
+  { command: 'ai', description: 'AI agent runs today' },
+  { command: 'link', description: 'Connect chat to your account' },
+  { command: 'unlink', description: 'Disconnect account' },
+  { command: 'help', description: 'Command list' },
 ]
 
-/** Ошибка с HTTP-статусом: транспорты превращают её в JSON-ответ. */
 export class ApiError extends Error {
   constructor(status, message) {
     super(message)
-    this.name = 'ApiError'
     this.status = status
   }
 }
 
 export function makeSearch(values) {
-  return new URLSearchParams(values).toString()
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) params.append(key, String(value))
+  }
+  return params.toString()
 }
 
-/** Достаёт токен из заголовка `Authorization: Bearer …`. */
 export function readBearerToken(headerValue) {
-  const match = /^Bearer\s+([^\s]+)$/i.exec(String(headerValue ?? '').trim())
-  if (!match || match[1].length > 8_192) return null
-  return match[1]
+  if (typeof headerValue !== 'string') return ''
+  const [scheme, token] = headerValue.split(' ')
+  return scheme === 'Bearer' && token ? token.trim() : ''
 }
 
-/**
- * Экран, который показываем, пока кабинет не привязан.
- * Рядом всегда кнопка мгновенной генерации кода — один тап вместо команды.
- */
 export function unlinkedMessage() {
   return [
-    '<b>🔒 Сначала подключите сайт</b>',
+    '<b>🔌 NOT CONNECTED</b>',
     RULE,
     '',
-    'Сводки появятся прямо здесь, как только Telegram будет связан с кабинетом.',
-    'Пароль сайта не нужен — только одноразовый код на 10 минут.',
+    'This Telegram chat is not linked to a Mara OS account yet.',
     '',
-    '<i>Нажмите «Подключить кабинет» — бот пришлёт код — и введите его в разделе «Бот» на сайте.</i>',
+    'Tap <b>Connect account</b> below or send /link — you will get a one-time',
+    'code to enter in the web console.',
   ].join('\n')
 }
 
-/** Заголовок экрана: эмодзи + капсовый тайтл + фирменная линия. */
+const SECTION_EMOJI = {
+  fans: '👥',
+  messages: '💬',
+  content: '🎬',
+  analytics: '📊',
+  tasks: '✅',
+  ai: '🤖',
+}
+
 function screenTitle(emoji, title) {
   return [`<b>${emoji} ${title.toUpperCase()}</b>`, RULE, '']
 }
-
-/** Строка показателя: иконка, подпись и значение. */
 function statLine(icon, label, value) {
-  return `${icon} ${label} — <b>${escapeHtml(value)}</b>`
+  return `${icon} ${label} — <b>${value}</b>`
 }
 
-/** Текстовый прогресс-бар: ratio в диапазоне 0…1, слотов `slots`. */
 export function progressBar(ratio, slots = 10) {
   const clamped = Math.min(1, Math.max(0, Number(ratio) || 0))
-  // Доля больше нуля всегда видна: иначе 4 % выглядит как сломанный пустой бар.
-  const filled = clamped > 0 ? Math.max(1, Math.round(clamped * slots)) : 0
-  return '▰'.repeat(filled) + '▱'.repeat(Math.max(0, slots - filled))
+  const filled = Math.round(clamped * slots)
+  return '█'.repeat(filled) + '░'.repeat(slots - filled)
 }
 
-const monthNominative = new Intl.DateTimeFormat('ru-RU', {
-  month: 'long',
-  timeZone: 'Europe/Moscow',
-})
-
-/** Строка статуса ОСАГО со «светофором» и обратным отсчётом. */
-function insuranceStatusLine(insuranceUntil, now = new Date()) {
-  const remaining = daysUntil(insuranceUntil, now)
-  if (remaining === null) return ['🛡 ОСАГО — дата окончания не указана', '']
-  const until = escapeHtml(formatDate(insuranceUntil))
-  if (remaining < 0) {
-    const days = Math.abs(remaining)
-    return [
-      `🔴 ОСАГО — истёк ${days} ${plural(days, 'день', 'дня', 'дней')} назад`,
-      `<i>Продлите полис: езда без ОСАГО — штраф и полная оплата чужого ремонта при ДТП.</i>`,
-    ]
-  }
-  if (remaining === 0) return ['🟡 ОСАГО — срок заканчивается сегодня', '<i>Успейте продлить полис сегодня.</i>']
-  const left = plural(remaining, 'день', 'дня', 'дней')
-  if (remaining <= 30) {
-    return [
-      `🟡 ОСАГО — до ${until} · осталось ${remaining} ${left}`,
-      '<i>Срок на исходе — стоит продлить заранее.</i>',
-    ]
-  }
-  return [`🟢 ОСАГО — до ${until} · в запасе ${remaining} ${left}`, '']
-}
-
-/**
- * Собирает ядро бота.
- *
- * @param {object} options
- * @param {string} options.telegramToken          токен BotFather (только на сервере)
- * @param {string} options.supabaseUrl            адрес проекта Supabase
- * @param {string} options.supabaseAnonKey        anon/publishable ключ (проверка сессии сайта)
- * @param {string} options.supabaseServiceRoleKey service-role ключ (чтение таблиц связей)
- * @param {string} [options.webAppUrl]            публичный адрес кабинета
- * @param {typeof fetch} [options.fetchImpl]      подмена fetch в тестах
- * @param {() => number} [options.now]            подмена часов в тестах
- */
 export function createBot({
   telegramToken,
   supabaseUrl,
@@ -186,15 +148,15 @@ export function createBot({
   logger = console,
   now = () => Date.now(),
 }) {
-  if (!telegramToken) throw new Error('Не задан TELEGRAM_BOT_TOKEN.')
-  if (!supabaseUrl) throw new Error('Не задан SUPABASE_URL.')
-  if (!supabaseAnonKey) throw new Error('Не задан SUPABASE_ANON_KEY.')
-  if (!supabaseServiceRoleKey) throw new Error('Не задан SUPABASE_SERVICE_ROLE_KEY.')
+  if (!telegramToken) throw new Error('TELEGRAM_BOT_TOKEN is not set.')
+  if (!supabaseUrl) throw new Error('SUPABASE_URL is not set.')
+  if (!supabaseAnonKey) throw new Error('SUPABASE_ANON_KEY is not set.')
+  if (!supabaseServiceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.')
 
   const restBase = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1`
   const authBase = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1`
 
-  /** POST в Telegram Bot API. */
+  /** POST to the Telegram Bot API. */
   async function telegramCall(method, payload = {}, timeoutMs = 18_000) {
     let response
     try {
@@ -215,7 +177,7 @@ export function createBot({
     return data.result
   }
 
-  /** Запрос к PostgREST под service-role ключом. */
+  /** PostgREST request under the service-role key (server-side only). */
   async function supabaseRest(path, { method = 'GET', body, prefer } = {}) {
     let response
     try {
@@ -232,13 +194,13 @@ export function createBot({
       })
     } catch (error) {
       logger.error?.('[supabase] request failed:', error instanceof Error ? error.message : 'network error')
-      throw new ApiError(502, 'Сервис данных временно недоступен. Попробуйте ещё раз.')
+      throw new ApiError(502, 'Data service is temporarily unavailable. Please try again.')
     }
 
     const text = await response.text()
     if (!response.ok) {
       logger.error?.(`[supabase] REST returned ${response.status}`)
-      throw new ApiError(502, 'Не удалось получить данные кабинета.')
+      throw new ApiError(502, 'Could not read your account data.')
     }
     if (!text) return null
     try {
@@ -248,10 +210,10 @@ export function createBot({
     }
   }
 
-  /** Проверяет access token сайта через Supabase Auth. */
+  /** Verifies the web console access token through Supabase Auth. */
   async function verifySiteSession(accessToken) {
     if (!accessToken) {
-      throw new ApiError(401, 'Войдите в облачный аккаунт сайта и повторите попытку.')
+      throw new ApiError(401, 'Sign in to your Mara OS account first, then try again.')
     }
     let response
     try {
@@ -263,12 +225,12 @@ export function createBot({
         signal: AbortSignal.timeout(12_000),
       })
     } catch {
-      throw new ApiError(502, 'Не удалось проверить сессию сайта. Попробуйте ещё раз.')
+      throw new ApiError(502, 'Could not verify the web session. Please try again.')
     }
-    if (!response.ok) throw new ApiError(401, 'Сессия сайта истекла. Войдите в аккаунт повторно.')
+    if (!response.ok) throw new ApiError(401, 'Web session expired. Sign in again.')
     const user = await response.json().catch(() => null)
     if (!user || typeof user.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(user.id)) {
-      throw new ApiError(401, 'Не удалось подтвердить аккаунт сайта.')
+      throw new ApiError(401, 'Could not confirm the web account.')
     }
     return user
   }
@@ -286,18 +248,18 @@ export function createBot({
     }
   }
 
-  /** Привязывает код к уже проверенному аккаунту сайта. */
+  /** Binds a Telegram code to an already verified web account. */
   async function confirmLinkForUser(userId, rawCode) {
     const code = normalizeLinkCode(rawCode)
     if (!LINK_CODE_PATTERN.test(code)) {
-      throw new ApiError(400, 'Введите полный одноразовый код из Telegram.')
+      throw new ApiError(400, 'Enter the full one-time code from Telegram.')
     }
     const result = await supabaseRest('rpc/link_telegram_account', {
       method: 'POST',
       body: { p_code_hash: hashLinkCode(code), p_user_id: userId },
     })
     if (result !== true) {
-      throw new ApiError(400, 'Код недействителен или истёк. Запросите новый командой /link.')
+      throw new ApiError(400, 'Code is invalid or expired. Request a new one with /link.')
     }
     return { linked: true }
   }
@@ -316,53 +278,39 @@ export function createBot({
 
   /* ------------------------------------------------------- Telegram flow --- */
 
-  function siteAssetUrl(path) {
-    if (!webAppUrl) return ''
-    try {
-      const base = new URL(webAppUrl)
-      base.hash = ''
-      base.search = ''
-      if (!base.pathname.endsWith('/')) base.pathname += '/'
-      return new URL(path, base).toString()
-    } catch {
-      return ''
-    }
-  }
-
-  /** Адрес Mini App (кабинет на сайте); '' — если WEB_APP_URL не задан или не HTTPS. */
+  /** Mini App (web console) address; '' when WEB_APP_URL is unset or not HTTPS. */
   function siteCabinetUrl(screen = '') {
     return miniAppUrl(webAppUrl, screen)
   }
 
   /**
-   * Кнопка запуска кабинета как Telegram Mini App (тип `web_app`, не `url`).
-   * Бот работает только в личных чатах, где такие кнопки поддерживаются.
+   * Button that launches the console as a Telegram Mini App (`web_app` type,
+   * not `url`). The bot only works in private chats where it is supported.
    */
-  function cabinetRow(screen = '', text = '📱 Открыть кабинет') {
+  function cabinetRow(screen = '', text = '📱 Open Mara OS') {
     const url = siteCabinetUrl(screen)
     return url ? [[{ text, web_app: { url } }]] : []
   }
 
-  /**
-   * Клавиатура для чата, который ещё не привязан:
-   * код генерируется одним тапом — команда /link сама не нужна.
-   */
+  /** Keyboard for a chat that is not linked yet: code with one tap. */
   function connectKeyboard() {
-    return { inline_keyboard: [[{ text: '🔗 Подключить кабинет', callback_data: 'link' }], ...cabinetRow()] }
+    return { inline_keyboard: [[{ text: '🔗 Connect account', callback_data: 'link' }], ...cabinetRow()] }
   }
 
-  /** Главное меню: четыре раздела кабинета + кабинет на сайте. */
+  /** Main menu: CRM sections + web console. */
   function mainKeyboard(linked = true) {
     const rows = []
-    if (!linked) rows.push([{ text: '🔗 Подключить кабинет', callback_data: 'link' }])
+    if (!linked) rows.push([{ text: '🔗 Connect account', callback_data: 'link' }])
     rows.push(
       [
-        { text: '🚘 Гараж', callback_data: 'garage' },
-        { text: '🧰 ТО и документы', callback_data: 'service' },
+        { text: '👥 Fans', callback_data: 'fans' },
+        { text: '💬 Inbox', callback_data: 'messages' },
+        { text: '🎬 Content', callback_data: 'content' },
       ],
       [
-        { text: '📊 Расходы', callback_data: 'spending' },
-        { text: '💳 Автокредит', callback_data: 'credit' },
+        { text: '📊 Analytics', callback_data: 'analytics' },
+        { text: '✅ Tasks', callback_data: 'tasks' },
+        { text: '🤖 AI runs', callback_data: 'ai' },
       ],
       ...cabinetRow(),
     )
@@ -370,26 +318,30 @@ export function createBot({
   }
 
   /**
-   * Контекстная клавиатура экрана раздела: соседние разделы,
-   * «Обновить» текущий и возврат в меню. Всё — в рамках одного сообщения.
+   * Context keyboard of a section screen: neighbouring sections, refresh of
+   * the current one and back-to-menu. Everything inside one message.
    */
   function sectionKeyboard(current) {
     const sections = [
-      ['garage', '🚘 Гараж'],
-      ['service', '🧰 ТО'],
-      ['spending', '📊 Расходы'],
-      ['credit', '💳 Кредит'],
+      ['fans', '👥 Fans'],
+      ['messages', '💬 Inbox'],
+      ['content', '🎬 Content'],
+      ['analytics', '📊 Stats'],
+      ['tasks', '✅ Tasks'],
+      ['ai', '🤖 AI'],
     ].filter(([key]) => key !== current)
-    return {
-      inline_keyboard: [
-        sections.map(([key, label]) => ({ text: label, callback_data: key })),
-        [
-          { text: '↻ Обновить', callback_data: current },
-          { text: '🏠 Меню', callback_data: 'menu' },
-        ],
-        ...cabinetRow(),
-      ],
+    const rows = []
+    for (let i = 0; i < sections.length; i += 3) {
+      rows.push(sections.slice(i, i + 3).map(([key, label]) => ({ text: label, callback_data: key })))
     }
+    rows.push(
+      [
+        { text: '↻ Refresh', callback_data: current },
+        { text: '🏠 Menu', callback_data: 'menu' },
+      ],
+      ...cabinetRow(current === 'messages' ? 'messages' : current),
+    )
+    return { inline_keyboard: rows }
   }
 
   async function sendMessage(chatId, text, extra = {}) {
@@ -402,19 +354,19 @@ export function createBot({
     })
   }
 
-  /** Индикатор «печатает…», пока идёт чтение кабинета. Ошибки игнорируем. */
+  /** "typing…" indicator while account data loads. Errors are ignored. */
   async function sendTyping(chatId) {
     try {
       await telegramCall('sendChatAction', { chat_id: chatId, action: 'typing' })
     } catch {
-      // Индикатор не критичен: молча продолжаем.
+      // Non-critical: continue silently.
     }
   }
 
   /**
-   * «Живой экран»: редактирует сообщение по месту вместо нового в чате.
-   * Если телеграм не даёт редактировать (старое сообщение, фото с подписью) —
-   * отправляет свежее сообщение. Дубль («not modified») молча проглатываем.
+   * "Live screen": edits the message in place instead of spamming new ones.
+   * If Telegram refuses (old message, photo caption) — sends a fresh one.
+   * The "not modified" duplicate is swallowed silently.
    */
   async function updateScreen(chatId, messageId, text, markup) {
     try {
@@ -446,233 +398,307 @@ export function createBot({
     return supabaseRest(`${table}?${query}`)
   }
 
+  /* -------------------------------------------------- Mara OS data reads --- */
+
   async function ownerData(chatId, include = []) {
     const userId = await getLinkedUserId(chatId)
     if (!userId) return null
-    const tasks = include.map(async (key) => {
-      if (key === 'car') {
-        const rows = await readUserRows('cars', userId, 'id,current_mileage,insurance_until,created_at', {
-          order: 'created_at.asc',
-          limit: '1',
-        })
-        return ['car', Array.isArray(rows) ? rows[0] ?? null : null]
+    const todayStart = new Date(now())
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const tasks0 = include.map(async (key) => {
+      if (key === 'fans') {
+        const rows = await readUserRows('fans', userId, 'relationship_level,joined_at', { limit: '5000' })
+        return ['fans', Array.isArray(rows) ? rows : []]
       }
-      if (key === 'loan') {
-        const rows = await readUserRows('loans', userId, 'total_amount,interest_rate,monthly_payment,term_months,start_date,created_at', {
-          order: 'created_at.asc',
-          limit: '1',
-        })
-        return ['loan', Array.isArray(rows) ? rows[0] ?? null : null]
+      if (key === 'conversations') {
+        const rows = await readUserRows(
+          'conversations',
+          userId,
+          'unread_count,awaiting_approval_count,last_message_at',
+          { order: 'last_message_at.desc', limit: '500' },
+        )
+        return ['conversations', Array.isArray(rows) ? rows : []]
       }
-      if (key === 'transactions') {
-        const rows = await readUserRows('transactions', userId, 'amount,category,date', {
-          order: 'date.desc',
-          limit: '600',
+      if (key === 'content') {
+        const rows = await readUserRows('content', userId, 'status,scheduled_at,published_at', {
+          order: 'updated_at.desc',
+          limit: '1000',
         })
-        return ['transactions', Array.isArray(rows) ? rows : []]
+        return ['content', Array.isArray(rows) ? rows : []]
       }
-      if (key === 'maintenance') {
-        const rows = await readUserRows('maintenance', userId, 'date,mileage,description', {
-          order: 'date.desc',
-          limit: '5',
+      if (key === 'revenue') {
+        const rows = await readUserRows('revenue_events', userId, 'amount,category,occurred_at', {
+          order: 'occurred_at.desc',
+          limit: '2000',
         })
-        return ['maintenance', Array.isArray(rows) ? rows : []]
+        return ['revenue', Array.isArray(rows) ? rows : []]
+      }
+      if (key === 'subscriptions') {
+        const rows = await readUserRows('subscriptions', userId, 'status', { status: 'eq.active', limit: '5000' })
+        return ['subscriptions', Array.isArray(rows) ? rows : []]
+      }
+      if (key === 'tasks') {
+        const rows = await readUserRows('tasks', userId, 'title,priority,due_date,status', {
+          status: 'in.(todo,in_progress,waiting)',
+          order: 'due_date.asc',
+          limit: '50',
+        })
+        return ['tasks', Array.isArray(rows) ? rows : []]
+      }
+      if (key === 'ai_runs') {
+        const rows = await readUserRows('ai_runs', userId, 'agent,status,created_at', {
+          created_at: `gte.${todayStart.toISOString()}`,
+          order: 'created_at.desc',
+          limit: '100',
+        })
+        return ['ai_runs', Array.isArray(rows) ? rows : []]
       }
       return [key, null]
     })
-    const fields = await Promise.all(tasks)
+    const fields = await Promise.all(tasks0)
     return Object.fromEntries([['userId', userId], ...fields])
   }
 
   /* ------------------------------------------------------- Screen builders --- */
-  /* Каждый экран возвращает { text, markup } — дальше один и тот же экран     */
-  /* приходит новым сообщением (команда) или редактирует старое (кнопка).      */
+  /* Every screen returns { text, markup }; it then arrives as a new message   */
+  /* (command) or edits the existing one (inline button).                      */
 
   function menuScreen(linked) {
     const lines = [
-      '<b>🏁 LADA ASSISTANT</b>  <i>· цифровой гараж Granta и Vesta</i>',
+      '<b>🖤 MARA OS ASSISTANT</b>  <i>· creator operating system</i>',
       RULE,
       '',
     ]
     if (linked) {
       lines.push(
-        '🚘 <b>Гараж</b> — пробег и статус ОСАГО',
-        '🧰 <b>ТО</b> — журнал обслуживания и документы',
-        '📊 <b>Расходы</b> — траты текущего месяца',
-        '💳 <b>Кредит</b> — долг и ближайший платёж',
+        '👥 <b>Fans</b> — audience by relationship level',
+        '💬 <b>Inbox</b> — unread messages and AI drafts on approval',
+        '🎬 <b>Content</b> — what is ready, scheduled or live',
+        '📊 <b>Analytics</b> — revenue this month by source',
+        '✅ <b>Tasks</b> — what needs your decision',
+        '🤖 <b>AI</b> — agent runs today',
         '',
-        '<i>Выберите раздел кнопкой — экран обновится на месте, без лишних сообщений.</i>',
+        '<i>Pick a section — the screen updates in place, no chat spam.</i>',
       )
     } else {
       lines.push(
-        'Меню оболочки уже готово. Подключите кабинет кнопкой ниже —',
-        'и сводки автомобиля, ТО, расходов и кредита появятся прямо здесь.',
+        'The console shell is ready. Connect your account with the button',
+        'below — fan, inbox, content and revenue summaries will appear here.',
         '',
-        '<i>Можно заглянуть в разделы и до привязки — бот подскажет, что делать.</i>',
+        '<i>You can peek into sections before linking: the bot will guide you.</i>',
       )
     }
     return { text: lines.join('\n'), markup: mainKeyboard(linked) }
   }
 
   const UNLINK_CONFIRM_TEXT = [
-    '<b>⛓ ОТКЛЮЧИТЬ КАБИНЕТ?</b>',
+    '<b>⛓ DISCONNECT ACCOUNT?</b>',
     RULE,
     '',
-    'Бот потеряет доступ к сводкам автомобиля, ТО, расходов и кредита.',
-    'На сайте данные останутся — отключается только Telegram.',
+    'The bot will lose access to your fan, inbox, content and revenue data.',
+    'Nothing is deleted on the web — only this Telegram link goes away.',
     '',
-    '<i>Подключить обратно можно в любой момент по новому коду.</i>',
+    '<i>You can reconnect any time with a fresh code.</i>',
   ].join('\n')
 
   const UNLINK_CONFIRM_MARKUP = {
     inline_keyboard: [
-      [{ text: '❌ Да, отключить доступ', callback_data: 'unlink_confirm' }],
-      [{ text: '◂ Назад в меню', callback_data: 'menu' }],
+      [{ text: '❌ Yes, disconnect', callback_data: 'unlink_confirm' }],
+      [{ text: '◂ Back to menu', callback_data: 'menu' }],
     ],
   }
 
-  function emptyScreen(text) {
-    return { text, markup: mainKeyboard(true) }
+  function emptyScreen(lines, section) {
+    return { text: [...lines, '', '<i>Add data in the web console — it shows up here.</i>'].join('\n'), markup: sectionKeyboard(section) }
   }
 
-  async function buildGarageScreen(chatId) {
-    const data = await ownerData(chatId, ['car'])
+  async function buildFansScreen(chatId) {
+    const data = await ownerData(chatId, ['fans', 'subscriptions'])
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
-    if (!data.car) {
+    const total = data.fans.length
+    if (!total) {
       return emptyScreen([
-        ...screenTitle('🚘', 'Мой гараж'),
-        '<b>Гараж пока пуст.</b>',
-        'Добавьте автомобиль в кабинете на сайте — сводка появится здесь автоматически.',
-      ].join('\n'))
+        ...screenTitle('👥', 'Fans'),
+        '<b>No fans yet.</b>',
+        'Connect traffic channels in the console — the funnel starts here.',
+      ], 'fans')
     }
-    const [insurance, insuranceHint] = insuranceStatusLine(data.car.insurance_until, new Date(now()))
+    const byLevel = new Map()
+    for (const fan of data.fans) {
+      byLevel.set(fan.relationship_level, (byLevel.get(fan.relationship_level) ?? 0) + 1)
+    }
+    const fresh = inCurrentMonth(data.fans, 'joined_at', new Date(now())).length
     const lines = [
-      ...screenTitle('🚘', 'Мой гараж'),
-      '<b>LADA Granta / Vesta</b>',
-      statLine('🏁', 'Пробег', formatMileage(data.car.current_mileage)),
-      insurance,
+      ...screenTitle('👥', 'Fans'),
+      statLine('🌍', 'Total audience', String(total)),
+      statLine('💳', 'Active subscriptions', String(data.subscriptions.length)),
+      statLine('✨', 'New this month', String(fresh)),
+      '',
+      '<b>Relationship ladder</b>',
     ]
-    if (insuranceHint) lines.push(insuranceHint)
-    lines.push('', '<i>Синхронизировано с личным кабинетом.</i>')
-    return { text: lines.join('\n'), markup: sectionKeyboard('garage') }
+    for (const [level, label] of Object.entries(RELATIONSHIP_LABELS)) {
+      const count = byLevel.get(level) ?? 0
+      const share = total > 0 ? count / total : 0
+      lines.push(`${progressBar(share, 8)} ${escapeHtml(label)} — <b>${count}</b>`)
+    }
+    lines.push('', '<i>Details and per-fan profile — in the console.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('fans') }
   }
 
-  async function buildServiceScreen(chatId) {
-    const data = await ownerData(chatId, ['car', 'maintenance'])
+  async function buildMessagesScreen(chatId) {
+    const data = await ownerData(chatId, ['conversations'])
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
-    const lines = screenTitle('🧰', 'ТО и документы')
-    if (data.car) {
-      const [insurance, insuranceHint] = insuranceStatusLine(data.car.insurance_until, new Date(now()))
-      lines.push(insurance)
-      if (insuranceHint) lines.push(insuranceHint)
-      lines.push('', RULE, '')
-    }
-    if (data.maintenance.length) {
-      lines.push('<b>Последние работы</b>')
-      for (const record of data.maintenance.slice(0, 4)) {
-        const description = escapeHtml(record.description || 'Работы без описания')
-        lines.push(`▸ ${description}\n   ${escapeHtml(formatMileage(record.mileage))} · ${escapeHtml(formatDate(record.date))}`)
-      }
-      lines.push('', '<i>Полный журнал и регламент ТО — в разделе «ТО» кабинета.</i>')
-    } else {
-      lines.push(
-        '<b>Журнал обслуживания пока пуст.</b>',
-        'Добавляйте записи в разделе «ТО» на сайте — они появятся здесь.',
-      )
-    }
-    return { text: lines.join('\n'), markup: sectionKeyboard('service') }
-  }
-
-  async function buildSpendingScreen(chatId) {
-    const data = await ownerData(chatId, ['transactions'])
-    if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
-    const rows = monthTransactions(data.transactions, new Date(now()))
-    const total = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0)
-    const byCategory = new Map()
-    for (const item of rows) {
-      byCategory.set(item.category, (byCategory.get(item.category) ?? 0) + Number(item.amount || 0))
-    }
-    const top = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
-    const monthName = String(monthNominative.format(new Date(now()))).toUpperCase()
+    const unread = data.conversations.reduce((sum, c) => sum + Number(c.unread_count || 0), 0)
+    const pending = data.conversations.reduce((sum, c) => sum + Number(c.awaiting_approval_count || 0), 0)
+    const active = data.conversations.filter((c) => Number(c.unread_count || 0) > 0 || Number(c.awaiting_approval_count || 0) > 0)
     const lines = [
-      ...screenTitle('📊', `Расходы · ${monthName}`),
-      `Итого: <b>${escapeHtml(formatMoney(total))}</b> · ${rows.length} ${plural(rows.length, 'операция', 'операции', 'операций')}`,
+      ...screenTitle('💬', 'Inbox'),
+      statLine('📨', 'Unread messages', String(unread)),
+      statLine('🕐', 'AI drafts awaiting approval', String(pending)),
+      statLine('🗂', 'Conversations in queue', String(active.length)),
+    ]
+    if (active.length === 0) {
+      lines.push('', '<b>Inbox zero.</b> The notebook is up to date.', '')
+    }
+    lines.push('', '<i>Replies are drafted by AI but only send after your approval.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('messages') }
+  }
+
+  async function buildContentScreen(chatId) {
+    const data = await ownerData(chatId, ['content'])
+    if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
+    if (!data.content.length) {
+      return emptyScreen([
+        ...screenTitle('🎬', 'Content'),
+        '<b>No content in the pipeline yet.</b>',
+        'Draft the first drop in the console — scheduling shows up here.',
+      ], 'content')
+    }
+    const count = (status) => data.content.filter((c) => c.status === status).length
+    const publishedThisMonth = inCurrentMonth(
+      data.content.filter((c) => c.status === 'published' && c.published_at),
+      'published_at',
+      new Date(now()),
+    ).length
+    const nextScheduled = data.content
+      .filter((c) => c.status === 'scheduled' && c.scheduled_at)
+      .map((c) => c.scheduled_at)
+      .sort()[0]
+    const lines = [
+      ...screenTitle('🎬', 'Content pipeline'),
+      statLine('📥', 'Drafts', String(count('draft') + count('idea'))),
+      statLine('🟢', 'Ready', String(count('ready'))),
+      statLine('🗓', 'Scheduled', String(count('scheduled'))),
+      statLine('📤', `Published in ${formatMonth(new Date(now()))}`, String(publishedThisMonth)),
+    ]
+    if (nextScheduled) {
+      const inDays = daysUntil(nextScheduled, new Date(now()))
+      const countdown = inDays === null || inDays < 0
+        ? ''
+        : inDays === 0
+          ? ' · <b>today</b>'
+          : ` · in <b>${inDays} ${plural(inDays, 'day')}</b>`
+      lines.push(statLine('⏳', 'Next drop', formatDate(nextScheduled)) + countdown)
+    }
+    lines.push('', '<i>Asset vault and episodes — in the console.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('content') }
+  }
+
+  async function buildAnalyticsScreen(chatId) {
+    const data = await ownerData(chatId, ['revenue'])
+    if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
+    const month = inCurrentMonth(data.revenue, 'occurred_at', new Date(now()))
+    const total = month.reduce((sum, r) => sum + Number(r.amount || 0), 0)
+    const byCategory = new Map()
+    for (const row of month) {
+      byCategory.set(row.category, (byCategory.get(row.category) ?? 0) + Number(row.amount || 0))
+    }
+    const top = [...byCategory.entries()].sort((a, b) => b[1] - a[1])
+    const monthName = formatMonth(new Date(now())).toUpperCase()
+    const emoji = { subscription: '🔁', ppv: '🔓', tip: '💝', custom: '🎁', affiliate: '🤝', other: '📦' }
+    const lines = [
+      ...screenTitle('📊', `Revenue · ${monthName}`),
+      `Total: <b>${escapeHtml(formatMoney(total))}</b> · ${month.length} ${plural(month.length, 'event')}`,
       '',
     ]
     if (top.length && total > 0) {
       for (const [category, amount] of top) {
-        const label = CATEGORY_LABELS[category] ?? 'Прочее'
-        const emoji = CATEGORY_EMOJI[category] ?? '📦'
         const share = Math.round((amount / total) * 100)
         lines.push(
-          `${emoji} ${progressBar(amount / total, 8)} <b>${escapeHtml(label)}</b> — ${escapeHtml(formatMoney(amount))} · ${share}%`,
+          `${emoji[category] ?? '📦'} ${progressBar(amount / total, 8)} <b>${escapeHtml(category)}</b> — ${escapeHtml(formatMoney(amount))} · ${share}%`,
         )
       }
-    } else if (top.length) {
-      for (const [category, amount] of top) {
-        const label = CATEGORY_LABELS[category] ?? 'Прочее'
-        lines.push(`▸ ${escapeHtml(label)} — ${escapeHtml(formatMoney(amount))}`)
-      }
     } else {
-      lines.push('В этом месяце расходов пока нет — отличный повод ничего не ломать.', '')
+      lines.push('No revenue events this month yet.', '')
     }
-    lines.push('', '<i>По операциям кабинета за текущий месяц.</i>')
-    return { text: lines.join('\n'), markup: sectionKeyboard('spending') }
+    lines.push('', '<i>Funnel and cohort views live in Analytics in the console.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('analytics') }
   }
 
-  async function buildCreditScreen(chatId) {
-    const data = await ownerData(chatId, ['loan', 'transactions'])
+  async function buildTasksScreen(chatId) {
+    const data = await ownerData(chatId, ['tasks'])
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
-    if (!data.loan) {
-      return emptyScreen([
-        ...screenTitle('💳', 'Автокредит'),
-        '<b>Кредит не добавлен.</b>',
-        'Укажите его в кабинете на сайте — остаток и даты платежей будут здесь.',
-      ].join('\n'))
-    }
-    const paidMonths = data.transactions.filter((item) => item.category === 'loan').length
-    const term = Math.round(Number(data.loan.term_months)) || 0
-    const balance = remainingLoanBalance(
-      data.loan.total_amount,
-      data.loan.interest_rate,
-      data.loan.term_months,
-      paidMonths,
-      data.loan.monthly_payment,
-    )
-    const paymentDate = nextPaymentDate(data.loan.start_date, new Date(now()))
-    const progress = term > 0 ? Math.min(1, paidMonths / term) : 0
-    const percent = Math.round(progress * 100)
+    const open = data.tasks
     const lines = [
-      ...screenTitle('💳', 'Автокредит'),
-      `${progressBar(progress, 16)} <b>${percent}%</b>`,
-      '',
-      statLine('🏦', 'Расчётный остаток', formatMoney(balance)),
-      statLine('📅', 'Ежемесячный платёж', formatMoney(data.loan.monthly_payment)),
+      ...screenTitle('✅', 'Tasks'),
+      statLine('📋', 'Open', String(open.length)),
     ]
-    if (term > 0) {
-      const shown = Math.min(paidMonths, term)
-      lines.push(`✅ Внесено — <b>${shown} из ${term}</b> ${plural(term, 'платежа', 'платежей', 'платежей')}`)
+    if (!open.length) {
+      lines.push('', '<b>All clear.</b> Nothing waits for your decision.', '')
+    } else {
+      const prio = { urgent: '🔴', high: '🟠', medium: '🟡', low: '⚪️' }
+      lines.push('')
+      for (const task of open.slice(0, 6)) {
+        const inDays = task.due_date ? daysUntil(task.due_date, new Date(now())) : null
+        const due = inDays === null
+          ? 'no date'
+          : inDays < 0
+            ? '⚠️ overdue'
+            : inDays === 0
+              ? 'due today'
+              : `${inDays}d left`
+        lines.push(`${prio[task.priority] ?? '⚪️'} ${escapeHtml(task.title)} · <i>${due}</i>`)
+      }
+      if (open.length > 6) lines.push(`<i>…and ${open.length - 6} more in the console.</i>`)
+      lines.push('')
     }
-    if (paymentDate) {
-      const inDays = daysUntil(paymentDate.toISOString().slice(0, 10), new Date(now()))
-      const countdown = inDays === null
-        ? ''
-        : inDays < 0
-          ? ''
-          : inDays === 0
-            ? ' · <b>сегодня</b>'
-            : ` · через <b>${inDays} ${plural(inDays, 'день', 'дня', 'дней')}</b>`
-      lines.push(statLine('⏳', 'Ближайший платёж', formatDate(paymentDate)) + countdown)
+    lines.push('<i>Some tasks come from AI agents — approval stays with you.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('tasks') }
+  }
+
+  async function buildAiScreen(chatId) {
+    const data = await ownerData(chatId, ['ai_runs'])
+    if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
+    const runs = data.ai_runs
+    const ok = runs.filter((r) => r.status === 'success').length
+    const byAgent = new Map()
+    for (const run of runs) {
+      byAgent.set(run.agent, (byAgent.get(run.agent) ?? 0) + 1)
     }
-    lines.push('', '<i>Оценка по отметкам платежей в кабинете. Точный остаток сверяйте с банком.</i>')
-    return { text: lines.join('\n'), markup: sectionKeyboard('credit') }
+    const lines = [
+      ...screenTitle('🤖', 'AI runs · today'),
+      statLine('⚙️', 'Runs today', String(runs.length)),
+      statLine('✅', 'Successful', runs.length ? `${ok} of ${runs.length}` : '0'),
+    ]
+    if (byAgent.size) {
+      lines.push('', '<b>By agent</b>')
+      for (const [agent, count] of [...byAgent.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6)) {
+        lines.push(`▸ ${escapeHtml(agent)} — <b>${count}</b>`)
+      }
+    } else {
+      lines.push('', '<b>No agent runs yet today.</b> Agents wake up with your traffic.', '')
+    }
+    lines.push('', '<i>Agents propose; you approve. Nothing sends itself.</i>')
+    return { text: lines.join('\n'), markup: sectionKeyboard('ai') }
   }
 
   const SCREEN_BUILDERS = {
-    garage: buildGarageScreen,
-    service: buildServiceScreen,
-    spending: buildSpendingScreen,
-    credit: buildCreditScreen,
+    fans: buildFansScreen,
+    messages: buildMessagesScreen,
+    content: buildContentScreen,
+    analytics: buildAnalyticsScreen,
+    tasks: buildTasksScreen,
+    ai: buildAiScreen,
   }
 
   async function showWelcome(chatId, firstName = '') {
@@ -680,54 +706,37 @@ export function createBot({
     const name = firstName ? `, ${escapeHtml(firstName)}` : ''
     const intro = userId
       ? [
-          `<b>🏁 С возвращением${name}.</b>`,
-          '<i>Цифровой гараж LADA Granta и Vesta — на связи.</i>',
+          `<b>🖤 Welcome back${name}.</b>`,
+          '<i>Mara OS — the operating system behind the persona — is online.</i>',
           RULE,
           '',
-          '🚘 <b>Гараж</b> — пробег и статус ОСАГО',
-          '🧰 <b>ТО</b> — журнал обслуживания',
-          '📊 <b>Расходы</b> — траты месяца',
-          '💳 <b>Кредит</b> — долг и ближайший платёж',
+          '👥 audience stats · 💬 inbox triage · 🎬 content pipeline',
+          '📊 revenue · ✅ tasks · 🤖 AI runs',
           '',
-          '<i>Кнопки ниже переключают разделы на месте — чат не засоряется.</i>',
+          '<i>Buttons below switch sections in place — no chat clutter.</i>',
         ]
       : [
-          `<b>🏁 Добро пожаловать${name}.</b>`,
-          '<i>LADA Assistant — персональный помощник владельца Granta и Vesta.</i>',
+          `<b>🖤 Hello${name}.</b>`,
+          '<i>Mara OS Assistant — your creator console in this chat.</i>',
           RULE,
           '',
-          'Пробег и ОСАГО, история обслуживания, расходы и остаток автокредита —',
-          'всё из вашего личного кабинета, прямо в этом чате.',
+          'Fans by relationship level, unread inbox, content calendar,',
+          'revenue and AI agent runs — straight from your account.',
           '',
-          '<i>Подключите кабинет кнопкой ниже — займёт меньше минуты.</i>',
+          '<i>Connect the account with the button below — takes under a minute.</i>',
         ]
     const text = intro.join('\n')
-    const markup = mainKeyboard(Boolean(userId))
-    const photo = siteAssetUrl('images/telegram-assistant-avatar.jpg')
-    if (photo) {
-      try {
-        return await telegramCall('sendPhoto', {
-          chat_id: chatId,
-          photo,
-          caption: text,
-          parse_mode: 'HTML',
-          reply_markup: markup,
-        })
-      } catch (error) {
-        logger.warn?.('[telegram] branded welcome image skipped:', error instanceof Error ? error.message : 'image unavailable')
-      }
-    }
-    return sendMessage(chatId, text, { reply_markup: markup })
+    return sendMessage(chatId, text, { reply_markup: mainKeyboard(Boolean(userId)) })
   }
 
   async function createLink(chatId, telegramUserId) {
     if (await getLinkedUserId(chatId)) {
       return sendMessage(chatId, [
-        '<b>🔗 КАБИНЕТ УЖЕ ПОДКЛЮЧЁН</b>',
+        '<b>🔗 ALREADY CONNECTED</b>',
         RULE,
         '',
-        'Этот Telegram уже связан с кабинетом. Чтобы сменить аккаунт,',
-        'сначала отключите текущий — /unlink.',
+        'This Telegram chat is linked to a Mara OS account. To switch',
+        'accounts, disconnect first with /unlink.',
       ].join('\n'), { reply_markup: mainKeyboard(true) })
     }
 
@@ -751,19 +760,19 @@ export function createBot({
 
     const formatted = `${code.slice(0, 5)}-${code.slice(5)}`
     const text = [
-      '<b>🔗 КОД ПОДКЛЮЧЕНИЯ</b>',
+      '<b>🔗 CONNECTION CODE</b>',
       RULE,
       '',
       `<b><code>${formatted}</code></b>`,
       '',
-      '1️⃣ Откройте сайт → раздел «Бот»',
-      '2️⃣ Введите код из этого сообщения',
-      '3️⃣ Сводки гаража появятся прямо здесь',
+      '1️⃣ Open the console → Settings → Telegram',
+      '2️⃣ Enter the code from this message',
+      '3️⃣ Stats and summaries appear right here',
       '',
-      '<i>⏱ Код одноразовый · действует 10 минут</i>',
-      '<i>Не пересылайте код посторонним — это ключ к вашему кабинету.</i>',
+      '<i>⏱ One-time code · valid for 10 minutes</i>',
+      '<i>Never share this code — it is the key to your account.</i>',
     ].join('\n')
-    const openBotSection = cabinetRow('telegram', '📱 Ввести код в кабинете')
+    const openBotSection = cabinetRow('telegram', '📱 Enter code in console')
     return sendMessage(chatId, text, { reply_markup: openBotSection.length ? { inline_keyboard: openBotSection } : undefined })
   }
 
@@ -780,49 +789,48 @@ export function createBot({
     return { ok: true }
   }
 
-  /** Отправка экрана новым сообщением (команда из чата). */
+  /** Deliver a screen as a new message (chat command). */
   async function sendScreen(chatId, screen) {
     return sendMessage(chatId, screen.text, { reply_markup: screen.markup })
   }
 
-  /** Редактирование экрана по месту (inline-кнопка). */
+  /** Edit the screen in place (inline button). */
   async function editScreen(chatId, messageId, screen) {
     return updateScreen(chatId, messageId, screen.text, screen.markup)
   }
 
-  /** Экран по имени действия; данные — свежие, со статусом «печатает…». */
+  /** Screen by action name; fresh data behind a "typing…" indicator. */
   async function runAction(chatId, action, { messageId = null, telegramUserId = null } = {}) {
     if (action === 'link') {
       return createLink(chatId, telegramUserId ?? chatId)
     }
     if (action === 'unlink') {
-      // Двухшаговое отключение: сначала экран подтверждения.
-      return messageId === null
-        ? sendScreen(chatId, { text: UNLINK_CONFIRM_TEXT, markup: UNLINK_CONFIRM_MARKUP })
-        : editScreen(chatId, messageId, { text: UNLINK_CONFIRM_TEXT, markup: UNLINK_CONFIRM_MARKUP })
+      // Two-step disconnect: confirmation screen first.
+      const screen = { text: UNLINK_CONFIRM_TEXT, markup: UNLINK_CONFIRM_MARKUP }
+      return messageId === null ? sendScreen(chatId, screen) : editScreen(chatId, messageId, screen)
     }
     if (action === 'unlink_confirm') {
       const outcome = await unlinkChat(chatId)
       const screen = outcome.ok
         ? {
             text: [
-              '<b>✅ ДОСТУП ОТОЗВАН</b>',
+              '<b>✅ ACCESS REVOKED</b>',
               RULE,
               '',
-              'Связь удалена: бот больше не видит данные кабинета.',
+              'Link removed: the bot no longer sees your account data.',
               '',
-              '<i>Подключить обратно можно в любой момент — /link.</i>',
+              '<i>Reconnect any time — /link.</i>',
             ].join('\n'),
             markup: connectKeyboard(),
           }
         : {
             text: [
-              '<b>⛓ КАБИНЕТ НЕ ПОДКЛЮЧЁН</b>',
+              '<b>⛓ NOT CONNECTED</b>',
               RULE,
               '',
-              'Этот Telegram и так не связан с кабинетом.',
+              'This Telegram was not linked to an account anyway.',
               '',
-              '<i>Для подключения — /link или кнопка ниже.</i>',
+              '<i>To connect — /link or the button below.</i>',
             ].join('\n'),
             markup: connectKeyboard(),
           }
@@ -852,32 +860,35 @@ export function createBot({
     const [firstToken] = text.split(/\s+/, 1)
     const command = firstToken.toLowerCase().split('@')[0]
     const word = text.toLowerCase()
-    if (command === '/start' || command === '/menu' || word === 'меню' || word === 'menu') {
+    if (command === '/start' || command === '/menu' || word === 'menu') {
       return showWelcome(chat.id, message.from.first_name)
     }
-    if (command === '/help' || word === 'помощь') {
+    if (command === '/help' || word === 'help') {
       const userId = await getLinkedUserId(chat.id)
       return sendMessage(chat.id, HELP_TEXT, { reply_markup: mainKeyboard(Boolean(userId)) })
     }
-    if (command === '/link' || word === 'подключить') return createLink(chat.id, message.from.id)
-    if (command === '/unlink' || word === 'отключить') {
+    if (command === '/link' || word === 'connect') return createLink(chat.id, message.from.id)
+    if (command === '/unlink' || word === 'disconnect') {
       return runAction(chat.id, 'unlink', { telegramUserId: message.from.id })
     }
-    if (command === '/garage' || word === 'гараж') return runAction(chat.id, 'garage')
-    if (command === '/service' || word === 'то' || word === 'сервис') return runAction(chat.id, 'service')
-    if (command === '/spending' || word === 'расходы' || word === 'траты') return runAction(chat.id, 'spending')
-    if (command === '/credit' || word === 'кредит') return runAction(chat.id, 'credit')
+    if (command === '/fans' || word === 'fans' || word === 'audience') return runAction(chat.id, 'fans')
+    if (command === '/messages' || word === 'inbox' || word === 'messages') return runAction(chat.id, 'messages')
+    if (command === '/content' || word === 'content' || word === 'pipeline') return runAction(chat.id, 'content')
+    if (command === '/analytics' || word === 'stats' || word === 'revenue') return runAction(chat.id, 'analytics')
+    if (command === '/tasks' || word === 'tasks' || word === 'todo') return runAction(chat.id, 'tasks')
+    if (command === '/ai' || word === 'ai' || word === 'agents') return runAction(chat.id, 'ai')
     if (command.startsWith('/')) {
       const userId = await getLinkedUserId(chat.id)
       return sendMessage(chat.id, HELP_TEXT, { reply_markup: mainKeyboard(Boolean(userId)) })
     }
+    const userId = await getLinkedUserId(chat.id)
     return sendMessage(chat.id, [
-      '<b>🤖 НЕ РАСПОЗНАЛ ЗАПРОС</b>',
+      '<b>🤖 DID NOT PARSE THAT</b>',
       RULE,
       '',
-      'Используйте кнопки меню, команды (/help) или слова:',
-      '<b>гараж</b> · <b>то</b> · <b>расходы</b> · <b>кредит</b> · <b>меню</b>.',
-    ].join('\n'), { reply_markup: mainKeyboard(Boolean(await getLinkedUserId(chat.id))) })
+      'Use the menu buttons, commands (/help) or words:',
+      '<b>fans</b> · <b>inbox</b> · <b>content</b> · <b>stats</b> · <b>tasks</b> · <b>ai</b> · <b>menu</b>.',
+    ].join('\n'), { reply_markup: mainKeyboard(Boolean(userId)) })
   }
 
   async function handleCallback(callback) {
@@ -892,7 +903,7 @@ export function createBot({
     })
   }
 
-  /** Обрабатывает один update Telegram (webhook или polling). */
+  /** Handles a single Telegram update (webhook or polling). */
   async function handleUpdate(update) {
     if (!update) return undefined
     if (update.message) return handleMessage(update.message)
@@ -900,11 +911,11 @@ export function createBot({
     return undefined
   }
 
-  /** Описание, команды и кнопка меню бота — вызывается при развёртывании. */
+  /** Bot description, commands and menu button — runs on deployment. */
   async function applyBotProfile() {
     await telegramCall('setMyDescription', { description: BOT_DESCRIPTION })
     await telegramCall('setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION })
-    // Кнопка меню открывает Mini App; команды остаются доступны через «/» и меню команд.
+    // Menu button opens the Mini App; commands stay available via "/" and the command list.
     const menuButton = miniAppMenuButton(webAppUrl)
     if (menuButton.type !== 'web_app') {
       logger.warn?.('[telegram] WEB_APP_URL is empty or not HTTPS: menu button falls back to the command list.')
@@ -914,12 +925,12 @@ export function createBot({
   }
 
   /**
-   * Тело ответа GET /health.
+   * Body of GET /health.
    *
    * @param {object} state
    * @param {'polling'|'webhook'} state.mode
    * @param {'starting'|'online'|'degraded'|'stopped'} [state.pollingStatus]
-   * @param {number|null} [state.lastSuccessfulAt] время последнего успешного обновления
+   * @param {number|null} [state.lastSuccessfulAt] time of the last successful update
    */
   function healthReport({ mode, pollingStatus = 'stopped', lastSuccessfulAt = null } = {}) {
     const configured = Boolean(telegramToken)
@@ -927,7 +938,7 @@ export function createBot({
     const online = configured && pollingStatus === 'online' && (mode === 'webhook' ? true : fresh)
     return {
       ok: online,
-      service: 'lada-telegram-api',
+      service: 'mara-telegram-api',
       mode,
       configured,
       botPolling: configured ? (online ? 'online' : pollingStatus) : 'stopped',

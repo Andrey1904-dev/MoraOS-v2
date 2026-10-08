@@ -1,348 +1,229 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ */
+/* Mara OS — design tokens                                            */
+/* ------------------------------------------------------------------ */
 @theme {
-  /* Визуальная система LADA Granta Sport */
-  --color-bg: #0e1013;
-  --color-surface: #1a1d22;
-  --color-surface-2: #23272d;
-  --color-ink: #f3f4f4;
-  --color-muted: #a9afb7;
-  --color-line: #363b43;
+  /* Typography */
+  --font-sans: "Inter", "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Дополнительный узкий брейкпоинт (разделители телеметрии на главной) */
-  --breakpoint-xs: 30rem;
+  /* Base — graphite canvas */
+  --color-canvas: #08090a;
+  --color-canvas-2: #0b0c0e;
+  --color-surface: #101114;
+  --color-surface-2: #15171a;
+  --color-surface-3: #1b1d21;
+  --color-line: #23262b;
+  --color-line-2: #2e3238;
 
-  /* Акцент Granta Sport Red */
-  --color-sport: #e33337;
-  --color-sport-hover: #c82529;
-  --color-sport-soft: rgba(227, 51, 55, 0.14);
+  /* Text */
+  --color-ink: #f2f3f5;
+  --color-ink-2: #c3c7cd;
+  --color-muted: #83888f;
+  --color-faint: #5c6167;
 
-  /* Семантические цвета статусов */
-  --color-success: #16b374;
-  --color-warning: #f5a623;
-  --color-danger: #ef4444;
+  /* Brand accent — muted wine / burgundy (Mara's red notebook) */
+  --color-accent: #a13542;
+  --color-accent-hi: #bb4553;
+  --color-accent-lo: #7d2833;
 
-  /* Типографика */
-  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Oswald", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Status */
+  --color-pos: #57a06f;
+  --color-warn: #c2913c;
+  --color-neg: #c05348;
+  --color-info: #5d86ad;
+
+  /* Radius */
+  --radius-xs: 5px;
+  --radius-sm: 7px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.03) inset;
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.75), 0 0 0 1px var(--color-line);
+  --shadow-soft: 0 8px 24px -16px rgb(0 0 0 / 0.9);
 }
 
-html {
-  -webkit-tap-highlight-color: transparent;
-  color-scheme: dark;
-  background-color: var(--color-bg);
-  overflow-x: hidden;
-}
-
-body {
-  background-color: var(--color-bg);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-}
-
-/* Выразительный узкий гротеск для коротких заголовков, сумм и одометра */
-.font-display-num {
-  font-family: var(--font-display);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
-
-/* Технический фокус с клавиатуры */
-:focus-visible {
-  outline: 2px solid var(--color-sport);
-  outline-offset: 2px;
-}
-
-/* Аккуратные скроллбары */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: #0e1013;
-}
-::-webkit-scrollbar-thumb {
-  background: #363b43;
-  border-radius: 3px;
-}
-
-/* Убираем стрелки у number-инпутов */
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-/* Короткие технические переходы 160–280 мс */
-@keyframes sheet-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0.8;
+@layer base {
+  * {
+    border-color: var(--color-line);
   }
-  to {
-    transform: translateY(0);
-    opacity: 1;
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: normal;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 45%, transparent);
+    color: #fff;
+  }
+
+  /* Scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-2) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #26292e;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #383c43;
+    background-clip: content-box;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent-hi) 80%, transparent);
+    outline-offset: 2px;
   }
 }
 
-@keyframes fade-in {
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .label {
+    font-size: 10.5px;
+    line-height: 1;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    font-weight: 500;
+  }
+  .grain {
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      rgb(255 255 255 / 0.035) 1px,
+      transparent 0
+    );
+    background-size: 3px 3px;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+}
+
+@keyframes mara-fade-in {
   from {
     opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Переход между разделами: плавный подъём с лёгким масштабом.
-   Финальный `transform: none` важен: не создаёт containing block,
-   поэтому fixed-элементы (BottomSheet) внутри страницы не ломаются. */
-@keyframes page-enter {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.996);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-
-/* Каскадное появление секций внутри раздела */
-@keyframes rise-in {
+@keyframes mara-overlay-in {
   from {
     opacity: 0;
-    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mara-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-
-/* Смена фотографии автомобиля: мягкий кроссфейд с лёгким наездом */
-@keyframes car-in {
-  from {
-    opacity: 0;
-    transform: scale(1.035);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Сплэш-заставка при входе на сайт */
-@keyframes splash-logo {
-  from {
-    opacity: 0;
-    transform: scale(1.15) translateY(12px);
-    filter: blur(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-    filter: blur(0);
-  }
-}
-
-@keyframes splash-line {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-@keyframes splash-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
-@keyframes glow-pulse {
-  0%,
+@keyframes mara-shimmer {
   100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 0.95;
+    transform: translateX(100%);
   }
 }
-
-.animate-sheet-up {
-  animation: sheet-up 240ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.animate-fade-in {
-  animation: fade-in 180ms ease-out;
-}
-
-.animate-pop-in {
-  animation: pop-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.animate-page-enter {
-  animation: page-enter 380ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.animate-rise {
-  animation: rise-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.animate-car-in {
-  animation: car-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.animate-splash-logo {
-  animation: splash-logo 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.animate-splash-line {
-  transform-origin: left center;
-  animation: splash-line 850ms 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.animate-splash-out {
-  animation: splash-out 420ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.animate-glow-pulse {
-  animation: glow-pulse 2.6s ease-in-out infinite;
-}
-
-/* «Дыхание» обложек: медленный наезд камеры на кадрах дуэта */
-@keyframes kenburns {
+@keyframes mara-draw {
   from {
-    transform: scale(1) translate3d(0, 0, 0);
+    stroke-dashoffset: var(--dash, 1200);
   }
   to {
-    transform: scale(1.08) translate3d(1.5%, -1.5%, 0);
+    stroke-dashoffset: 0;
   }
 }
-.animate-kenburns {
-  animation: kenburns 16s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-/* Прогресс-бары вырастают слева направо при появлении */
-@keyframes bar-in {
+@keyframes mara-rise {
   from {
-    transform: scaleX(0);
+    transform: scaleY(0);
   }
   to {
-    transform: scaleX(1);
-  }
-}
-.animate-bar {
-  transform-origin: left center;
-  animation: bar-in 900ms cubic-bezier(0.22, 0.8, 0.36, 1) both;
-}
-
-/* Интерактивные карточки: лёгкий подъём и тень при наведении */
-.hover-lift {
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    border-color 0.18s ease;
-}
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
-}
-.hover-lift:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Бегущий блик по главному кадру главной — фирменный штрих LADA Sport */
-@keyframes scene-sheen {
-  0% {
-    transform: translateX(-120%) skewX(-12deg);
-  }
-  100% {
-    transform: translateX(220%) skewX(-12deg);
-  }
-}
-.animate-sheen {
-  animation: scene-sheen 5.5s ease-in-out 1.2s infinite;
-}
-
-/* Учёт prefers-reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    transform: scaleY(1);
   }
 }
 
-/* ------------------------------------------------------------------------
- * Telegram Mini App (класс html.tg-mini-app ставит src/lib/telegram-mini-app.ts
- * только внутри Telegram; в обычном браузере правила ниже не действуют).
- * Переменные --tg-app-* обновляются на viewportChanged / safeAreaChanged / resize.
- * ---------------------------------------------------------------------- */
-html.tg-mini-app {
-  overscroll-behavior-y: none;
+.anim-fade {
+  animation: mara-fade-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-overlay {
+  animation: mara-overlay-in 0.16s ease-out both;
+}
+.anim-sheet {
+  animation: mara-sheet-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-draw {
+  stroke-dasharray: var(--dash, 1200);
+  animation: mara-draw 1.1s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+.anim-rise {
+  transform-origin: bottom;
+  animation: mara-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-html.tg-mini-app body {
-  padding-top: var(--tg-app-inset-top, 0px);
-  padding-left: var(--tg-app-inset-left, 0px);
-  padding-right: var(--tg-app-inset-right, 0px);
+/* ------------------------------------------------------------------ */
+/* MoraOS-v2 integration: safe area + Telegram Mini App               */
+/* ------------------------------------------------------------------ */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-app-inset-bottom, 0px));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 }
 
-/* Высота видимой области Mini App, а не единственный замер при старте */
-html.tg-mini-app .min-h-dvh {
-  min-height: var(--tg-app-viewport-stable-height, 100dvh);
-}
-
-html.tg-mini-app .tg-top-sticky {
-  top: var(--tg-app-inset-top, 0px);
-}
-
-/* Нижняя панель: над скрытой частью WebView и над системной областью */
-html.tg-mini-app .tg-bottom-fixed {
-  bottom: var(--tg-app-bottom-offset, 0px);
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--tg-app-inset-bottom, 0px));
-  padding-left: var(--tg-app-inset-left, 0px);
-  padding-right: var(--tg-app-inset-right, 0px);
-}
-
-/* Модальные окна помещаются в видимую часть Mini App */
-html.tg-mini-app .tg-fit-viewport {
-  top: var(--tg-app-inset-top, 0px);
-  bottom: var(--tg-app-bottom-offset, 0px);
-}
-
-html.tg-mini-app .tg-sheet-panel {
-  max-height: calc(var(--tg-app-viewport-stable-height, 100dvh) * 0.92);
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px), var(--tg-app-inset-bottom, 0px));
+/* В Mini App (особенно iOS) контент должен помещаться в видимый viewport,
+   который Telegram меняет при открытии клавиатуры. */
+html.tg-miniapp,
+html.tg-miniapp body,
+html.tg-miniapp #root {
+  height: var(--tg-viewport-height, 100dvh);
+  overflow: hidden;
 }

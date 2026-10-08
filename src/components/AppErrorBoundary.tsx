@@ -38,8 +38,8 @@ export default class AppErrorBoundary extends Component<{ children: ReactNode },
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <div role="alert" className="flex min-h-dvh items-center justify-center bg-[#0E1013] px-6 text-[#F3F4F4]">
-        <div className="w-full max-w-[380px] rounded-[14px] border border-[#363B43] bg-[#1A1D22] p-6 text-center">
+      <div role="alert" className="flex min-h-dvh items-center justify-center bg-canvas px-6 text-ink">
+        <div className="w-full max-w-[380px] rounded-[14px] border border-line bg-surface p-6 text-center">
           <p className="font-display-num text-[20px] font-bold uppercase tracking-wide">Что-то пошло не так</p>
           <p className="mt-2 text-[13px] leading-relaxed text-[#A9AFB7]">
             Экран не удалось отобразить. Данные не потеряны — попробуйте обновить страницу.

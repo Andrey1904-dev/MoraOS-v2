@@ -1,797 +1,461 @@
-import { resetStorage } from './setup'
+/**
+ * Модульные тесты Mara OS (node:test, собираются esbuild-ом — см. scripts/test.mjs).
+ *
+ * Покрытие:
+ *   • форматтеры и утилиты UI;
+ *   • слой AI: mock-провайдер, структурированные ответы агентов,
+ *     business rules Sales Agent, дедупликация Memory Agent, Character Agent;
+ *   • демо-репозитории: fans, conversations (draft → approve → send),
+ *     content drafts, tasks, automations, ai_runs, память;
+ *   • события (events) в демо-режиме;
+ *   • сервис-локатор репозиториев.
+ */
+import './setup-env'
+import { test, describe, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { describe, it } from 'node:test'
 
-import {
-  annuityPayment,
-  principalFromPayment,
-  rateFromPayment,
-  remainingBalance,
-  pdnRelief,
-  simulatePrepayment,
-  termFromPayment,
-} from '../src/utils/loan'
-import { addMonths, daysUntil, monthsBetween, nextPaymentDate, startOfMonth } from '../src/utils/date'
-import { parseLocaleNumber, plural, pluralMonths, toDateInputValue } from '../src/utils/format'
-import { computeFuelStats, monthlyMileage } from '../src/utils/fuel'
-import { forecastYear, monthlySeries, ownershipCost } from '../src/utils/stats'
-import {
-  ENGINES,
-  SERVICE_ITEMS,
-  buildMileagePlan,
-  buildServicePlan,
-  computeServiceStatus,
-  engineCarName,
-  engineInfo,
-  engineSpecLine,
-  recordMatches,
-  intervalFor,
-} from '../src/lib/service'
-import { TAX_REGIONS, taxDueDate, taxRateFor, transportTax } from '../src/lib/tax'
-import { DEFAULT_SETTINGS, readSettings, writeSettings } from '../src/lib/settings'
-import {
-  START_STEPS,
-  WARRANTY_ITEMS,
-  fuelGrade,
-  warrantyLeft,
-} from '../src/lib/ownership'
-import { buildBackup, buildExpensesCsv, buildMaintenanceCsv } from '../src/lib/backup'
-import { DEMO_CREDENTIALS, createLocalBackend, resetDemoData } from '../src/lib/local'
-import type { MaintenanceRecord, Transaction } from '../src/types/domain'
+import { parseJsonFromText } from '../src/lib/ai/provider'
+import { MockAIProvider } from '../src/lib/ai/mock'
+import { CharacterAgent } from '../src/lib/ai/character-agent'
+import { ConversationAgent } from '../src/lib/ai/conversation-agent'
+import { MemoryAgent } from '../src/lib/ai/memory-agent'
+import { SalesAgent } from '../src/lib/ai/sales-agent'
+import { ContentAgent } from '../src/lib/ai/content-agent'
+import { AnalyticsAgent } from '../src/lib/ai/analytics-agent'
+import { AiOrchestrator, runReplyPipeline } from '../src/lib/ai/orchestrator'
+import type { CharacterContext, ConversationTurn, FanContext, MemoryFact } from '../src/lib/ai/types'
 
-const near = (actual: number, expected: number, eps = 0.5, msg?: string) =>
-  assert.ok(
-    Math.abs(actual - expected) <= eps,
-    msg ?? `ожидалось ≈${expected}, получено ${actual}`,
-  )
+import { demoRepositories } from '../src/repositories/demo'
+import { demoStore, mutateDemoStore, resetDemoStore } from '../src/repositories/demo-store'
+import { trackEvent } from '../src/lib/events'
 
-const tx = (p: Partial<Transaction> & Pick<Transaction, 'amount' | 'category' | 'date'>): Transaction => ({
-  id: Math.random().toString(36).slice(2),
-  user_id: 'u1',
-  mileage_at_transaction: null,
-  ...p,
-})
+/* ------------------------------ фикстуры ------------------------------ */
 
-/* ------------------------------------------------------------------ */
-describe('аннуитет', () => {
-  it('платёж по классической формуле', () => {
-    near(annuityPayment(1_000_000, 12, 12), 88_848.79, 0.05)
-    near(annuityPayment(1_050_000, 16.9, 60), 26_022, 50)
+const CHARACTER: CharacterContext = {
+  name: 'Mara Quinn',
+  voice: 'Dry, first-person, honest about numbers. Never corporate, never robotic.',
+  story: '365 days to buy back my time',
+  lore: '$54k salary. $27k debt. One red notebook. One year.',
+  boundaries: ['Never break the first-person diary frame', 'No explicit content'],
+  personality: ['dry', 'confident', 'playful', 'intelligent'],
+  recurringObjects: ['red notebook'],
+}
+
+const FAN: FanContext = {
+  id: 'fan_test',
+  name: 'Alex Rivera',
+  relationshipLevel: 'fan',
+  ltv: 240,
+  purchases: 4,
+  hasActiveSubscription: false,
+  source: 'telegram',
+}
+
+const HISTORY: ConversationTurn[] = [
+  { author: 'fan', body: 'That 6am gym set was unreal. Do you actually write the debt number down every morning?' },
+  { author: 'mara', body: 'Every morning, page 43 and counting.' },
+  { author: 'fan', body: 'I work night shifts so the 6am posts hit different. From Austin by the way' },
+]
+
+const MEMORIES: MemoryFact[] = [{ memory: 'Lives in Austin, TX', category: 'location', importance: 0.7 }]
+
+const mock = () => new MockAIProvider(1)
+
+/* ------------------------------ provider ------------------------------ */
+
+describe('AI provider primitives', () => {
+  test('parseJsonFromText: чистый JSON', () => {
+    assert.deepEqual(parseJsonFromText('{"a": 1}'), { a: 1 })
+  })
+  test('parseJsonFromText: fenced ```json блок', () => {
+    assert.deepEqual(parseJsonFromText('```json\n{"a": 2}\n```'), { a: 2 })
+  })
+  test('parseJsonFromText: JSON внутри лишнего текста', () => {
+    assert.deepEqual(parseJsonFromText('sure! {"ok": true} done'), { ok: true })
+  })
+  test('parseJsonFromText: мусор — ошибка', () => {
+    assert.throws(() => parseJsonFromText('no json here'))
   })
 
-  it('беспроцентный кредит делится поровну', () => {
-    assert.equal(annuityPayment(120_000, 0, 12), 10_000)
+  test('MockAIProvider помечает вывод mock и даёт JSON для схемы', async () => {
+    const p = mock()
+    const res = await p.generate({ agent: 'conversation', prompt: 'Fan: Alex\nLast message: hey', schema: {} })
+    assert.equal(res.mock, true)
+    const parsed = parseJsonFromText(res.text) as Record<string, unknown>
+    assert.equal(typeof parsed.reply, 'string')
   })
 
-  it('некорректные входные данные дают NaN', () => {
-    assert.ok(Number.isNaN(annuityPayment(0, 12, 12)))
-    assert.ok(Number.isNaN(annuityPayment(100, 12, 0)))
-  })
-
-  it('срок и сумма обратны платежу', () => {
-    const P = annuityPayment(1_000_000, 12, 24)
-    near(termFromPayment(1_000_000, 12, P), 24, 0.01)
-    near(principalFromPayment(P, 12, 24), 1_000_000, 1)
-  })
-
-  it('платёж меньше процентов — срок не определён', () => {
-    assert.ok(Number.isNaN(termFromPayment(1_000_000, 12, 5_000)))
-  })
-
-  it('ставка восстанавливается бисекцией', () => {
-    const P = annuityPayment(1_000_000, 18.5, 36)
-    near(rateFromPayment(1_000_000, P, 36), 18.5, 0.01)
-  })
-
-  it('остаток долга: границы и середина', () => {
-    assert.equal(remainingBalance(1_000_000, 12, 12, 0), 1_000_000)
-    assert.equal(remainingBalance(1_000_000, 12, 12, 12), 0)
-    const half = remainingBalance(1_000_000, 12, 12, 6)
-    assert.ok(half > 480_000 && half < 520_000, `остаток после 6 из 12: ${half}`)
-  })
-
-  it('учитывает фактический платёж из банковского графика', () => {
-    const balance = remainingBalance(1_000, 12, 12, 1, 100)
-    near(balance, 910, 0.001)
-    assert.notEqual(balance, remainingBalance(1_000, 12, 12, 1))
+  test('embed: нормированный детерминированный вектор', async () => {
+    const p = mock()
+    const a = await p.embed('night shifts')
+    const b = await p.embed('night shifts')
+    assert.deepEqual(a, b)
+    assert.ok(Math.abs(Math.hypot(...a) - 1) < 1e-9)
   })
 })
 
-/* ------------------------------------------------------------------ */
-describe('ПДН: сколько закрыть для снижения нагрузки', () => {
-  const base = { income: 100_000, totalMonthlyDebt: 60_000, annualPercent: 24, termLeft: 24 }
+/* ------------------------------ Character Agent ------------------------------ */
 
-  it('считает предел платежей и сумму снижения', () => {
-    const r = pdnRelief({ ...base, targetPercent: 50 })!
-    near(r.allowedPayment, 50_000, 0.01)
-    near(r.paymentToCut, 10_000, 0.01)
-    assert.equal(r.reached, false)
+describe('CharacterAgent', () => {
+  const agent = new CharacterAgent()
+
+  test('systemPrompt содержит voice, story и boundaries', () => {
+    const prompt = agent.systemPrompt(CHARACTER)
+    assert.match(prompt, /Dry, first-person/)
+    assert.match(prompt, /365 days to buy back my time/)
+    assert.match(prompt, /No explicit content/)
+    assert.match(prompt, /red notebook/)
   })
 
-  it('переводит лишний платёж в остаток долга по аннуитету', () => {
-    const r = pdnRelief({ ...base, targetPercent: 50 })!
-    near(r.principalToClose, principalFromPayment(10_000, 24, 24), 0.01)
-    assert.ok(r.principalToClose > 0)
-  })
-
-  it('более строгий порог требует закрыть больше', () => {
-    const soft = pdnRelief({ ...base, targetPercent: 50 })!
-    const hard = pdnRelief({ ...base, targetPercent: 30 })!
-    assert.ok(hard.paymentToCut > soft.paymentToCut)
-    assert.ok(hard.principalToClose > soft.principalToClose)
-  })
-
-  it('если порог соблюдён — показывает запас, а закрывать нечего', () => {
-    const r = pdnRelief({ ...base, totalMonthlyDebt: 20_000, targetPercent: 30 })!
-    assert.equal(r.reached, true)
-    assert.equal(r.paymentToCut, 0)
-    assert.equal(r.principalToClose, 0)
-    near(r.headroom, 10_000, 0.01)
-  })
-
-  it('без срока закрываемых кредитов сумма не оценивается', () => {
-    const r = pdnRelief({ ...base, termLeft: 0, targetPercent: 50 })!
-    near(r.paymentToCut, 10_000, 0.01)
-    assert.ok(Number.isNaN(r.principalToClose))
-  })
-
-  it('без дохода расчёт невозможен', () => {
-    assert.equal(pdnRelief({ ...base, income: 0, targetPercent: 50 }), null)
+  test('check ловит AI-обороты и корпоративный тон', () => {
+    assert.equal(agent.check("As an AI, I can't do that", CHARACTER).ok, false)
+    assert.equal(agent.check('Let us leverage synergy here', CHARACTER).ok, false)
+    assert.equal(agent.check('The notebook saw the number first.', CHARACTER).ok, true)
   })
 })
 
-/* ------------------------------------------------------------------ */
-describe('досрочное погашение', () => {
-  const base = { balance: 1_000_000, annualPercent: 12, payment: 88_848.79, termLeft: 12 }
+/* ---------------------------- Conversation Agent ---------------------------- */
 
-  it('без досрочных взносов повторяет обычный график', () => {
-    const plan = simulatePrepayment({ ...base, mode: 'term' })!
-    assert.equal(plan.months, 12)
-    near(plan.interest, 66_185, 100)
-    near(plan.totalPaid, 1_066_185, 100)
+describe('ConversationAgent', () => {
+  test('структурированный черновик ответа', async () => {
+    const agent = new ConversationAgent(mock())
+    const result = await agent.reply({ character: CHARACTER, fan: FAN, memories: MEMORIES, history: HISTORY })
+    assert.ok(result.reply.length > 10)
+    assert.ok(['greeting', 'flirting', 'price_check', 'story_followup', 'support', 'smalltalk', 'other'].includes(result.intent))
+    assert.ok(['none', 'recommend_offer', 'wait', 'nurture'].includes(result.sales_action))
+    assert.ok(result.confidence > 0 && result.confidence <= 1)
   })
 
-  it('разовый взнос сокращает срок и переплату', () => {
-    const plan = simulatePrepayment({ ...base, oneTime: 500_000, mode: 'term' })!
-    assert.equal(plan.months, 6)
-    near(plan.interest, 17_254, 50)
-  })
-
-  it('сокращение срока выгоднее уменьшения платежа', () => {
-    const byTerm = simulatePrepayment({ ...base, oneTime: 500_000, mode: 'term' })!
-    const byPayment = simulatePrepayment({ ...base, oneTime: 500_000, mode: 'payment' })!
-    assert.ok(byTerm.interest < byPayment.interest)
-    assert.equal(byPayment.months, 12)
-    near(byPayment.payment, 44_424, 5)
-  })
-
-  it('регулярная доплата тоже сокращает срок', () => {
-    const plain = simulatePrepayment({ ...base, mode: 'term' })!
-    const extra = simulatePrepayment({ ...base, monthly: 20_000, mode: 'term' })!
-    assert.ok(extra.months < plain.months)
-    assert.ok(extra.interest < plain.interest)
-  })
-
-  it('взнос больше долга закрывает кредит', () => {
-    const plan = simulatePrepayment({ ...base, oneTime: 2_000_000, mode: 'term' })!
-    assert.equal(plan.months, 0)
-    assert.equal(plan.interest, 0)
-  })
-
-  it('платёж меньше процентов — расчёт невозможен', () => {
-    assert.equal(simulatePrepayment({ ...base, payment: 1_000, mode: 'term' }), null)
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('даты', () => {
-  it('addMonths не перескакивает через месяц', () => {
-    assert.equal(toDateInputValue(addMonths(new Date(2026, 0, 31), 1)), '2026-02-28')
-    assert.equal(toDateInputValue(addMonths(new Date(2024, 0, 31), 1)), '2024-02-29')
-    assert.equal(toDateInputValue(addMonths(new Date(2026, 11, 15), 1)), '2027-01-15')
-  })
-
-  it('monthsBetween считает полные месяцы', () => {
-    assert.equal(monthsBetween(new Date(2026, 0, 15), new Date(2026, 3, 15)), 3)
-    assert.equal(monthsBetween(new Date(2026, 0, 15), new Date(2026, 3, 14)), 2)
-  })
-
-  it('следующий платёж — ближайший день месяца', () => {
-    assert.equal(
-      toDateInputValue(nextPaymentDate('2025-01-25', new Date(2026, 8, 29))),
-      '2026-10-25',
-    )
-    // сегодня день платежа — платёж сегодня, а не через месяц
-    assert.equal(
-      toDateInputValue(nextPaymentDate('2025-01-25', new Date(2026, 8, 25))),
-      '2026-09-25',
-    )
-    // 31-е число в коротком месяце
-    assert.equal(
-      toDateInputValue(nextPaymentDate('2025-01-31', new Date(2026, 1, 15))),
-      '2026-02-28',
-    )
-  })
-
-  it('daysUntil и startOfMonth', () => {
-    assert.equal(daysUntil('2026-10-09', new Date(2026, 8, 29)), 10)
-    assert.equal(daysUntil('2026-09-20', new Date(2026, 8, 29)), -9)
-    assert.equal(toDateInputValue(startOfMonth(new Date(2026, 8, 29))), '2026-09-01')
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('форматирование', () => {
-  it('парсит числа в русской раскладке', () => {
-    assert.equal(parseLocaleNumber('1 234,5'), 1234.5)
-    assert.equal(parseLocaleNumber('27400'), 27400)
-    assert.ok(Number.isNaN(parseLocaleNumber('')))
-  })
-
-  it('склонения', () => {
-    const f: [string, string, string] = ['месяц', 'месяца', 'месяцев']
-    assert.equal(plural(1, f), 'месяц')
-    assert.equal(plural(2, f), 'месяца')
-    assert.equal(plural(5, f), 'месяцев')
-    assert.equal(plural(11, f), 'месяцев')
-    assert.equal(plural(21, f), 'месяц')
-    assert.equal(plural(0, f), 'месяцев')
-    assert.ok(pluralMonths(3).endsWith('месяца'))
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('топливная аналитика', () => {
-  const fills = [
-    tx({ amount: 3_000, category: 'fuel', date: '2026-09-01', mileage_at_transaction: 10_000 }),
-    tx({ amount: 3_600, category: 'fuel', date: '2026-09-11', mileage_at_transaction: 10_600 }),
-    tx({ amount: 3_600, category: 'fuel', date: '2026-09-21', mileage_at_transaction: 11_200 }),
-  ]
-
-  it('считает расход между заправками', () => {
-    const stats = computeFuelStats(fills, 60, 50)
-    assert.equal(stats.legs.length, 2)
-    near(stats.avgPer100!, 10, 0.01) // 60 л на 600 км
-    near(stats.rubPerKm!, 6, 0.01)
-    near(stats.totalLiters, 170, 0.01)
-    near(stats.rangePerTank!, 500, 1)
-  })
-
-  it('отбрасывает выбросы и пустую историю', () => {
-    assert.equal(computeFuelStats([], 60).avgPer100, null)
-    const noisy = computeFuelStats(
-      [
-        tx({ amount: 3_000, category: 'fuel', date: '2026-01-01', mileage_at_transaction: 1_000 }),
-        tx({ amount: 3_000, category: 'fuel', date: '2026-06-01', mileage_at_transaction: 40_000 }),
-      ],
-      60,
-    )
-    assert.equal(noisy.legs.length, 0, 'отрезок в 39 000 км не должен учитываться')
-    assert.equal(noisy.count, 2)
-  })
-
-  it('средний пробег в месяц', () => {
-    const km = monthlyMileage(fills)
-    assert.ok(km && km > 1_500 && km < 2_000, `пробег в месяц: ${km}`)
-    assert.equal(monthlyMileage([fills[0]]), null)
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('статистика владения', () => {
-  const now = new Date(2026, 8, 29)
-  const list = [
-    tx({ amount: 3_000, category: 'fuel', date: '2026-09-10', mileage_at_transaction: 20_000 }),
-    tx({ amount: 27_400, category: 'loan', date: '2026-09-05' }),
-    tx({ amount: 5_000, category: 'maintenance', date: '2026-08-15', mileage_at_transaction: 19_000 }),
-    tx({ amount: 1_000, category: 'other', date: '2024-01-01' }), // вне окна
-  ]
-
-  it('ряд по месяцам содержит нужное число точек', () => {
-    const series = monthlySeries(list, 12, now)
-    assert.equal(series.length, 12)
-    assert.equal(series[11].key, '2026-09')
-    assert.equal(series[11].total, 30_400)
-    assert.equal(series[11].byCategory.fuel, 3_000)
-    assert.equal(series[10].total, 5_000)
-    assert.equal(
-      series.reduce((s, p) => s + p.total, 0),
-      35_400,
-      'запись 2024 года не попадает в окно 12 месяцев',
-    )
-  })
-
-  it('стоимость владения считается по окну с данными', () => {
-    const cost = ownershipCost(list, 12, now)
-    assert.equal(cost.total, 35_400)
-    assert.equal(cost.kmInWindow, 1_000)
-    near(cost.perKm!, 35.4, 0.01)
-    assert.ok(cost.perMonth > 0)
-    assert.equal(cost.byCategory[0].category, 'loan')
-    // сравнение с отраслевым ориентиром считают без платежей по кредиту
-    assert.equal(cost.totalExLoan, 8_000)
-    near(cost.perKmExLoan!, 8, 0.01)
-  })
-
-  it('прогноз на год складывает статьи расходов', () => {
-    const f = forecastYear({
-      loanPayment: 27_400,
-      loanMonthsLeft: 6,
-      kmPerYear: 12_000,
-      per100: 8,
-      fuelPrice: 60,
-      service: 20_000,
-      insurance: 7_000,
-      tax: 3_286,
+  test('покупательский сигнал → рекомендация оффера', async () => {
+    const agent = new ConversationAgent(mock())
+    const result = await agent.reply({
+      character: CHARACTER,
+      fan: FAN,
+      memories: [],
+      history: [{ author: 'fan', body: 'how much is the PPV drop? want to buy' }],
     })
-    near(f.loan, 164_400, 1)
-    near(f.fuel, 57_600, 1)
-    near(f.total, 252_286, 2)
-    near(f.perKm!, 21.02, 0.05)
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('регламент ТО', () => {
-  const ctx = {
-    mileage: 47_800,
-    mode: 'factory' as const,
-    engine: '21127' as const,
-    maintenance: [] as MaintenanceRecord[],
-    today: new Date(2026, 8, 29),
-  }
-  const oil = SERVICE_ITEMS.find((i) => i.id === 'oil')!
-
-  it('интервалы завода и форума различаются', () => {
-    assert.equal(intervalFor(oil, 'factory').km, 15_000)
-    assert.equal(intervalFor(oil, 'forum').km, 8_000)
+    assert.equal(result.sales_action, 'recommend_offer')
   })
 
-  it('без записей последнее ТО оценивается по пробегу', () => {
-    const s = computeServiceStatus(oil, ctx)
-    assert.equal(s.estimated, true)
-    assert.equal(s.lastKm, 45_000)
-    assert.equal(s.dueKm, 60_000)
-    assert.equal(s.remainingKm, 12_200)
-    near(s.progress, 0.187, 0.01)
-    assert.equal(s.state, 'ok')
-  })
-
-  it('запись из журнала уточняет план и снимает оценку', () => {
-    const s = computeServiceStatus(oil, {
-      ...ctx,
-      maintenance: [
-        {
-          id: 'm1',
-          user_id: 'u1',
-          date: '2026-06-01',
-          mileage: 44_000,
-          description: 'Замена масла и масляного фильтра',
-        },
-      ],
-    })
-    assert.equal(s.estimated, false)
-    assert.equal(s.lastKm, 44_000)
-    assert.equal(s.dueKm, 59_000)
-    assert.ok(s.record)
-  })
-
-  it('просроченная работа получает статус overdue', () => {
-    const s = computeServiceStatus(oil, {
-      ...ctx,
-      maintenance: [
-        {
-          id: 'm1',
-          user_id: 'u1',
-          date: '2024-01-10',
-          mileage: 10_000,
-          description: 'Моторное масло и масляный фильтр',
-        },
-      ],
-    })
-    assert.equal(s.state, 'overdue')
-    assert.ok(s.remainingKm! < 0)
-  })
-
-  it('не приписывает ТО по общему слову и фильтрует короткие совпадения', () => {
-    const coolant = SERVICE_ITEMS.find((item) => item.id === 'coolant')!
-    const valves = SERVICE_ITEMS.find((item) => item.id === 'valve-clearance')!
-    const cvJoints = SERVICE_ITEMS.find((item) => item.id === 'cv-joints')!
-    const oilItem = SERVICE_ITEMS.find((item) => item.id === 'oil')!
-
-    assert.equal(recordMatches(coolant, 'Ремонт, можно ездить дальше'), false)
-    assert.equal(recordMatches(coolant, 'Автомобиль на подъёмнике'), false)
-    assert.equal(recordMatches(valves, 'Замена обратного клапана омывателя'), false)
-    assert.equal(recordMatches(cvJoints, 'Замена приводного ремня генератора'), false)
-    assert.equal(recordMatches(oilItem, 'ТО-1'), false, 'общее ТО не подтверждает замену масла')
-    assert.equal(recordMatches(coolant, 'Замена ОЖ'), true)
-  })
-
-  it('масло в МКПП не считается моторным', () => {
-    const s = computeServiceStatus(oil, {
-      ...ctx,
-      maintenance: [
-        {
-          id: 'm1',
-          user_id: 'u1',
-          date: '2026-06-01',
-          mileage: 44_000,
-          description: 'Замена масла в МКПП',
-        },
-      ],
-    })
-    assert.equal(s.record, null)
-  })
-
-  it('план отсортирован по срочности и учитывает мотор', () => {
-    const plan = buildServicePlan(ctx)
-    assert.ok(plan.length >= 20)
-    for (let i = 1; i < plan.length; i++) {
-      assert.ok(plan[i - 1].progress >= plan[i].progress, 'план не отсортирован по прогрессу')
-    }
-    const has8vWork = (engine: '11182' | '21127') =>
-      buildServicePlan({ ...ctx, engine }).some((s) => s.item.id === 'valve-clearance')
-    assert.equal(has8vWork('11182'), true, 'регулировка клапанов нужна для 8V')
-    assert.equal(has8vWork('21127'), false, 'на 16V гидрокомпенсаторы')
-  })
-
-  it('карта ТО кратна 15 000 км', () => {
-    const stops = buildMileagePlan('21127', 'factory', 6)
-    assert.equal(stops.length, 6)
-    assert.equal(stops[0].km, 15_000)
-    assert.ok(stops[0].items.some((i) => i.id === 'oil'))
-    assert.ok(stops[2].items.some((i) => i.id === 'brake-fluid'), 'тормозная жидкость на 45 000')
-    assert.ok(!stops[0].items.some((i) => i.id === 'brake-fluid'))
-  })
-
-  it('данные каталога заполнены корректно', () => {
-    const ids = new Set<string>()
-    for (const item of SERVICE_ITEMS) {
-      assert.ok(!ids.has(item.id), `дубликат id: ${item.id}`)
-      ids.add(item.id)
-      assert.ok(item.title.length > 3, item.id)
-      assert.ok(item.keywords.length > 0, item.id)
-      assert.ok(item.cost[0] > 0 && item.cost[1] >= item.cost[0], `вилка цен: ${item.id}`)
-      assert.ok(item.factory.km || item.factory.months, `нет интервала: ${item.id}`)
-    }
-    assert.equal(engineInfo('21179').power, 122)
-  })
-
-  it('двигатели подписаны названием машины, а не индексом', () => {
-    for (const e of ENGINES) {
-      assert.ok(e.car.startsWith('LADA '), `нет модели: ${e.id}`)
-      assert.ok(e.label.startsWith(e.car), `label без модели: ${e.id}`)
-      assert.ok(e.short.startsWith(e.car), `short без модели: ${e.id}`)
-      assert.ok(!/\d{5}/.test(e.car), `в названии машины остался индекс: ${e.id}`)
-      assert.ok(!/\d{5}/.test(e.label), `в label остался индекс: ${e.id}`)
-      assert.ok(!/\d{5}/.test(e.short), `в short остался индекс: ${e.id}`)
-      assert.ok(e.code.startsWith('ВАЗ-'), `нет индекса мотора: ${e.id}`)
-    }
-  })
-
-  it('Granta и Vesta разводятся по моторам, индекс остаётся в справке', () => {
-    assert.equal(engineCarName('21127'), 'LADA Granta')
-    assert.equal(engineCarName('21127-95'), 'LADA Granta Sport')
-    assert.equal(engineCarName('21129'), 'LADA Vesta')
-    assert.equal(engineCarName('21179'), 'LADA Vesta')
-    assert.equal(engineSpecLine('21127'), '1.6 16V · 106 л.с. · ВАЗ-21127')
-    assert.equal(engineSpecLine('21179'), '1.8 16V · 122 л.с. · ВАЗ-21179')
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('транспортный налог', () => {
-  it('ставка зависит от мощности и региона', () => {
-    assert.equal(taxRateFor('msk', 90), 14) // 8-клапанная Гранта
-    assert.equal(taxRateFor('msk', 106), 31) // 16-клапанная
-    assert.equal(taxRateFor('msk', 122), 31)
-    assert.equal(taxRateFor('spb', 106), 35)
-    assert.equal(taxRateFor('nk', 106), 3.5)
-    assert.equal(taxRateFor('неизвестный', 106), 31, 'падаем на первый регион')
-  })
-
-  it('налог пропорционален месяцам владения', () => {
-    near(transportTax(106, 31, 12), 3_286)
-    near(transportTax(106, 31, 6), 1_643)
-    assert.equal(transportTax(106, 31, 0), 0)
-    near(transportTax(106, 31, 24), 3_286, 0.5, 'больше года не начисляют')
-  })
-
-  it('срок уплаты — 1 декабря', () => {
-    const due = taxDueDate(new Date(2026, 5, 1))
-    assert.equal(due.getMonth(), 11)
-    assert.equal(due.getDate(), 1)
-    assert.equal(due.getFullYear(), 2026)
-    assert.equal(taxDueDate(new Date(2026, 11, 20)).getFullYear(), 2027)
-  })
-
-  it('в каждом регионе ставки возрастают с мощностью', () => {
-    for (const region of TAX_REGIONS) {
-      for (let i = 1; i < region.brackets.length; i++) {
-        assert.ok(
-          region.brackets[i].rate >= region.brackets[i - 1].rate,
-          `${region.label}: ставки не возрастают`,
-        )
-        assert.ok(region.brackets[i].upTo > region.brackets[i - 1].upTo, region.label)
+  test('пустой ответ модели не падает: санитайзер подставляет defaults', async () => {
+    class Broken extends MockAIProvider {
+      override async generateStructured(request: never, parse: (raw: unknown) => never): Promise<never> {
+        void request
+        return Promise.resolve({ data: parse(null), mock: true, model: 'broken', durationMs: 1 } as never)
       }
     }
+    const agent = new ConversationAgent(new Broken(1))
+    const result = await agent.reply({ character: CHARACTER, fan: FAN, memories: [], history: HISTORY })
+    assert.equal(result.intent, 'other')
+    assert.equal(result.sales_action, 'none')
+    assert.equal(result.memory_candidate, null)
+    assert.equal(result.relationship_level, 'fan')
   })
 })
 
-/* ------------------------------------------------------------------ */
-describe('настройки', () => {
-  it('значения по умолчанию и сохранение', () => {
-    resetStorage()
-    assert.deepEqual(readSettings(), DEFAULT_SETTINGS)
-    writeSettings({ fuelPrice: 70, engine: '21179' })
-    assert.equal(readSettings().fuelPrice, 70)
-    assert.equal(readSettings().engine, '21179')
-    assert.equal(readSettings().tankLiters, DEFAULT_SETTINGS.tankLiters, 'остальное не теряется')
+/* ------------------------------ Memory Agent ------------------------------ */
+
+describe('MemoryAgent', () => {
+  test('извлекает факт из диалога', async () => {
+    const agent = new MemoryAgent(mock())
+    const result = await agent.extract({ history: HISTORY, existingMemories: [] })
+    assert.ok(result.memory === null || typeof result.memory === 'string')
   })
 
-  it('битый JSON не ломает приложение', () => {
-    resetStorage()
-    localStorage.setItem('lgc_settings_v1', '{не json')
-    assert.deepEqual(readSettings(), DEFAULT_SETTINGS)
+  test('нет факта → memory null', async () => {
+    const agent = new MemoryAgent(mock())
+    const result = await agent.extract({
+      history: [{ author: 'fan', body: 'haha nice' }],
+      existingMemories: [],
+    })
+    assert.equal(result.memory, null)
   })
 
-  it('новые поля добавляются к старым настройкам', () => {
-    resetStorage()
-    localStorage.setItem('lgc_settings_v1', JSON.stringify({ fuelPrice: 55 }))
-    const s = readSettings()
-    assert.equal(s.fuelPrice, 55)
-    assert.equal(s.taxRegion, DEFAULT_SETTINGS.taxRegion)
-    assert.equal(s.licenseUntil, null)
+  test('дубль против существующих воспоминаний не создаётся', async () => {
+    class FixedMemory extends MockAIProvider {
+      override async generateStructured(_request: never, parse: (raw: unknown) => never): Promise<never> {
+        return Promise.resolve({
+          data: parse({ memory: 'Fan works night shifts', category: 'lifestyle', importance: 0.6 }),
+          mock: true,
+          model: 'fixed',
+          durationMs: 1,
+        } as never)
+      }
+    }
+    const agent = new MemoryAgent(new FixedMemory(1))
+    const dup = await agent.extract({
+      history: [{ author: 'fan', body: 'I work night shifts' }],
+      existingMemories: [{ memory: 'Fan works night shifts', category: 'lifestyle', importance: 0.6 }],
+    })
+    assert.equal(dup.memory, null)
+    const fresh = await agent.extract({
+      history: [{ author: 'fan', body: 'I work night shifts' }],
+      existingMemories: [],
+    })
+    assert.equal(fresh.memory, 'Fan works night shifts')
   })
 })
 
-/* ------------------------------------------------------------------ */
-describe('выгрузка данных', () => {
-  const list = [
-    tx({ amount: 2_450, category: 'fuel', date: '2026-09-27', mileage_at_transaction: 48_100 }),
-    tx({ amount: 27_400, category: 'loan', date: '2026-09-20' }),
+/* ------------------------------ Sales Agent ------------------------------ */
+
+describe('SalesAgent', () => {
+  const offers = [
+    { id: 'o_ppv', name: 'PPV drop', price: 15, type: 'ppv' },
+    { id: 'o_sub', name: 'Standard', price: 19.99, type: 'subscription' },
   ]
 
-  it('JSON-бэкап содержит подпись приложения', () => {
-    const json = JSON.parse(
-      buildBackup({
-        car: null,
-        loan: null,
-        transactions: list,
-        maintenance: [],
-        settings: DEFAULT_SETTINGS,
-      }),
-    )
-    assert.equal(json.app, 'lada-granta-credit')
-    assert.equal(json.version, 1)
-    assert.equal(json.transactions.length, 2)
-    assert.ok(json.exportedAt)
-  })
-
-  it('CSV с BOM, заголовком и разделителем «;»', () => {
-    const csv = buildExpensesCsv(list)
-    assert.ok(csv.startsWith('\uFEFF'), 'нет BOM — Excel сломает кириллицу')
-    const rows = csv.replace('\uFEFF', '').split('\r\n')
-    assert.equal(rows[0], 'Дата;Категория;Сумма, ₽;Пробег, км')
-    assert.equal(rows.length, 3)
-    assert.ok(rows[1].includes('27 400') || rows[1].includes('27400'))
-  })
-
-  it('CSV журнала ТО экранирует точку с запятой', () => {
-    const csv = buildMaintenanceCsv([
-      { id: 'm', user_id: 'u', date: '2026-01-01', mileage: 100, description: 'Масло; фильтр' },
-    ])
-    assert.ok(csv.includes('"Масло; фильтр"'))
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('локальный (демо) бэкенд', () => {
-  it('вход создаёт сессию и наполняет гараж', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    assert.equal(backend.mode, 'demo')
-    assert.equal(await backend.auth.getUser(), null)
-
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    assert.equal(user.email, 'demo@lada.ru')
-    assert.ok(await backend.auth.getUser())
-    assert.equal(await backend.auth.getAccessToken(), null, 'демо-пользователь не получает облачный JWT')
-
-    const car = await backend.data.getCar(user.id)
-    const loan = await backend.data.getLoan(user.id)
-    const txs = await backend.data.listTransactions(user.id)
-    const mnt = await backend.data.listMaintenance(user.id)
-    assert.ok(car && car.current_mileage > 10_000)
-    assert.ok(loan && loan.monthly_payment > 0)
-    assert.ok(txs.length > 20, `транзакций: ${txs.length}`)
-    assert.ok(mnt.length >= 3)
-    assert.ok(
-      txs.every((t) => t.amount > 0 && !!t.date),
-      'в демо-данных есть пустые записи',
-    )
-  })
-
-  it('CRUD расходов и журнала ТО', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    const before = (await backend.data.listTransactions(user.id)).length
-
-    const added = await backend.data.addTransaction(user.id, {
-      amount: 1_234,
-      category: 'other',
-      date: new Date().toISOString(),
-      mileage_at_transaction: null,
+  test('явный интерес к покупке → recommend_offer с оффером', async () => {
+    const agent = new SalesAgent(mock())
+    const result = await agent.decide({
+      fan: FAN,
+      recentMessages: [{ author: 'fan', body: 'what does the ppv cost?' }],
+      offers,
     })
-    assert.equal((await backend.data.listTransactions(user.id)).length, before + 1)
-    const updated = await backend.data.updateTransaction(added.id, {
-      amount: 1_500,
-      category: 'fuel',
-      date: '2026-01-02T12:00:00.000Z',
-      mileage_at_transaction: 48_500,
-    })
-    assert.equal(updated.id, added.id, 'редактирование сохраняет id записи')
-    assert.equal(updated.amount, 1_500)
-    assert.equal((await backend.data.listTransactions(user.id)).length, before + 1, 'нет дубликата расхода')
-    await backend.data.removeTransaction(added.id)
-    assert.equal((await backend.data.listTransactions(user.id)).length, before)
-
-    const rec = await backend.data.addMaintenance(user.id, {
-      date: '2026-09-01',
-      mileage: 48_000,
-      description: 'Тестовая запись',
-    })
-    assert.ok((await backend.data.listMaintenance(user.id)).some((m) => m.id === rec.id))
-    await backend.data.removeMaintenance(rec.id)
-    assert.ok(!(await backend.data.listMaintenance(user.id)).some((m) => m.id === rec.id))
+    assert.equal(result.action, 'recommend_offer')
+    assert.ok(result.offer_id === 'o_ppv' || result.offer_id === 'o_sub')
   })
 
-  it('обновление автомобиля сохраняется', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    const car = (await backend.data.getCar(user.id))!
-    const updated = await backend.data.updateCar(car.id, { current_mileage: 50_000 })
-    assert.equal(updated.current_mileage, 50_000)
-    assert.equal((await backend.data.getCar(user.id))!.current_mileage, 50_000)
-  })
-
-  it('регистрация в демо честно отказывает', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    await assert.rejects(() => backend.auth.signUp('a@b.ru', 'pass'))
-  })
-
-  it('сброс демо-данных возвращает исходный набор', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    const car = (await backend.data.getCar(user.id))!
-    await backend.data.updateCar(car.id, { current_mileage: 1 })
-    resetDemoData()
-    assert.ok((await backend.data.getCar(user.id))!.current_mileage > 10_000)
-  })
-
-  it('выход очищает сессию, но не данные', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    await backend.auth.signOut()
-    assert.equal(await backend.auth.getUser(), null)
-    assert.ok(await backend.data.getCar(user.id))
-  })
-})
-
-/* ------------------------------------------------------------------ */
-describe('демо-данные согласованы с разделом ТО', () => {
-  it('журнал демо распознаётся каталогом работ', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    const car = (await backend.data.getCar(user.id))!
-    const maintenance = await backend.data.listMaintenance(user.id)
-
-    const plan = buildServicePlan({
-      mileage: car.current_mileage,
-      mode: 'forum',
-      engine: '21127',
-      maintenance,
-    })
-    const matched = plan.filter((s) => s.record !== null)
-    assert.ok(matched.length >= 4, `распознано работ: ${matched.length}`)
-    assert.ok(plan.some((s) => s.state !== 'ok'), 'в демо должны быть работы, требующие внимания')
-    assert.ok(
-      plan.every((s) => Number.isFinite(s.progress)),
-      'прогресс не должен быть NaN',
-    )
-  })
-
-  it('в демо есть данные для топливной аналитики', async () => {
-    resetStorage()
-    const backend = createLocalBackend()
-    const user = await backend.auth.signIn(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
-    const txs = await backend.data.listTransactions(user.id)
-    const fuel = computeFuelStats(txs, 62, 50)
-    assert.ok(fuel.avgPer100 && fuel.avgPer100 > 4 && fuel.avgPer100 < 20, `расход: ${fuel.avgPer100}`)
-    assert.ok(monthlyMileage(txs))
-    const series = monthlySeries(txs, 12)
-    assert.ok(series.filter((p) => p.total > 0).length >= 6, 'история должна покрывать год')
-  })
-})
-
-describe('после покупки: чек-лист, гарантия, справочник', () => {
-  it('чек-лист собран без дублей и с понятными группами', () => {
-    const ids = START_STEPS.map((s) => s.id)
-    assert.equal(new Set(ids).size, ids.length, 'id пунктов должны быть уникальными')
-    assert.ok(START_STEPS.length >= 15, `пунктов: ${START_STEPS.length}`)
-    for (const step of START_STEPS) {
-      assert.ok(['law', 'service', 'upgrade'].includes(step.kind), step.id)
-      assert.ok(step.when.length > 0 && step.detail.length > 20, step.id)
-      if (step.cost) assert.ok(step.cost[1] >= step.cost[0], step.id)
+  test('business rules: холодный фан не получает sell_now', async () => {
+    class Pushy extends MockAIProvider {
+      override async generateStructured(_r: never, parse: (raw: unknown) => never): Promise<never> {
+        return Promise.resolve({
+          data: parse({ action: 'sell_now', offer_id: 'o_sub', reason: 'Push.', confidence: 0.9 }),
+          mock: true,
+          model: 'pushy',
+          durationMs: 1,
+        } as never)
+      }
     }
-    // юридические сроки и обкатка — обязательные пункты
-    assert.ok(ids.includes('register'))
-    assert.ok(ids.includes('osago'))
-    assert.ok(ids.includes('break-in'))
-    assert.ok(ids.includes('first-oil'))
+    const agent = new SalesAgent(new Pushy(1))
+    const result = await agent.decide({
+      fan: { ...FAN, purchases: 0, hasActiveSubscription: false },
+      recentMessages: [{ author: 'fan', body: 'hi' }],
+      offers,
+    })
+    assert.equal(result.action, 'nurture')
   })
 
-  it('гарантия: без даты покупки считать не от чего', () => {
-    const car = WARRANTY_ITEMS[0]
-    assert.equal(warrantyLeft(car, null, 10_000), null)
-    assert.equal(warrantyLeft(car, 'не дата', 10_000), null)
+  test('business rules: без офферов — no_sales', async () => {
+    const agent = new SalesAgent(mock())
+    const result = await agent.decide({
+      fan: FAN,
+      recentMessages: [{ author: 'fan', body: 'buy buy buy' }],
+      offers: [],
+    })
+    assert.equal(result.action, 'no_sales')
   })
 
-  it('гарантия на автомобиль: 3 года или 100 000 км, что раньше', () => {
-    const car = WARRANTY_ITEMS.find((w) => w.id === 'car')!
-    assert.equal(car.months, 36)
-    assert.equal(car.km, 100_000)
+  test('business rules: низкая уверенность понижает действие до wait', async () => {
+    class Unsure extends MockAIProvider {
+      override async generateStructured(_r: never, parse: (raw: unknown) => never): Promise<never> {
+        return Promise.resolve({
+          data: parse({ action: 'sell_now', offer_id: 'o_ppv', reason: 'Maybe.', confidence: 0.3 }),
+          mock: true,
+          model: 'unsure',
+          durationMs: 1,
+        } as never)
+      }
+    }
+    const agent = new SalesAgent(new Unsure(1))
+    const result = await agent.decide({
+      fan: { ...FAN, purchases: 5 },
+      recentMessages: [{ author: 'fan', body: 'buy' }],
+      offers,
+    })
+    assert.equal(result.action, 'wait')
+  })
+})
 
-    const year = new Date()
-    year.setFullYear(year.getFullYear() - 1)
-    const iso = year.toISOString().slice(0, 10)
+/* --------------------------- Content / Analytics --------------------------- */
 
-    const fresh = warrantyLeft(car, iso, 30_000)!
-    assert.equal(fresh.monthsLeft, 24)
-    assert.equal(fresh.kmLeft, 70_000)
-    assert.equal(fresh.expired, false)
-    near(fresh.used, 1 / 3, 0.02) // по времени 12/36 больше, чем по пробегу 30/100
-
-    // перепробег закрывает гарантию раньше срока
-    const overrun = warrantyLeft(car, iso, 120_000)!
-    assert.equal(overrun.expired, true)
-    assert.equal(overrun.used, 1)
-
-    // начальный пробег не засчитывается (машина куплена не новой)
-    const used = warrantyLeft(car, iso, 120_000, 100_000)!
-    assert.equal(used.kmLeft, 80_000)
-    assert.equal(used.expired, false)
+describe('ContentAgent + AnalyticsAgent', () => {
+  test('контент: 3 хука, подпись и варианты', async () => {
+    const agent = new ContentAgent(mock())
+    const result = await agent.generate({
+      character: CHARACTER,
+      platform: 'tiktok',
+      contentType: 'reel',
+      theme: 'gym',
+      episodeTitle: 'Episode 02',
+    })
+    assert.ok(result.hooks.length >= 3)
+    assert.ok(result.caption.length > 0)
+    assert.ok(result.variants.length >= 2)
   })
 
-  it('гарантия истекает по времени', () => {
-    const shocks = WARRANTY_ITEMS.find((w) => w.id === 'shocks')!
-    const old = new Date()
-    old.setFullYear(old.getFullYear() - 3)
-    const left = warrantyLeft(shocks, old.toISOString().slice(0, 10), 10_000)!
-    assert.ok(left.monthsLeft < 0)
-    assert.equal(left.expired, true)
+  test('аналитика: конкретные инсайты с числами', async () => {
+    const agent = new AnalyticsAgent(mock())
+    const result = await agent.analyze({
+      metrics: [{ key: 'revenue', label: 'Revenue', value: '$4,820', delta: 12.4 }],
+      funnel: [{ label: 'Visitors', value: 100 }],
+    })
+    assert.ok(result.insights.length >= 1)
+    assert.ok(result.insights[0].title.length > 0)
+    assert.ok(result.insights.every((i) => i.confidence >= 0 && i.confidence <= 1))
+  })
+})
+
+/* ------------------------------ Orchestrator ------------------------------ */
+
+describe('AI Orchestrator', () => {
+  test('reply pipeline: draft + sales + memory, помечен mock', async () => {
+    const logged: string[] = []
+    const orchestrator = new AiOrchestrator(mock(), {
+      log: async (entry) => {
+        logged.push(entry.agent)
+      },
+    })
+    const result = await runReplyPipeline(orchestrator, {
+      character: CHARACTER,
+      fan: FAN,
+      memories: MEMORIES,
+      history: HISTORY,
+      offers: [{ id: 'o1', name: 'PPV', price: 15, type: 'ppv' }],
+    })
+    assert.equal(result.mock, true)
+    assert.ok(result.draft.reply.length > 0)
+    assert.ok(logged.includes('conversation'))
+    assert.ok(logged.includes('sales'))
+    assert.ok(logged.includes('memory'))
+  })
+})
+
+/* ------------------------------ Демо-репозитории ------------------------------ */
+
+describe('Demo repositories', () => {
+  beforeEach(() => {
+    resetDemoStore()
   })
 
-  it('мотор Granta Sport и рекомендованный бензин', () => {
-    const sport = engineInfo('21127-95')
-    assert.equal(sport.power, 118)
-    assert.equal(sport.valves, 16)
-    assert.equal(fuelGrade('21127-95'), 'АИ-95')
-    assert.equal(fuelGrade('11182'), 'АИ-92 или АИ-95')
-    // налог для Sport в Москве: 118 л.с. попадает в ставку 31 ₽
-    assert.equal(transportTax(sport.power, taxRateFor('msk', sport.power)), 118 * 31)
+  test('fans: список, фильтры сегментов и поиск', async () => {
+    const repos = demoRepositories
+    const all = await repos.fans.list()
+    assert.ok(all.length >= 15, `ожидали ≥15 демо-фанов, получили ${all.length}`)
+    const inner = await repos.fans.list({ segment: 'Inner circle' })
+    assert.ok(inner.length > 0 && inner.every((f) => f.relationship === 'Inner circle'))
+    const search = await repos.fans.list({ search: 'alex' })
+    assert.ok(search.some((f) => f.name.toLowerCase().includes('alex')))
   })
 
-  it('чек-лист сохраняется в настройках', () => {
-    resetStorage()
-    assert.deepEqual(DEFAULT_SETTINGS.startChecklist, [])
-    writeSettings({ startChecklist: ['register', 'osago'] })
-    assert.deepEqual(readSettings().startChecklist, ['register', 'osago'])
+  test('fan: память добавляется и читается', async () => {
+    const repos = demoRepositories
+    const fan = (await repos.fans.list())[0]
+    const before = await repos.fans.memories(fan.id)
+    await repos.fans.addMemory(fan.id, {
+      statement: 'Works night shifts',
+      category: 'lifestyle',
+      confidence: 0.7,
+      source: 'test',
+    })
+    const after = await repos.fans.memories(fan.id)
+    assert.equal(after.length, before.length + 1)
+    assert.ok(after.some((m) => m.statement === 'Works night shifts'))
+    await repos.fans.setRelationship(fan.id, 'Favorite')
+    const updated = await repos.fans.get(fan.id)
+    assert.equal(updated?.relationship, 'Favorite')
+  })
+
+  test('conversations: draft → approve → sent, счётчики читаются', async () => {
+    const repos = demoRepositories
+    const conv = (await repos.conversations.list())[0]
+    const draft = await repos.conversations.saveDraft(conv.id, 'Draft reply in Mara voice')
+    assert.equal(draft.state, 'awaiting_approval')
+    assert.equal(draft.author, 'ai_draft')
+
+    const withDraft = (await repos.conversations.list()).find((c) => c.id === conv.id)!
+    assert.ok(withDraft.awaitingApproval >= 1)
+
+    const approved = await repos.conversations.approveDraft(conv.id, draft.id, 'Edited by human')
+    assert.equal(approved.state, 'sent')
+    assert.equal(approved.author, 'mara')
+    assert.equal(approved.body, 'Edited by human')
+
+    await repos.conversations.sendMessage(conv.id, { body: 'manual note', author: 'mara' })
+    const msgs = await repos.conversations.messages(conv.id)
+    assert.ok(msgs.some((m) => m.body === 'manual note' && m.state === 'sent'))
+
+    await repos.conversations.markRead(conv.id)
+    const read = (await repos.conversations.list()).find((c) => c.id === conv.id)!
+    assert.equal(read.unread, 0)
+  })
+
+  test('content: черновик создаётся, статус меняется', async () => {
+    const repos = demoRepositories
+    const item = await repos.content.saveDraft({ title: 'New reel', hook: 'hook', platform: 'TikTok', type: 'Video' })
+    assert.equal(item.status, 'Draft')
+    const after = await repos.content.setStatus(item.id, 'Ready')
+    assert.equal(after?.status, 'Ready')
+    const list = await repos.content.list()
+    assert.ok(list.some((c) => c.id === item.id && c.status === 'Ready'))
+  })
+
+  test('tasks: статус и новая задача', async () => {
+    const repos = demoRepositories
+    const [first] = await repos.ai.tasks()
+    await repos.ai.setTaskStatus(first.id, 'Done')
+    const tasks = await repos.ai.tasks()
+    assert.equal(tasks.find((t) => t.id === first.id)?.status, 'Done')
+
+    const added = await repos.ai.addTask({ title: 'Approve PPV', detail: 'x', priority: 'Urgent', group: 'Today', due: 'Fri' })
+    assert.equal((await repos.ai.tasks())[0].id, added.id)
+  })
+
+  test('automations: enable/disable/run меняют состояние', async () => {
+    const repos = demoRepositories
+    const [auto] = await repos.ai.automations()
+    const paused = await repos.ai.setAutomationStatus(auto.id, 'Paused')
+    assert.equal(paused?.status, 'Paused')
+    const ran = await repos.ai.recordAutomationRun(auto.id)
+    assert.ok(ran && ran.runs >= 1 && ran.lastRun.length > 0)
+  })
+
+  test('ai_runs: лог пишется и читается', async () => {
+    const repos = demoRepositories
+    await repos.ai.logRun({ agent: 'conversation', input: { fan: 1 }, output: {}, status: 'success', model: 'mock', durationMs: 12 })
+    const runs = await repos.ai.runs(10)
+    assert.equal(runs[0].agent, 'conversation')
+    assert.equal(runs[0].model, 'mock')
+  })
+})
+
+/* ------------------------------ События ------------------------------ */
+
+describe('Event tracking (demo mode)', () => {
+  test('события фана попадают в его ленту', async () => {
+    resetDemoStore()
+    const fan = (await demoRepositories.fans.list())[0]
+    await trackEvent({
+      type: 'purchase_created',
+      entityType: 'fan',
+      entityId: fan.id,
+      platform: 'fanvue',
+      payload: { amount: 15 },
+    })
+    const events = await demoRepositories.fans.events(fan.id)
+    assert.ok(events.some((e) => e.type === 'purchase' && e.amount === 15))
+    assert.ok(events.some((e) => e.amount === 15))
+  })
+
+  test('события без fan не падают', async () => {
+    resetDemoStore()
+    await trackEvent({ type: 'ai_generated', entityType: 'message', payload: {} })
+    assert.ok(demoStore().events.length >= 1)
+  })
+})
+
+/* ------------------------------ Демо-стор ------------------------------ */
+
+describe('Demo store', () => {
+  beforeEach(() => {
+    resetDemoStore()
+  })
+  test('сброс возвращает вымышленный датасет', async () => {
+    resetDemoStore()
+    mutateDemoStore((s) => {
+      s.readConversations.push('c1')
+    })
+    assert.deepEqual(demoStore().readConversations, ['c1'])
+    resetDemoStore()
+    assert.deepEqual(demoStore().readConversations, [])
   })
 })

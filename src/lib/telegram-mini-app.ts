@@ -76,9 +76,9 @@ export const TELEGRAM_SDK_TIMEOUT_MS = 3500
 
 /** Фирменные поверхности сайта (см. index.css): фон страницы и нижней панели. */
 export const MINI_APP_COLORS = {
-  background: '#0E1013',
-  header: '#0E1013',
-  bottomBar: '#1A1D22',
+  background: '#08090A',
+  header: '#08090A',
+  bottomBar: '#0B0C0E',
 } as const
 
 /**
@@ -88,13 +88,17 @@ export const MINI_APP_COLORS = {
 export const START_ROUTES: Readonly<Record<string, string>> = Object.freeze({
   home: '/',
   dashboard: '/',
-  credit: '/credit',
-  expenses: '/expenses',
-  spending: '/expenses',
-  service: '/service',
-  garage: '/garage',
-  bot: '/telegram',
-  telegram: '/telegram',
+  fans: '/fans',
+  messages: '/conversations',
+  conversations: '/conversations',
+  inbox: '/conversations',
+  content: '/content',
+  analytics: '/analytics',
+  tasks: '/tasks',
+  ai: '/ai',
+  settings: '/settings',
+  bot: '/settings',
+  telegram: '/settings',
 })
 
 /** Маршруты, на которых BackButton скрыт (корень кабинета и экран входа). */
