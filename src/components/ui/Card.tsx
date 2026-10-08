@@ -1,4 +1,5 @@
 import { cn } from "@/utils/cn";
+import { SafeImg } from "./SafeImg";
 import { initials } from "@/lib/format";
 
 /* ---------------------------------- Card --------------------------------- */
@@ -38,7 +39,7 @@ export function CardHeader({
   return (
     <div className={cn("flex items-start justify-between gap-4 px-5 pt-4 pb-3", className)}>
       <div className="min-w-0">
-        <h3 className="text-[13.5px] font-medium tracking-[-0.01em] text-ink">{title}</h3>
+        <h2 className="text-[13.5px] font-medium tracking-[-0.01em] text-ink">{title}</h2>
         {subtitle && <p className="mt-1 text-[12px] leading-relaxed text-muted">{subtitle}</p>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
@@ -166,7 +167,7 @@ export function Avatar({
       title={name}
     >
       {src ? (
-        <img src={src} alt={name} loading="lazy" className="size-full object-cover" />
+        <SafeImg src={src} alt={name} loading="lazy" className="size-full object-cover" />
       ) : (
         initials(name)
       )}

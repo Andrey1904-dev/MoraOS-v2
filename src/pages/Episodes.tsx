@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
@@ -176,7 +177,7 @@ export default function Episodes() {
                               <div className="flex flex-wrap gap-2">
                                 {ep.assetIds.map((id, i) => (
                                   <Link key={id} to="/assets" className="group relative">
-                                    <img
+                                    <SafeImg
                                       src={[media.portraits[0], media.portraits[2], media.portraits[6], media.portraits[3], media.portraits[8], media.wide[9]][i % 6]}
                                       alt="asset"
                                       loading="lazy"

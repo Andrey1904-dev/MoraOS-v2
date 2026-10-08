@@ -58,7 +58,7 @@ export default function Settings() {
 
       <div className="grid gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
         {/* Section nav */}
-        <nav className="hide-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:px-0">
+        <nav aria-label="Settings sections" className="hide-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:px-0">
           {SECTIONS.map((s) => {
             const Icon =
               s === "Character" ? Bot : s === "AI" ? Layers : s === "Platforms" ? Plug : s === "Notifications" ? Bell : s === "Team" ? Users : s === "Telegram" ? Send : ShieldCheck;

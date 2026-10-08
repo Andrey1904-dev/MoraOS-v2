@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Circle, Command as CommandIcon } from "lucide-react";
 import { navGroups } from "./nav";
 import { media } from "@/data/media";
@@ -16,7 +17,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Active character */}
       <div className="mx-3 mb-4 flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5">
-        <img
+        <SafeImg
           src={media.mara}
           alt="Mara Quinn"
           className="size-8 rounded-full object-cover"

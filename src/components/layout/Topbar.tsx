@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -60,7 +61,7 @@ export function Topbar({
 
       <div className="hidden min-w-0 items-center gap-2 lg:flex">
         <PanelLeft className="size-3.5 text-faint" />
-        <nav className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
           <Link to="/" className="text-muted transition-colors hover:text-ink-2">
             Mara OS
           </Link>
@@ -155,7 +156,7 @@ export function Topbar({
           align="end"
           trigger={
             <button className="flex items-center gap-2 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-surface-2">
-              <img src={media.mara} alt="Mara Quinn" className="size-6 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+              <SafeImg src={media.mara} alt="Mara Quinn" className="size-6 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
               <ChevronDown className="size-3.5 text-faint" />
             </button>
           }

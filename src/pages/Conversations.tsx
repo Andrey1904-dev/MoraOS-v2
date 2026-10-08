@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { useSearchParams } from "react-router-dom";
 import {
   Check,
@@ -379,7 +380,7 @@ export default function Conversations() {
                         <div className={cn("max-w-[520px]", mine && "text-right")}>
                           {m.media ? (
                             <div className="overflow-hidden rounded-xl border border-line bg-surface-2">
-                              <img src={m.media.thumb} alt={m.media.label} className="h-44 w-full object-cover" loading="lazy" />
+                              <SafeImg src={m.media.thumb} alt={m.media.label} className="h-44 w-full object-cover" loading="lazy" />
                               <div className="flex items-center gap-2 px-3 py-2">
                                 <ImageIcon className="size-3.5 text-faint" />
                                 <span className="text-[11.5px] text-muted">{m.media.label}</span>

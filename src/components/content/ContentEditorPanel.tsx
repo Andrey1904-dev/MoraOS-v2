@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Badge, Card, StatusBadge, Divider } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, textareaClass, Select } from "@/components/ui/Controls";
@@ -166,7 +167,7 @@ export function ContentEditorPanel({
             <div className={device === "9:16" ? "aspect-9/16" : device === "4:5" ? "aspect-4/5" : "aspect-square"}>
               <div className="relative size-full bg-canvas-2">
                 {type === "Story" || type === "Image" || type === "Video" ? (
-                  <img src={thumb} alt="preview" className="size-full object-cover opacity-90" loading="lazy" />
+                  <SafeImg src={thumb} alt="Content preview" className="size-full object-cover opacity-90" loading="lazy" />
                 ) : (
                   <div className="grid size-full place-items-center text-faint">
                     <ImageIcon className="size-6" />

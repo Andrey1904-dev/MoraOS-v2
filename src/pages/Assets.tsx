@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Check, ImagePlus, Info, X } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/layout/Page";
 import { Card, Badge, StatusBadge, Divider } from "@/components/ui/Card";
@@ -82,7 +83,7 @@ export default function Assets() {
                 className="group overflow-hidden rounded-xl border border-line bg-canvas-2 text-left transition-colors hover:border-line-2"
               >
                 <div className="relative aspect-4/5 overflow-hidden bg-surface-3">
-                  <img
+                  <SafeImg
                     src={a.thumb}
                     alt={a.title}
                     loading="lazy"
@@ -121,7 +122,7 @@ export default function Assets() {
       <Drawer open={!!active} onClose={() => setActive(null)} title={active?.title} width="max-w-lg">
         {active && (
           <div className="space-y-5">
-            <img src={active.thumb} alt={active.title} className="w-full rounded-xl border border-line object-cover" />
+            <SafeImg src={active.thumb} alt={active.title} className="w-full rounded-xl border border-line object-cover" />
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{active.kind}</Badge>
               <StatusBadge status={active.approval} />

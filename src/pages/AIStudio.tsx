@@ -29,7 +29,7 @@ export default function AIStudio() {
   const { push } = useToast();
   const { data: agents, loading } = useResource(() => repositories.ai.agents());
   const { data: insights } = useResource(() => repositories.ai.insights());
-  const { data: tasks } = useResource(() => repositories.ai.tasks());
+  const { data: tasks, refetch: refetchTasks } = useResource(() => repositories.ai.tasks());
   const [active, setActive] = useState<Agent | null>(null);
   const [running, setRunning] = useState(false);
   const [runOutput, setRunOutput] = useState<{ agent: string; mock: boolean; body: string[] } | null>(null);
@@ -135,7 +135,7 @@ export default function AIStudio() {
                     <Brain className="size-4" strokeWidth={1.8} />
                   </span>
                   <div>
-                    <h3 className="text-[14px] font-medium text-ink">{agent.name}</h3>
+                    <div className="text-[14px] font-medium text-ink">{agent.name}</div>
                     <div className="mt-0.5 text-[11.5px] text-muted">{agent.role}</div>
                   </div>
                 </div>
@@ -264,7 +264,20 @@ export default function AIStudio() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => push({ title: "Task updated", description: t.title, tone: "success" })}
+                aria-label={`Mark “${t.title}” as done`}
+                title="Mark as done"
+                disabled={t.status === "Done"}
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      await repositories.ai.setTaskStatus(t.id, "Done");
+                      refetchTasks();
+                      push({ title: "Task marked done", description: t.title, tone: "success" });
+                    } catch (error) {
+                      push({ title: "Update failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+                    }
+                  })();
+                }}
               >
                 <CheckCircle2 className="size-3.5" />
               </Button>

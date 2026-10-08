@@ -79,7 +79,7 @@ export default function Offers() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-[14.5px] font-medium text-ink">{o.name}</h3>
+                      <div className="text-[14.5px] font-medium text-ink">{o.name}</div>
                       <Badge tone={KIND_TONE[o.kind]}>{o.kind}</Badge>
                     </div>
                     <div className="mt-1.5 flex items-baseline gap-1">

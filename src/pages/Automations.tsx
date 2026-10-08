@@ -57,7 +57,7 @@ export default function Automations() {
                 <Zap className="size-4" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
-                <h3 className="text-[14px] font-medium text-ink">{w.name}</h3>
+                <div className="text-[14px] font-medium text-ink">{w.name}</div>
                 <div className="mt-0.5 text-[11.5px] text-muted">
                   Trigger · {w.trigger} · {fmtNum(w.runs)} runs · last {ago(w.lastRun)}
                 </div>
