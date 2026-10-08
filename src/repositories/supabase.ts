@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabase";
+import type { FanDossier } from "@/lib/export";
 import type {
   Agent,
   AIInsight,
@@ -57,6 +58,26 @@ type AutomationRow = Row<"automations">;
 type InsightRow = Row<"ai_insights">;
 
 const db = () => getSupabase();
+
+/** Сколько id передаём в один фильтр in.(): длинный URL PostgREST не принимает. */
+const IN_CHUNK = 100;
+
+/**
+ * Запрос с фильтром `in.()` разбивается на куски по IN_CHUNK id и собирается
+ * в один массив. Раньше 1000 фанов давали URL около 40 КБ и падение запроса.
+ */
+async function inChunks<T>(
+  values: readonly string[],
+  run: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < values.length; i += IN_CHUNK) {
+    const { data, error } = await run(values.slice(i, i + IN_CHUNK));
+    if (error) throw new Error(error.message);
+    out.push(...(data ?? []));
+  }
+  return out;
+}
 
 /* ------------------------------ enum mappers ------------------------------ */
 
@@ -181,12 +202,17 @@ const OFFER_STATUS_TO_UI: Record<OfferRow["status"], Offer["status"]> = {
   archived: "Draft",
 };
 
+/**
+ * «sent» в БД означает доставку фану. Приложение доставку пока не выполняет,
+ * поэтому одобренные ответы получают статус «approved» и в интерфейсе не выдаются
+ * за отправленные.
+ */
 const MSG_STATUS_TO_UI: Record<MessageRow["status"], NonNullable<Message["state"]>> = {
   sent: "sent",
-  approved: "sent",
+  approved: "approved",
   draft: "draft",
   awaiting_approval: "awaiting_approval",
-  failed: "draft",
+  failed: "failed",
 };
 
 const AUTOMATION_STATUS_TO_UI: Record<AutomationRow["status"], Automation["status"]> = {
@@ -251,16 +277,13 @@ interface SubscriptionEmbed {
 async function subscriptionsByFan(fanIds: string[]): Promise<Map<string, SubscriptionEmbed[]>> {
   const map = new Map<string, SubscriptionEmbed[]>();
   if (!fanIds.length) return map;
-  const { data: subs, error } = await db()
-    .from("subscriptions")
-    .select("*")
-    .in("fan_id", fanIds)
-    .order("started_at", { ascending: false });
-  if (error) throw error;
+  const subs = await inChunks(fanIds, (chunk) =>
+    db().from("subscriptions").select("*").in("fan_id", chunk).order("started_at", { ascending: false }),
+  );
   const offerIds = [...new Set((subs ?? []).map((s) => s.offer_id).filter((x): x is string => Boolean(x)))];
   const offersById = new Map<string, { name: string; price: number }>();
   if (offerIds.length) {
-    const { data: offers } = await db().from("offers").select("id, name, price").in("id", offerIds);
+    const offers = await inChunks(offerIds, (chunk) => db().from("offers").select("id, name, price").in("id", chunk));
     for (const o of offers ?? []) offersById.set(o.id, { name: o.name, price: Number(o.price) });
   }
   for (const s of subs ?? []) {
@@ -306,6 +329,57 @@ function mapFan(row: FanRow, subs: SubscriptionEmbed[]): Fan {
 }
 
 class SupabaseFanRepository implements FanRepository {
+  /** Всё, что хранится о фане: для экспорта по запросу (право на доступ к данным). */
+  async exportData(fanId: string): Promise<FanDossier | null> {
+    const fan = await this.get(fanId);
+    if (!fan) return null;
+    const [memories, events, purchases] = await Promise.all([
+      this.memories(fanId),
+      this.events(fanId),
+      this.purchases(fanId),
+    ]);
+    const { data: convData, error: convError } = await db()
+      .from("conversations")
+      .select("id, platform")
+      .eq("fan_id", fanId);
+    if (convError) throw convError;
+    const convRows = (convData ?? []) as { id: string; platform: string }[];
+    const messageRows = await inChunks(convRows.map((c) => c.id), (chunk) =>
+      db().from("messages").select("*").in("conversation_id", chunk).order("created_at", { ascending: true }),
+    );
+    const byConversation = new Map<string, Message[]>();
+    for (const row of messageRows as MessageRow[]) {
+      const list = byConversation.get(row.conversation_id) ?? [];
+      list.push(mapMessage(row));
+      byConversation.set(row.conversation_id, list);
+    }
+    return {
+      exportedAt: new Date().toISOString(),
+      fan,
+      memories,
+      events,
+      purchases,
+      conversations: convRows.map((c) => ({
+        id: c.id,
+        channel: c.platform,
+        messages: byConversation.get(c.id) ?? [],
+      })),
+    };
+  }
+
+  /**
+   * Удаление фана. Переписки, сообщения, воспоминания, покупки и подписки стираются
+   * каскадно (ON DELETE CASCADE). Записи выручки сохраняются без привязки к фану
+   * (ON DELETE SET NULL): это учётные данные. События удаляются явно — у них нет FK.
+   */
+  async erase(fanId: string): Promise<boolean> {
+    const { error: eventsError } = await db().from("events").delete().eq("entity_type", "fan").eq("entity_id", fanId);
+    if (eventsError) throw eventsError;
+    const { data, error } = await db().from("fans").delete().eq("id", fanId).select("id");
+    if (error) throw error;
+    return (data ?? []).length > 0;
+  }
+
   async list(query?: { search?: string; segment?: string }): Promise<Fan[]> {
     const { data, error } = await db()
       .from("fans")
@@ -404,7 +478,7 @@ class SupabaseFanRepository implements FanRepository {
     const offerIds = [...new Set(rows.map((r) => r.offer_id).filter((x): x is string => Boolean(x)))];
     const offersById = new Map<string, { name: string; type: OfferRow["type"] }>();
     if (offerIds.length) {
-      const { data: offers } = await db().from("offers").select("id, name, type").in("id", offerIds);
+      const offers = await inChunks(offerIds, (chunk) => db().from("offers").select("id, name, type").in("id", chunk));
       for (const o of offers ?? []) offersById.set(o.id, { name: o.name, type: o.type });
     }
     return rows.map((row) => {
@@ -486,13 +560,15 @@ class SupabaseConversationRepository implements ConversationRepository {
     const ids = rows.map((r) => r.id);
     const draftsByConv = new Map<string, string>();
     if (ids.length) {
-      const { data: drafts } = await db()
-        .from("messages")
-        .select("conversation_id, content, created_at")
-        .in("conversation_id", ids)
-        .eq("status", "awaiting_approval")
-        .order("created_at", { ascending: false });
-      for (const d of drafts ?? []) {
+      const drafts = await inChunks(ids, (chunk) =>
+        db()
+          .from("messages")
+          .select("conversation_id, content, created_at")
+          .in("conversation_id", chunk)
+          .eq("status", "awaiting_approval")
+          .order("created_at", { ascending: false }),
+      );
+      for (const d of drafts) {
         if (!draftsByConv.has(d.conversation_id)) draftsByConv.set(d.conversation_id, d.content);
       }
     }
@@ -527,6 +603,8 @@ class SupabaseConversationRepository implements ConversationRepository {
 
   async sendMessage(conversationId: string, input: SendMessageInput) {
     const userId = await requireUserId();
+    // Ответ оператора записывается как «approved»: доставки фану пока нет, sent_at не ставим.
+    const fromMara = input.author === "mara";
     const { data, error } = await db()
       .from("messages")
       .insert({
@@ -534,10 +612,10 @@ class SupabaseConversationRepository implements ConversationRepository {
         conversation_id: conversationId,
         sender_type: input.author,
         content: input.body,
-        status: "sent",
+        status: fromMara ? "approved" : "sent",
         ai_generated: input.aiGenerated ?? false,
-        approved: true,
-        sent_at: new Date().toISOString(),
+        approved: fromMara,
+        sent_at: fromMara ? null : new Date().toISOString(),
       })
       .select()
       .single();
@@ -578,11 +656,11 @@ class SupabaseConversationRepository implements ConversationRepository {
   }
 
   async approveDraft(conversationId: string, messageId: string, body?: string) {
+    // Одобрение фиксирует решение оператора (status=approved). Доставку фану приложение
+    // не выполняет, поэтому sent_at не ставится, а ai_generated остаётся для трассировки.
     const patch: Database["public"]["Tables"]["messages"]["Update"] = {
-      status: "sent",
+      status: "approved",
       approved: true,
-      ai_generated: false,
-      sent_at: new Date().toISOString(),
     };
     if (body !== undefined) patch.content = body;
     const { data, error } = await db()
@@ -654,11 +732,13 @@ class SupabaseContentRepository implements ContentRepository {
   private async performanceByContent(ids: string[]) {
     const map = new Map<string, { views: number; engagement: number; revenue: number; conversions: number }>();
     if (!ids.length) return map;
-    const { data } = await db()
-      .from("content_performance")
-      .select("content_id, views, likes, comments, shares, saves, conversions, revenue")
-      .in("content_id", ids);
-    for (const p of data ?? []) {
+    const data = await inChunks(ids, (chunk) =>
+      db()
+        .from("content_performance")
+        .select("content_id, views, likes, comments, shares, saves, conversions, revenue")
+        .in("content_id", chunk),
+    );
+    for (const p of data) {
       const cur = map.get(p.content_id) ?? { views: 0, engagement: 0, revenue: 0, conversions: 0 };
       cur.views += p.views;
       cur.engagement += p.likes + p.comments + p.shares + p.saves;
@@ -831,7 +911,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
     const offerIds = [...new Set(rows.map((r) => r.offer_id).filter((x): x is string => Boolean(x)))];
     const names = new Map<string, string>();
     if (offerIds.length) {
-      const { data: offers } = await db().from("offers").select("id, name").in("id", offerIds);
+      const offers = await inChunks(offerIds, (chunk) => db().from("offers").select("id, name").in("id", chunk));
       for (const o of offers ?? []) names.set(o.id, o.name);
     }
     const byOffer = new Map<string, number>();
@@ -854,7 +934,7 @@ class SupabaseCommerceRepository implements CommerceRepository {
     const fanIds = [...new Set(rows.map((r) => r.fan_id))];
     const fanNames = new Map<string, { display_name: string; username: string }>();
     if (fanIds.length) {
-      const { data: fans } = await db().from("fans").select("id, display_name, username").in("id", fanIds);
+      const fans = await inChunks(fanIds, (chunk) => db().from("fans").select("id, display_name, username").in("id", chunk));
       for (const f of fans ?? []) fanNames.set(f.id, f);
     }
     const map = new Map<string, { name: string; handle: string; amount: number; orders: number; last: string }>();
@@ -1034,7 +1114,7 @@ class SupabaseAnalyticsRepository implements AnalyticsRepository {
     }
     const ids = [...best.keys()].slice(0, 5);
     if (!ids.length) return [];
-    const { data: content } = await db().from("content").select("id, title").in("id", ids);
+    const content = await inChunks(ids, (chunk) => db().from("content").select("id, title").in("id", chunk));
     const title = new Map((content ?? []).map((c) => [c.id, c.title]));
     return ids.map((id, i) => ({
       rank: i + 1,

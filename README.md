@@ -1,121 +1,124 @@
 # Mara OS
 
-Операционная система виртуального AI-креатора **Mara Quinn** (23+, Чикаго,
-маркетинг-координатор, «365 дней, чтобы выкупить своё время»): фан-база,
-диалоги с human-in-the-loop AI, контент-конвейер, офферы, выручка, аналитика
-и Telegram-компаньон. Все персонажи и данные демо-режима вымышлены.
+Операционная система виртуального AI-креатора: CRM фан-базы, инбокс с AI-черновиками
+(человек одобряет каждое решение), контент-конвейер, офферы, выручка, аналитика и
+Telegram-ассистент с Mini App.
 
-![stack](https://img.shields.io/badge/React%2019-Vite%207-61dafb) ![styles](https://img.shields.io/badge/Tailwind%20CSS-4-38bdf8) ![backend](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20Auth-3fcf8e) ![telegram](https://img.shields.io/badge/Telegram-Bot%20%2B%20Mini%20App-2AABEE)
+Интерфейс — английский. Документация проекта — русская.
 
-## Возможности
+## Статус: что работает, а что нет
 
-| Экран | Что внутри |
+Честная картина, чтобы не принимать витрину за интеграции.
+
+| Область | Состояние |
 |---|---|
-| **Overview** | Командный центр: действия на одобрение, pipeline диалогов, MRR/net revenue, прогресс истории «270 из 365 дней», ряды выручки, воронка, AI-заметки |
-| **Fans** | CRM фан-базы: сегменты (New / Active / Subscribers / Buyers / Inner circle / At Risk), поиск, сортировка по LTV и активности, пагинация |
-| **Профиль фана** | Обзор (LTV-разбивка, подписка, тиры), диалог, воспоминания (auto-memory от Memory Agent с confidence), покупки, события, заметки продаж |
-| **Conversations** | Единый инбокс Fanvue + Telegram. **AI-черновики с human approval**: Conversation Agent (intent/sales action), Sales Agent (business rules), Memory Agent (дедупликация). Generate reply → draft → Edit / Regenerate / Approve — ничего не отправляется само |
-| **Content** | Контент-конвейер: статусы idea → draft → ready → scheduled → published, фильтры по платформе (TikTok / Instagram / Threads / Fanvue), производительность |
-| **Episodes** | История 365 дней сериями: статусы, лор, связанные PPV-дропы |
-| **Assets** | Хранилище ассетов: банк лиц, PPV-сеты, соц-ролики — с привязкой к контенту и санкционированным использованием |
-| **Offers / Revenue** | Подписка Standard, PPV-сеты, бандлы, VIP; транзакции по фану, выручка по источникам и офферам, топ-спендеры |
-| **Analytics** | Метрики за период (7/30/90d), воронка visitor → buyer, графики, AI-инсайты Analytics Agent |
-| **AI Studio** | Шесть агентов (Character / Conversation / Memory / Sales / Content / Analytics), карточки с success rate, «Run now» выполняет реальный вызов (Content/Analytics), журнал ai_runs |
-| **Automations** | Автоматизации из событий (welcome sequence, churn rescue, PPV follow-up) — включение только человеком, журнал запусков |
-| **Tasks** | Рабочий список решений: от AI-агентов и ручные, приоритеты и даты |
-| **Settings** | Характер персоны (единый источник истины для агентов), поведение AI, платформы, команда, безопасность, **Telegram-привязка** |
-| **Telegram Assistant** | Бот-компаньон: `/fans` `/messages` `/content` `/analytics` `/tasks` `/ai` `/link` `/unlink` `/menu` — живые экраны, Mini App-кнопка, deep links в разделы консоли |
+| Демо-режим (вымышленные данные в браузере) | Работает полностью |
+| Облачный режим (Supabase Auth + RLS) | Работает: CRM-таблицы, переписки, одобрение черновиков, экспорт и удаление данных фана |
+| Одобрение ответа | Записывает решение (`status = approved`). **Доставка фанам не подключена**: сообщение нигде не отправляется |
+| AI-черновики | Генерация на встроенном mock-провайдере; подключение реального провайдера — отдельная задача |
+| Telegram-бот и Mini App | Работают: `/fans`, `/messages`, `/content`, `/analytics`, `/tasks`, `/ai`, привязка аккаунта с предпросмотром |
+| Fanvue, TikTok, Instagram, Threads | **Не подключены** (интеграций нет, в интерфейсе они помечены как «Not connected») |
+| Автоматизации | Определения и журнал — образец. **Движка исполнения нет**: ничего не запускается само |
+| Ручное создание и редактирование фанов | Не реализовано (кнопки неактивны) |
 
-## AI-слой (`src/lib/ai/`)
+## Разделы интерфейса
 
-Провайдер-абстракция (`AIProvider`) + шесть агентов со структурированными
-JSON-ответами и оркестратор:
-
-- **MockAIProvider** — работает без API-ключа, детерминированные ответы, помечает
-  вывод `mock: true`; UI показывает бейдж «mock provider».
-- **ConversationAgent** — черновик ответа голосом персоны + intent + sales_action +
-  confidence + кандидат в память; встроенная проверка «не звучит как AI».
-- **SalesAgent** — решение `recommend_offer | nurture | wait | no_sales` с
-  business rules: холодному фану не продаём, без офферов — no_sales, низкая
-  уверенность понижает до wait.
-- **MemoryAgent** — извлекает факты из диалога, дедуплицирует против существующих
-  воспоминаний.
-- **Human-in-the-loop**: агенты только предлагают. Отправки, PPV, цены, удаления
-  и включение автоматизаций — за кнопкой человека (`approveDraft`).
-
-Подключение боевого провайдера: реализуйте `AIProvider` (server-side HTTP-шлюз к
-LLM; ключ только на сервере, никогда не `VITE_*`) и передайте его в
-`AiOrchestrator` вместо `MockAIProvider`.
+| Раздел | Что есть |
+|---|---|
+| Overview | Сводка и очередь действий (в демо — вымышленные данные) |
+| Fans | Список с поиском, сегментами, сортировкой, экспорт CSV текущего вида |
+| Fan profile | Досье, покупки, воспоминания, переписка; экспорт данных (JSON) и удаление данных |
+| Conversations | Инбокс: черновик AI → одобрение или редактирование; ответ оператора |
+| Content, Episodes, Assets | Статусы контента, серии, библиотека (превью) |
+| Offers, Revenue, Analytics | Офферы, выручка, метрики (в демо — вымышленные данные) |
+| AI Studio | Агенты и журнал запусков (образец) |
+| Automations, Tasks | Определения и список задач (образец автоматизаций) |
+| Settings | Персонаж, состояние подключений, **Telegram** (привязка в два шага) |
 
 ## Архитектура
 
 ```
 src/
-  pages/            17 экранов (Overview … Settings) на единой дизайн-системе
-  components/       угол компонентов: ui/ (Button, Card, Data, Overlays…), layout/, common/
-  repositories/     интерфейсы (types.ts) + demo (localStorage поверх вымышленного
-                    датасета src/data/*) + supabase (RLS-таблицы) + сервис-локатор
-  lib/ai/           провайдер, мок, агенты, оркестратор
-  lib/integrations/ fanvue/social адаптеры (mock до верификации API), telegram
-  lib/events/       шина событий (воронка, автоматизации; demo → store, cloud → Supabase)
-  context/          AuthContext (supabase ⇄ demo переключение на лету)
-bot/                ядро Telegram-бота (транспортно-независимое)
+  pages/              экраны; каждый грузится лениво по маршруту
+  components/         ui/ (кнопки, карточки, таблицы), layout/, common/
+  repositories/       контракт (types.ts), demo.ts (вымышленный датасет + стор),
+                      supabase.ts (таблицы под RLS), index.ts — сервис-локатор
+  lib/ai/             провайдер, mock, агенты, оркестратор
+  lib/events/         trackEvent: demo → стор, cloud → таблица events
+  lib/export.ts       CSV и JSON-досье (защита от CSV-инъекций)
+  lib/telegram*.ts    клиент API бота и интеграция Mini App
+  context/            AuthContext (переключение демо ⇄ облако на лету)
+bot/
+  core.mjs            логика бота (тексты, команды, работа с Supabase)
+  api.mjs             HTTP-слой API: маршруты, методы, CORS, лимиты, /health
+  format.mjs          коды привязки, сравнение секретов, форматирование
+  server.mjs          Node-транспорт (long polling)
 supabase/
-  migrations/       схема CRM + RLS + link_telegram_account
-  functions/telegram-api/  Edge Function (webhook бота; core/format — копии bot/)
-scripts/            сборочные и smoke-утилиты
-tests/              unit (AI + репозитории), mini-app, telegram
+  migrations/         0001 → 0004 (порядок важен, см. docs/setup.md)
+  seed/               демо-сид (вручную, для одного владельца)
+  functions/telegram-api/   Edge Function: webhook и API. core/format/api — копии bot/
+scripts/              настройка, smoke-тесты, e2e, проверка сборки
+tests/                юнит-тесты, Mini App, бот и API
 ```
 
-Данные: `UI → repositories → (demo | supabase)` — один контракт, режимы
-переключаются без перезагрузки. Без ключей Supabase приложение живёт в демо-режиме
-(вымышленные данные в браузере), с ключами — в облаке с RLS.
+Данные идут по одному пути: `UI → repositories → (demo | supabase)`. Режимы
+переключаются без перезагрузки. Без ключей Supabase приложение работает только в демо.
 
-Ключевая схема БД: `characters, character_traits, fans, fan_memories,
-conversations, messages, episodes, content, assets, content_performance,
-offers, purchases, subscriptions, revenue_events, tasks, ai_runs, ai_insights,
-automations, automation_runs, events` + инфраструктура `profiles,
-telegram_links, telegram_link_codes` (сохранена без изменений).
+### События (`trackEvent`)
+
+Реально отправляются: `reply_approved`, `ai_generated`, `fan_exported`, `fan_erased`,
+`demo_reset`. Остальные типы в `src/lib/events/index.ts` зарезервированы и пока не
+используются.
 
 ## Локальный запуск
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173 — сразу демо-режим (данные вымышлены)
-# облачный режим: cp .env.example .env и подставьте VITE_SUPABASE_URL/ANON_KEY
+npm ci
+npm run dev        # http://localhost:5173 — демо-режим (данные вымышлены)
 ```
+
+Облачный режим: `cp .env.example .env`, укажите `VITE_SUPABASE_URL` и `VITE_SUPABASE_ANON_KEY`.
 
 ## Проверки
 
 ```bash
-npm run typecheck  # строгий TypeScript, без any-обходов
-npm test           # 86 тестов: AI-агенты, business rules, демо-репозитории, mini-app, ядро бота
-npm run smoke      # демо-флоу (signin → данные → AI-пайплайн → approve), рендер 17 экранов,
-                   # договоры Telegram API/config/setup
-npm run build      # tsc -b + vite build
-npm run check:dist # no secret leakage, no localhost links, хэш-имена чанков
-npm run check      # всё вместе
+npm run lint         # ESLint (flat config, react-hooks)
+npm run typecheck    # строгий TypeScript
+npm test             # юнит-тесты, Mini App, бот и API (≈100 тестов)
+npm run smoke        # демо-сценарий, контракты Telegram API, config и setup
+npm run build        # сборка для GitHub Pages (base из site.config.json)
+npm run check:dist   # в сборке нет секретов и localhost-адресов
+npm run sync:edge -- --check   # копии общих модулей бота совпадают
+npm run check        # всё вместе
+npm run e2e          # Mini App в настоящем Chrome (нужен npm run build)
+E2E_ONLY=1,3 npm run e2e   # выбранные сценарии
 ```
+
+Для e2e нужен Chrome (`CHROME_PATH` или установленный Google Chrome). Без браузера тест
+пропускается; с `E2E_REQUIRED=1` это ошибка (так и сделано в CI).
 
 ## Деплой
 
-- **Сайт**: статическая сборка на GitHub Pages (base в `vite.config.ts`),
-  workflow `.github/workflows/deploy.yml`: typecheck → test → smoke → build →
-  check-dist → deploy.
-- **Edge Function**: `supabase functions deploy telegram-api` (копии
-  `bot/core.mjs`/`format.mjs` синхронизируются вручную — расхождение ловит тест).
-- **Бот**: `npm run bot:setup` (webhook, описание, команды, кнопка Mini App) или
-  `npm run bot:start` для long-polling. Кнопки `web_app` требуют публичный HTTPS
-  `WEB_APP_URL`.
-- **Секреты** (GitHub Actions / supabase secrets, никогда не в репозиторий):
-  `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`,
-  `OPENAI_API_KEY` (когда подключится реальный провайдер).
-  В `VITE_*` — только публичные: anon key, имя бота, адрес API.
+- **Сайт** — GitHub Pages, `.github/workflows/deploy.yml`: проверки → сборка → e2e → публикация
+  (публикация из `main` не отменяется параллельными прогонами).
+- **Edge Function и бот** — `.github/workflows/telegram-bot.yml` (ручной запуск) или
+  `npm run bot:setup -- --deploy`. Подробности: [docs/setup.md](docs/setup.md).
+- **Секреты** — только в секретах Supabase / GitHub Actions, не в репозитории.
+  В `VITE_*` попадают только публичные значения: anon key, имя бота, адрес API.
+
+## Документация
+
+- [docs/setup.md](docs/setup.md) — пошаговая настройка: Supabase, миграции, Auth, бот, Pages.
+- [docs/telegram-mini-app.md](docs/telegram-mini-app.md) — Mini App: поведение, deep links, проверка.
+- [docs/compliance-checklist.md](docs/compliance-checklist.md) — юридические решения, которые принимает владелец.
+- [docs/audit-2026-10-08.md](docs/audit-2026-10-08.md) — аудит и статус исправлений.
+- [docs/migration-map.md](docs/migration-map.md) — историческая карта перехода с прежней схемы.
 
 ## Технологии
 
-React 19 · TypeScript (strict) · Vite 7 · Tailwind CSS 4 · Supabase
-(PostgreSQL + Auth + RLS + Edge Functions) · Telegram Bot API + Mini Apps ·
-node:test + esbuild.
+React 19 · TypeScript (strict) · Vite 7 · Tailwind CSS 4 · Supabase (PostgreSQL, Auth, RLS,
+Edge Functions) · Telegram Bot API и Mini Apps · node:test · Playwright (e2e).
 
-Лицензия: MIT. Персонаж Mara Quinn и весь демо-контент — художественный вымысел.
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).

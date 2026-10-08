@@ -5,7 +5,7 @@
  * который пересоздаётся при смене режима данных (демо ⇄ облако), чтобы
  * ai_runs писались в то же хранилище, что читает интерфейс.
  */
-import { getRepositories } from "@/repositories";
+import { repositories } from "@/repositories";
 import { MockAIProvider } from "./mock";
 import { AiOrchestrator } from "./orchestrator";
 import type { AIProvider } from "./provider";
@@ -15,14 +15,15 @@ let cached: { provider: AIProvider; logger: AiRunLogger; orchestrator: AiOrchest
 
 export function getAiOrchestrator(): AiOrchestrator {
   if (!cached) {
-    // В браузере реального ключа нет и быть не может (AI secret никогда не
-    // попадает в VITE_*): провайдер — Mock, пока не подключён серверный
-    // AI-proxy (bot server / Edge Function, переменная AI_API_KEY).
+    // Провайдер — mock: реального AI-провайдера в репозитории нет. Ключ к модели
+    // никогда не попадает в браузер (VITE_*); подключение провайдера должно идти через
+    // серверный обработчик (Edge Function или bot/server.mjs). Пока его нет, результаты
+    // помечаются как mock (см. «AI draft ready (mock provider)»).
     const provider: AIProvider = new MockAIProvider();
     const logger: AiRunLogger = {
       async log(entry) {
         try {
-          await getRepositories().ai.logRun(entry);
+          await repositories.ai.logRun(entry);
         } catch {
           // Лог запуска — вспомогательный канал: не ломаем UX из-за него.
         }

@@ -19,10 +19,13 @@ export type MaraEventType =
   | 'telegram_linked'
   | 'ai_generated'
   | 'reply_approved'
+  | 'fan_exported'
+  | 'fan_erased'
+  | 'demo_reset'
+  // Зарезервированы: пока нигде не отправляются (список — в README, раздел «События»).
   | 'reply_sent'
   | 'content_published'
   | 'automation_run'
-  | 'demo_reset'
 
 export interface MaraEvent {
   type: MaraEventType

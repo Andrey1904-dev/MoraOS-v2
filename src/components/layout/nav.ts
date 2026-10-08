@@ -33,7 +33,7 @@ export const navGroups: NavGroup[] = [
     label: "Audience",
     items: [
       { label: "Fans", to: "/fans", icon: Users },
-      { label: "Conversations", to: "/conversations", icon: MessageSquare, badge: "12" },
+      { label: "Conversations", to: "/conversations", icon: MessageSquare },
     ],
   },
   {
@@ -62,7 +62,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "System",
     items: [
-      { label: "Tasks", to: "/tasks", icon: ListChecks, badge: "6" },
+      { label: "Tasks", to: "/tasks", icon: ListChecks },
       { label: "Settings", to: "/settings", icon: SettingsIcon },
     ],
   },

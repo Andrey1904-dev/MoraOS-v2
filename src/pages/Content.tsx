@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
@@ -129,7 +130,7 @@ export default function Content() {
                         <p className="text-[13px] leading-relaxed text-ink-2">{c.hook}</p>
                       </div>
                     ) : (
-                      <img
+                      <SafeImg
                         src={
                           c.platform === "Fanvue"
                             ? "https://images.pexels.com/photos/37657504/pexels-photo-37657504.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000"
@@ -159,7 +160,7 @@ export default function Content() {
 
                   <div className="p-3.5">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="truncate text-[13px] font-medium text-ink">{c.title}</h3>
+                      <div className="truncate text-[13px] font-medium text-ink">{c.title}</div>
                       {ep && <span className="num shrink-0 text-[10.5px] text-faint">EP {String(ep.number).padStart(2, "0")}</span>}
                     </div>
                     <div className="mt-1 text-[11.5px] text-muted">{ep ? ep.title : "Standalone"}</div>

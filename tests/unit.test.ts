@@ -366,13 +366,13 @@ describe('Demo repositories', () => {
     assert.ok(withDraft.awaitingApproval >= 1)
 
     const approved = await repos.conversations.approveDraft(conv.id, draft.id, 'Edited by human')
-    assert.equal(approved.state, 'sent')
+    assert.equal(approved.state, 'approved', 'одобрение — не доставка')
     assert.equal(approved.author, 'mara')
     assert.equal(approved.body, 'Edited by human')
 
     await repos.conversations.sendMessage(conv.id, { body: 'manual note', author: 'mara' })
     const msgs = await repos.conversations.messages(conv.id)
-    assert.ok(msgs.some((m) => m.body === 'manual note' && m.state === 'sent'))
+    assert.ok(msgs.some((m) => m.body === 'manual note' && m.state === 'approved'))
 
     await repos.conversations.markRead(conv.id)
     const read = (await repos.conversations.list()).find((c) => c.id === conv.id)!
@@ -457,5 +457,86 @@ describe('Demo store', () => {
     assert.deepEqual(demoStore().readConversations, ['c1'])
     resetDemoStore()
     assert.deepEqual(demoStore().readConversations, [])
+  })
+})
+
+/* ------------------------------------------ выгрузки, удаление и пароли --- */
+import { csvCell, fansToCsv, fanDossierToJson, exportFileName, toCsv } from '../src/lib/export'
+import { passwordProblem, PASSWORD_MIN_LENGTH } from '../src/lib/passwordPolicy'
+
+describe('CSV exports', () => {
+  test('cells are quoted and protected against spreadsheet formula injection', () => {
+    assert.equal(csvCell('plain'), 'plain')
+    assert.equal(csvCell('a,b'), '"a,b"')
+    assert.equal(csvCell('say "hi"'), '"say ""hi"""')
+    assert.equal(csvCell('+1'), "'+1")
+    assert.equal(csvCell('@cmd'), "'@cmd")
+    assert.equal(csvCell('=1+1'), "'=1+1")
+    assert.equal(csvCell(-5), '-5', 'числа не экранируются')
+    assert.equal(csvCell(null), '')
+  })
+
+  test('toCsv writes CRLF lines with a header row', () => {
+    assert.equal(toCsv(['a', 'b'], [[1, 'x,y']]), 'a,b\r\n1,"x,y"\r\n')
+  })
+
+  test('fansToCsv writes one line per fan with the documented columns', () => {
+    const fan = {
+      id: 'f1', name: 'Anna, K', handle: '@anna', source: 'Telegram', relationship: 'Fan', status: 'Active',
+      ltv: 120, purchases: 2, subscription: null, lastActivity: '2026-10-01T10:00:00Z', joined: '2026-01-01',
+      location: 'Berlin', tags: ['vip', 'gym'],
+    }
+    const [header, line] = fansToCsv([fan as never]).trimEnd().split('\r\n')
+    assert.equal(header.split(',')[0], 'id')
+    assert.ok(header.includes('ltv_usd'))
+    assert.ok(line.startsWith("f1,\"Anna, K\",'@anna,Telegram"), 'хэндл с @ экранируется от формул')
+    assert.ok(line.endsWith(',None,2026-10-01T10:00:00Z,2026-01-01,Berlin,vip; gym'))
+  })
+
+  test('export file names are sanitized and the dossier is valid JSON', () => {
+    assert.equal(exportFileName('fan', '2026-10-08T12-00-00', '../../etc/passwd x'), 'mara-os-fan-etcpasswdx-2026-10-08T12-00-00')
+    assert.equal(exportFileName('fans', '2026-10-08T12-00-00'), 'mara-os-fans-2026-10-08T12-00-00')
+    const json = fanDossierToJson({ exportedAt: '2026-10-08T00:00:00Z', fan: {} as never, memories: [], events: [], purchases: [], conversations: [] })
+    assert.equal(JSON.parse(json).exportedAt, '2026-10-08T00:00:00Z')
+  })
+})
+
+describe('password policy', () => {
+  test('minimum length is 8 and the problem text names it', () => {
+    assert.equal(PASSWORD_MIN_LENGTH, 8)
+    assert.match(passwordProblem('1234567') ?? '', /at least 8/)
+    assert.equal(passwordProblem('12345678'), null)
+  })
+
+  test('passwords above 72 bytes are rejected (multi-byte characters count as bytes)', () => {
+    assert.match(passwordProblem('ä'.repeat(40)) ?? '', /at most 72 bytes/)
+    assert.equal(passwordProblem('a'.repeat(72)), null)
+  })
+})
+
+describe('fan data export and erasure (demo repositories)', () => {
+  test('export returns the dossier; erase hides the fan from every screen', async () => {
+    const fans = await demoRepositories.fans.list()
+    const target = fans[fans.length - 1]
+    const dossier = await demoRepositories.fans.exportData(target.id)
+    assert.ok(dossier)
+    assert.equal(dossier.fan.id, target.id)
+    assert.ok(Array.isArray(dossier.conversations))
+
+    assert.equal(await demoRepositories.fans.erase(target.id), true)
+    assert.equal((await demoRepositories.fans.list()).some((f) => f.id === target.id), false)
+    assert.equal(await demoRepositories.fans.get(target.id), null)
+    assert.equal(await demoRepositories.fans.exportData(target.id), null)
+    assert.equal((await demoRepositories.conversations.list()).some((c) => c.fanId === target.id), false)
+    assert.equal(await demoRepositories.fans.erase(target.id), false, 'повторное удаление ничего не находит')
+  })
+
+  test('replies written by the operator are approved, never reported as sent', async () => {
+    const conv = (await demoRepositories.conversations.list())[0]
+    const message = await demoRepositories.conversations.sendMessage(conv.id, { body: 'hello', author: 'mara' })
+    assert.equal(message.state, 'approved')
+    const draft = await demoRepositories.conversations.saveDraft(conv.id, 'draft text')
+    const approved = await demoRepositories.conversations.approveDraft(conv.id, draft.id)
+    assert.equal(approved.state, 'approved')
   })
 })

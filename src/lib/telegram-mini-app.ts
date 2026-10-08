@@ -131,8 +131,8 @@ export function hasLaunchParams(hash: string, search = ''): boolean {
 }
 
 /**
- * Разбирает hash, который получил Mini App: `#tgWebAppData=…`, `#/garage?tgWebApp…`
- * или `#/garage&tgWebApp…`. Возвращает маршрут HashRouter (только из известных)
+ * Разбирает hash, который получил Mini App: `#tgWebAppData=…`, `#/fans?tgWebApp…`
+ * или `#/fans&tgWebApp…`. Возвращает маршрут HashRouter (только из известных)
  * и признак того, что в hash были параметры Telegram.
  */
 export function splitLaunchHash(hash: string): { route: string | null; hadLaunchParams: boolean } {
@@ -453,7 +453,7 @@ export async function deliverFileInMiniApp(file: File, browserUrl: string): Prom
       }
     }
   }
-  const open = await confirmAction('Скачать файл внутри Telegram нельзя. Открыть кабинет в браузере, чтобы сохранить выгрузку?')
+  const open = await confirmAction('Files cannot be downloaded inside Telegram. Open Mara OS in the browser to save the export?')
   if (open && openInExternalBrowser(browserUrl)) return 'browser'
   return 'dismissed'
 }

@@ -165,7 +165,7 @@ describe('параметры запуска в hash (совместимость 
     assert.equal(hasLaunchParams('#tgWebAppData=abc&tgWebAppVersion=8.0'), true)
     assert.equal(hasLaunchParams('#/fans?tgWebAppVersion=8.0'), true)
     assert.equal(hasLaunchParams('#/fans&tgWebAppPlatform=ios'), true)
-    assert.equal(hasLaunchParams('', '?tgWebAppStartParam=garage'), true)
+    assert.equal(hasLaunchParams('', '?tgWebAppStartParam=fans'), true)
     assert.equal(hasLaunchParams('#/fans'), false)
     assert.equal(hasLaunchParams('#/content?tab=modeling'), false)
   })
@@ -327,9 +327,9 @@ describe('инициализация внутри Telegram', () => {
 describe('стартовый адрес Mini App', () => {
   it('известный startapp → маршрут; параметры Telegram убраны из hash', () => {
     const { webApp } = fakeWebApp({ initDataUnsafe: { start_param: 'fans' } })
-    const { win, replaced } = fakeWindow('https://site.test/LadaGrantaCredit/#tgWebAppData=x&tgWebAppVersion=8.0')
+    const { win, replaced } = fakeWindow('https://site.test/MoraOS-v2/#tgWebAppData=x&tgWebAppVersion=8.0')
     assert.equal(prepareStartLocation(webApp, win), '/fans')
-    assert.deepEqual(replaced, ['/LadaGrantaCredit/#/fans'])
+    assert.deepEqual(replaced, ['/MoraOS-v2/#/fans'])
     assert.equal(peekPendingStartRoute(), '/fans')
     assert.equal(takePendingStartRoute(), '/fans')
     assert.equal(takePendingStartRoute(), null, 'deep link применяется один раз')
@@ -337,17 +337,17 @@ describe('стартовый адрес Mini App', () => {
 
   it('неизвестный startapp → обычный стартовый экран', () => {
     const { webApp } = fakeWebApp({ initDataUnsafe: { start_param: '../../admin' } })
-    const { win, replaced } = fakeWindow('https://site.test/LadaGrantaCredit/#tgWebAppData=x')
+    const { win, replaced } = fakeWindow('https://site.test/MoraOS-v2/#tgWebAppData=x')
     assert.equal(prepareStartLocation(webApp, win), null)
-    assert.deepEqual(replaced, ['/LadaGrantaCredit/#/'])
+    assert.deepEqual(replaced, ['/MoraOS-v2/#/'])
     assert.equal(peekPendingStartRoute(), null)
   })
 
   it('кнопка бота ?screen=telegram открывает раздел «Бот» и убирает служебный параметр', () => {
     const { webApp } = fakeWebApp()
-    const { win, replaced } = fakeWindow('https://site.test/LadaGrantaCredit/?screen=telegram&utm=bot#tgWebAppVersion=8.0')
+    const { win, replaced } = fakeWindow('https://site.test/MoraOS-v2/?screen=telegram&utm=bot#tgWebAppVersion=8.0')
     assert.equal(prepareStartLocation(webApp, win), '/settings')
-    assert.deepEqual(replaced, ['/LadaGrantaCredit/?utm=bot#/settings'])
+    assert.deepEqual(replaced, ['/MoraOS-v2/?utm=bot#/settings'])
   })
 
   it('неизвестный ?screen= игнорируется', () => {
@@ -454,9 +454,9 @@ describe('диалоги, ссылки, свайпы и файлы внутри 
 
   it('classifyLink различает t.me, внешние, свои и прочие ссылки', () => {
     const origin = 'https://andrey1904-dev.github.io'
-    assert.equal(classifyLink('https://t.me/LadaGarage_bot?start=site', origin), 'telegram')
+    assert.equal(classifyLink('https://t.me/mara_os_bot?start=site', origin), 'telegram')
     assert.equal(classifyLink('https://mail.yandex.ru/', origin), 'external')
-    assert.equal(classifyLink('/LadaGrantaCredit/#/fans', origin), 'internal')
+    assert.equal(classifyLink('/MoraOS-v2/#/fans', origin), 'internal')
     assert.equal(classifyLink('mailto:owner@example.com', origin), 'other')
     assert.equal(classifyLink('javascript:alert(1)', origin), 'other')
   })
@@ -464,10 +464,10 @@ describe('диалоги, ссылки, свайпы и файлы внутри 
   it('openLinkInTelegram: t.me — openTelegramLink, внешние — openLink, свои — штатно', () => {
     const { calls } = started()
     const origin = 'https://site.test'
-    assert.equal(openLinkInTelegram('https://t.me/LadaGarage_bot', origin), true)
+    assert.equal(openLinkInTelegram('https://t.me/mara_os_bot', origin), true)
     assert.equal(openLinkInTelegram('https://gosuslugi.ru/', origin), true)
     assert.equal(openLinkInTelegram('https://site.test/#/content', origin), false)
-    assert.ok(calls.includes('tglink:https://t.me/LadaGarage_bot'))
+    assert.ok(calls.includes('tglink:https://t.me/mara_os_bot'))
     assert.ok(calls.includes('link:https://gosuslugi.ru/'))
   })
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Link } from "react-router-dom";
 import {
   CalendarDays,
@@ -12,7 +13,7 @@ import {
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, StatusBadge, ProgressBar, Divider, KeyStat } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { SkeletonRows, useToast } from "@/components/ui/Feedback";
+import { SkeletonRows } from "@/components/ui/Feedback";
 import { AINote } from "@/components/common/AICard";
 import { useResource } from "@/hooks/useResource";
 import { repositories, story } from "@/repositories";
@@ -28,7 +29,6 @@ const statusColor: Record<string, string> = {
 };
 
 export default function Episodes() {
-  const { push } = useToast();
   const { data, loading } = useResource(() => repositories.content.episodes());
   const [expanded, setExpanded] = useState<string | null>("ep04");
 
@@ -50,7 +50,7 @@ export default function Episodes() {
           </>
         }
         actions={
-          <Button variant="primary" onClick={() => push({ title: "Episode draft created", description: "Episode 07 outline started by Content Agent.", tone: "success" })}>
+          <Button variant="primary" disabled title="Not available yet">
             <Plus className="size-3.5" /> New episode
           </Button>
         }
@@ -177,7 +177,7 @@ export default function Episodes() {
                               <div className="flex flex-wrap gap-2">
                                 {ep.assetIds.map((id, i) => (
                                   <Link key={id} to="/assets" className="group relative">
-                                    <img
+                                    <SafeImg
                                       src={[media.portraits[0], media.portraits[2], media.portraits[6], media.portraits[3], media.portraits[8], media.wide[9]][i % 6]}
                                       alt="asset"
                                       loading="lazy"
@@ -191,10 +191,10 @@ export default function Episodes() {
                           </div>
 
                           <div className="mt-4 flex flex-wrap gap-2">
-                            <Button size="sm" variant="primary" onClick={() => push({ title: "Opening editor", description: "Content editor loaded for this episode.", tone: "default" })}>
+                            <Button size="sm" variant="primary" disabled title="Not available yet">
                               Open editor
                             </Button>
-                            <Button size="sm" variant="subtle" onClick={() => push({ title: "Schedule set", description: "Friday 18:00 across all platforms.", tone: "success" })}>
+                            <Button size="sm" variant="subtle" disabled title="Not available yet">
                               Schedule publish
                             </Button>
                           </div>

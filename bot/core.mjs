@@ -15,10 +15,13 @@
  * web app — the bot only ever *suggests*.
  */
 import {
+  LINK_CODE_PATTERN,
+  SERVICE_NAME,
   createLinkCode,
   daysUntil,
   escapeHtml,
   formatDate,
+  formatLinkCode,
   formatMoney,
   formatMonth,
   hashLinkCode,
@@ -27,12 +30,13 @@ import {
   miniAppUrl,
   normalizeLinkCode,
   plural,
+  telegramDisplayName,
 } from './format.mjs'
+
+export { LINK_CODE_PATTERN }
 
 /** How long a one-time link code lives. */
 export const CODE_TTL_MS = 10 * 60 * 1000
-/** Code format without the dash: 10 chars A-Z0-9. */
-export const LINK_CODE_PATTERN = /^[A-Z0-9]{10}$/
 
 export const RELATIONSHIP_LABELS = {
   visitor: 'Visitors',
@@ -59,14 +63,14 @@ export const HELP_TEXT = [
   '/link — connect this chat to your Mara OS account',
   '/unlink — disconnect (two-step confirmation)',
   '',
-  '<i>Bot reads from your account only. Replies to fans, PPV sends and',
-  'price changes always wait for your approval in the web console.</i>',
+  '<i>The bot only reads your account data. Nothing is sent to fans from here:',
+  'AI drafts stay in the web console until you approve them there.</i>',
 ].join('\n')
 
 export const BOT_DESCRIPTION =
   'Mara OS Assistant — the Telegram companion of the creator operating system. ' +
   'Audience stats, inbox triage, content pipeline, revenue and AI runs from your Mara OS account. ' +
-  'One-time /link code connects this chat to your console; everything sensitive stays behind your approval in the web app.'
+  'A one-time /link code connects this chat to your console. Nothing is sent to fans from the bot.'
 export const BOT_SHORT_DESCRIPTION = 'Mara OS: fans, inbox, content, revenue and AI — in your pocket.'
 
 export const BOT_COMMANDS = [
@@ -114,15 +118,6 @@ export function unlinkedMessage() {
     'Tap <b>Connect account</b> below or send /link — you will get a one-time',
     'code to enter in the web console.',
   ].join('\n')
-}
-
-const SECTION_EMOJI = {
-  fans: '👥',
-  messages: '💬',
-  content: '🎬',
-  analytics: '📊',
-  tasks: '✅',
-  ai: '🤖',
 }
 
 function screenTitle(emoji, title) {
@@ -264,9 +259,48 @@ export function createBot({
     return { linked: true }
   }
 
-  async function confirmLink(accessToken, rawCode) {
-    const user = await verifySiteSession(accessToken)
-    return confirmLinkForUser(user.id, rawCode)
+  /**
+   * Preview for the second step of linking: which Telegram account the code
+   * belongs to. Reads only the display name stored with the code; the code
+   * itself is not consumed here.
+   */
+  async function previewLinkForUser(rawCode) {
+    const code = normalizeLinkCode(rawCode)
+    if (!LINK_CODE_PATTERN.test(code)) {
+      throw new ApiError(400, 'Enter the full one-time code from Telegram.')
+    }
+    const query = makeSearch({
+      select: 'telegram_display,expires_at',
+      code_hash: `eq.${hashLinkCode(code)}`,
+      used_at: 'is.null',
+      expires_at: `gt.${new Date(now()).toISOString()}`,
+      limit: '1',
+    })
+    const rows = await supabaseRest(`telegram_link_codes?${query}`)
+    const row = Array.isArray(rows) ? rows[0] : null
+    if (!row) {
+      throw new ApiError(400, 'Code is invalid or expired. Request a new one with /link.')
+    }
+    return {
+      telegramAccount: String(row.telegram_display || 'Telegram account'),
+      expiresAt: row.expires_at,
+    }
+  }
+
+  /**
+   * Fixed-window attempt counter shared by all API instances (Postgres function
+   * consume_rate_limit, migration 0004). Fails closed: if the counter cannot be
+   * read, the request is refused.
+   */
+  async function consumeRateLimit(key, limit, windowSeconds) {
+    const allowed = await supabaseRest('rpc/consume_rate_limit', {
+      method: 'POST',
+      body: { p_key: key, p_limit: limit, p_window_seconds: windowSeconds },
+    })
+    if (typeof allowed !== 'boolean') {
+      throw new ApiError(502, 'Could not check the request limit. Please try again.')
+    }
+    return allowed
   }
 
   async function unlink(accessToken) {
@@ -560,7 +594,7 @@ export function createBot({
     if (active.length === 0) {
       lines.push('', '<b>Inbox zero.</b> The notebook is up to date.', '')
     }
-    lines.push('', '<i>Replies are drafted by AI but only send after your approval.</i>')
+    lines.push('', '<i>AI drafts wait for your approval in the web console. Nothing is sent from the bot.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('messages') }
   }
 
@@ -729,7 +763,7 @@ export function createBot({
     return sendMessage(chatId, text, { reply_markup: mainKeyboard(Boolean(userId)) })
   }
 
-  async function createLink(chatId, telegramUserId) {
+  async function createLink(chatId, telegramUserId, displayName = '') {
     if (await getLinkedUserId(chatId)) {
       return sendMessage(chatId, [
         '<b>🔗 ALREADY CONNECTED</b>',
@@ -753,12 +787,13 @@ export function createBot({
         code_hash: hashLinkCode(code),
         telegram_chat_id: chatId,
         telegram_user_id: telegramUserId,
+        telegram_display: displayName,
         expires_at: expiresAt,
       },
       prefer: 'return=minimal',
     })
 
-    const formatted = `${code.slice(0, 5)}-${code.slice(5)}`
+    const formatted = formatLinkCode(code)
     const text = [
       '<b>🔗 CONNECTION CODE</b>',
       RULE,
@@ -800,9 +835,9 @@ export function createBot({
   }
 
   /** Screen by action name; fresh data behind a "typing…" indicator. */
-  async function runAction(chatId, action, { messageId = null, telegramUserId = null } = {}) {
+  async function runAction(chatId, action, { messageId = null, telegramUserId = null, from = null } = {}) {
     if (action === 'link') {
-      return createLink(chatId, telegramUserId ?? chatId)
+      return createLink(chatId, telegramUserId ?? chatId, telegramDisplayName(from))
     }
     if (action === 'unlink') {
       // Two-step disconnect: confirmation screen first.
@@ -867,7 +902,9 @@ export function createBot({
       const userId = await getLinkedUserId(chat.id)
       return sendMessage(chat.id, HELP_TEXT, { reply_markup: mainKeyboard(Boolean(userId)) })
     }
-    if (command === '/link' || word === 'connect') return createLink(chat.id, message.from.id)
+    if (command === '/link' || word === 'connect') {
+      return createLink(chat.id, message.from.id, telegramDisplayName(message.from))
+    }
     if (command === '/unlink' || word === 'disconnect') {
       return runAction(chat.id, 'unlink', { telegramUserId: message.from.id })
     }
@@ -900,6 +937,7 @@ export function createBot({
     return runAction(chatId, action, {
       messageId: Number.isInteger(messageId) ? messageId : null,
       telegramUserId: callback.from?.id ?? null,
+      from: callback.from ?? null,
     })
   }
 
@@ -938,7 +976,7 @@ export function createBot({
     const online = configured && pollingStatus === 'online' && (mode === 'webhook' ? true : fresh)
     return {
       ok: online,
-      service: 'mara-telegram-api',
+      service: SERVICE_NAME,
       mode,
       configured,
       botPolling: configured ? (online ? 'online' : pollingStatus) : 'stopped',
@@ -951,7 +989,8 @@ export function createBot({
     supabaseRest,
     verifySiteSession,
     linkStatus,
-    confirmLink,
+    previewLinkForUser,
+    consumeRateLimit,
     confirmLinkForUser,
     unlink,
     handleUpdate,

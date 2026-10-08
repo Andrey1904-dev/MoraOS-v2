@@ -2,14 +2,13 @@ import { ArrowDown, Bot, Cog, Pause, Play, Workflow, Zap } from "lucide-react";
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, StatusBadge, Divider } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { useToast } from "@/components/ui/Feedback";
+
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { ago, number as fmtNum } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 export default function Automations() {
-  const { push } = useToast();
   const { data, loading } = useResource(() => repositories.ai.automations());
 
   return (
@@ -17,18 +16,23 @@ export default function Automations() {
       <PageHeader
         eyebrow="AI"
         title="Automations"
-        description="Visual workflows that connect fans, content and money. Every step is either deterministic or an AI decision point."
+        description="Workflow definitions that connect fans, content and money. Every step is either deterministic or an AI decision point."
         actions={
           <>
-            <Button variant="outline" onClick={() => push({ title: "Workflow paused", description: "All runs are held until resumed.", tone: "warn" })}>
+            <Button variant="outline" disabled title="The automation engine is not connected yet" aria-label="Pause all (not available yet)">
               <Pause className="size-3.5" /> Pause all
             </Button>
-            <Button variant="primary" onClick={() => push({ title: "New workflow", description: "The visual builder ships with the automation engine.", tone: "default" })}>
+            <Button variant="primary" disabled title="The visual builder ships with the automation engine" aria-label="New workflow (not available yet)">
               <Workflow className="size-3.5" /> New workflow
             </Button>
           </>
         }
       />
+
+      <div role="note" className="mt-4 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-[12.5px] leading-6 text-warn">
+        The automation engine is not connected yet, so nothing on this page runs by itself. The workflows and
+        runs shown are sample definitions.
+      </div>
 
       <Grid className="lg:grid-cols-4">
         {[
@@ -53,7 +57,7 @@ export default function Automations() {
                 <Zap className="size-4" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
-                <h3 className="text-[14px] font-medium text-ink">{w.name}</h3>
+                <div className="text-[14px] font-medium text-ink">{w.name}</div>
                 <div className="mt-0.5 text-[11.5px] text-muted">
                   Trigger · {w.trigger} · {fmtNum(w.runs)} runs · last {ago(w.lastRun)}
                 </div>
@@ -63,7 +67,9 @@ export default function Automations() {
                 <Button
                   size="sm"
                   variant="subtle"
-                  onClick={() => push({ title: w.status === "Active" ? "Workflow paused" : "Workflow resumed", description: w.name, tone: "default" })}
+                  disabled
+                  title="The automation engine is not connected yet"
+                  aria-label={`${w.status === "Active" ? "Pause" : "Resume"} ${w.name} (not available yet)`}
                 >
                   {w.status === "Active" ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
                   {w.status === "Active" ? "Pause" : "Resume"}
@@ -72,7 +78,12 @@ export default function Automations() {
             </div>
 
             <div className="px-5 py-5">
-              <div className="hide-scrollbar flex gap-3 overflow-x-auto pb-1">
+              <div
+                className="hide-scrollbar flex gap-3 overflow-x-auto pb-1"
+                role="region"
+                tabIndex={0}
+                aria-label={`${w.name} steps`}
+              >
                 <div className="flex shrink-0 flex-col items-center gap-2">
                   <div className="flex h-16 w-36 flex-col justify-center rounded-lg border border-accent/30 bg-accent/[0.07] px-3">
                     <div className="flex items-center gap-1.5">
@@ -134,7 +145,7 @@ export default function Automations() {
 
       <Grid className="mt-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Run history" subtitle="Last 24 hours" />
+          <CardHeader title="Run history" subtitle="Sample data — the engine does not run workflows yet" />
           <div className="space-y-3 px-5 pb-5">
             {[
               { wf: "PPV purchase → next action", at: "4 min ago", status: "Success" },

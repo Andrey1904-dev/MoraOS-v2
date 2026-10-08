@@ -4,7 +4,7 @@ import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, Avatar, Divider, Delta } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DateRangePicker } from "@/components/ui/Controls";
-import { SkeletonRows, useToast } from "@/components/ui/Feedback";
+import { SkeletonRows } from "@/components/ui/Feedback";
 import { AreaChart, BarChart, Donut } from "@/components/ui/charts";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { useResource } from "@/hooks/useResource";
@@ -13,7 +13,6 @@ import { ago, currency } from "@/lib/format";
 
 export default function Revenue() {
   const [period, setPeriod] = useState("30 days");
-  const { push } = useToast();
 
   const { data: revenue, loading } = useResource(() => repositories.analytics.revenue(period), [period]);
   const { data: offers } = useResource(() => repositories.commerce.offers());
@@ -40,7 +39,7 @@ export default function Revenue() {
         actions={
           <>
             <DateRangePicker value={period} onChange={setPeriod} />
-            <Button variant="outline" onClick={() => push({ title: "Report queued", description: "CSV will be emailed when ready.", tone: "default" })}>
+            <Button variant="outline" disabled title="Not available yet">
               <Download className="size-3.5" /> Export
             </Button>
           </>

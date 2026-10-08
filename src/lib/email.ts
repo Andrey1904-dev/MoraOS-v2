@@ -129,7 +129,7 @@ export function normalizeEmail(raw: string): string {
   if (CYRILLIC_DOMAINS[domain]) {
     domain = CYRILLIC_DOMAINS[domain]
   } else if (hasCyrillic(domain)) {
-    // «…​.ру» → «.ru» (кроме настоящей доменной зоны .рф — она остаётся IDN)
+    // «….ру» → «.ru» (кроме настоящей доменной зоны .рф — она остаётся IDN)
     domain = domain.replace(/\.ру$/, '.ru').replace(/\.сом$/, '.com')
   }
 

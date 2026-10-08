@@ -64,7 +64,8 @@ export function AreaChart({
     format === "currency" ? currency(v) : format === "percent" ? `${v}%` : fmtNumber(v);
 
   const line = smooth(pts);
-  const area = `${line} L${W},${H} L0,${H} Z`;
+  // При одной точке или пустых данных линии нет: пустой путь вместо невалидного d=" L…" (ошибка SVG в консоли).
+  const area = line ? `${line} L${W},${H} L0,${H} Z` : "";
 
   return (
     <div className={cn("relative", className)}>

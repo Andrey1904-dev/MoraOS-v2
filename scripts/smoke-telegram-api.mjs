@@ -26,6 +26,9 @@ let clock = 1_700_000_000_000
 let linkRows = []
 let fansRows = []
 let linkResult = true
+let rateAllowed = true
+let previewRow = { telegram_display: 'Anna (@anna)', expires_at: '2099-01-01T00:00:00Z' }
+const rateCalls = []
 const sentMessages = []
 const insertedCodes = []
 const telegramMethods = []
@@ -53,6 +56,10 @@ globalThis.fetch = async (url, init = {}) => {
   }
   if (href.includes('/auth/v1/user')) return json({ id: USER_ID, email: 'owner@example.com' })
   if (href.includes('/rest/v1/rpc/link_telegram_account')) return json(linkResult)
+  if (href.includes('/rest/v1/rpc/consume_rate_limit')) {
+    rateCalls.push(JSON.parse(init.body))
+    return json(rateAllowed)
+  }
   if (href.includes('/rest/v1/telegram_links')) {
     if (init.method === 'DELETE') return json(linkRows.length ? [{ user_id: USER_ID }] : [])
     return json(linkRows)
@@ -62,7 +69,7 @@ globalThis.fetch = async (url, init = {}) => {
       insertedCodes.push(JSON.parse(init.body))
       return new Response(null, { status: 201 })
     }
-    return json(null)
+    return json(previewRow ? [previewRow] : [])
   }
   if (href.includes('/rest/v1/fans')) return json(fansRows)
   if (href.includes('/rest/v1/subscriptions')) return json([])
@@ -97,7 +104,7 @@ const app = createApp({
   supabaseServiceRoleKey: 'service-role-key',
   telegramToken: '8703956173:TEST-TOKEN-0123456789abcdefghij',
   webhookSecret: 'webhook-secret',
-  webAppUrl: 'https://andrey1904-dev.github.io/LadaGrantaCredit/',
+  webAppUrl: 'https://andrey1904-dev.github.io/MoraOS-v2/',
   fetchImpl: (...args) => globalThis.fetch(...args),
   now: () => clock,
   logger: { warn() {}, error() {} },
@@ -308,6 +315,48 @@ const check = (name, condition, detail = '') => {
   })
   check('callback_query подтверждается', telegramMethods.includes('answerCallbackQuery'))
   check('кнопка «Analytics» отвечает экраном выручки', sentMessages.length >= 1)
+}
+
+
+/* ------------------------------------------- маршруты, методы и лимиты --- */
+{
+  const get = await call('/api/telegram/link', { method: 'GET', headers: { origin: ORIGIN, ...bearer } })
+  check('GET /api/telegram/link → 405 (отвязка только DELETE)', get.status === 405, `status=${get.status}`)
+  check('405 содержит заголовок Allow: DELETE', get.headers.get('allow') === 'DELETE', String(get.headers.get('allow')))
+  const health = await call('/health', { method: 'POST' })
+  check('POST /health → 405', health.status === 405, `status=${health.status}`)
+  const status = await call('/api/telegram/link/status', { method: 'POST', headers: bearer })
+  check('POST /api/telegram/link/status → 405', status.status === 405, `status=${status.status}`)
+  const evil = await call('/api/telegram/link/status', { method: 'GET', headers: { origin: 'https://evil.example', ...bearer } })
+  check('чужой origin на API отклоняется до обработки', evil.status === 403, `status=${evil.status}`)
+  const pre = await call('/api/telegram/link/confirm', { method: 'OPTIONS', headers: { origin: ORIGIN, 'Access-Control-Request-Method': 'POST' } })
+  check('preflight разрешает POST и только для этого маршрута', pre.status === 204 && String(pre.headers.get('access-control-allow-methods')).includes('POST') && !String(pre.headers.get('access-control-allow-methods')).includes('DELETE'), String(pre.headers.get('access-control-allow-methods')))
+  check('CORS: localhost без ALLOW_LOCAL_ORIGINS не разрешён', (await call('/api/telegram/link/status', { method: 'OPTIONS', headers: { origin: 'http://localhost:5173' } })).status === 403)
+}
+
+{
+  // Порядок «сначала авторизация, потом лимит»: анонимный запрос не расходует лимит.
+  rateCalls.length = 0
+  rateAllowed = false
+  const anon = await call('/api/telegram/link/confirm', { method: 'POST', headers: { origin: ORIGIN, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'A4K9P72QX8' }) })
+  check('без токена 401, даже когда лимит исчерпан', anon.status === 401, `status=${anon.status}`)
+  check('анонимный запрос не трогает счётчик попыток', rateCalls.length === 0, JSON.stringify(rateCalls))
+  const limited = await call('/api/telegram/link/confirm', { method: 'POST', headers: { origin: ORIGIN, ...bearer, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'A4K9P72QX8' }) })
+  check('исчерпанный лимит аккаунта → 429', limited.status === 429, `status=${limited.status}`)
+  check('лимит считается по пользователю', rateCalls[0]?.p_key === `telegram-link:${USER_ID}` && rateCalls[0]?.p_limit === 10 && rateCalls[0]?.p_window_seconds === 600, JSON.stringify(rateCalls[0]))
+  rateAllowed = true
+}
+
+{
+  previewRow = { telegram_display: 'Anna (@anna)', expires_at: '2099-01-01T00:00:00Z' }
+  const preview = await call('/api/telegram/link/preview', { method: 'POST', headers: { origin: ORIGIN, ...bearer, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'a4k9p-72qx8' }) })
+  const body = await preview.json()
+  check('предпросмотр показывает аккаунт, с которого запрошен код', preview.status === 200 && body.telegramAccount === 'Anna (@anna)', JSON.stringify(body))
+  previewRow = null
+  const missing = await call('/api/telegram/link/preview', { method: 'POST', headers: { origin: ORIGIN, ...bearer, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'A4K9P72QX8' }) })
+  check('предпросмотр неизвестного кода → 400', missing.status === 400, `status=${missing.status}`)
+  const badShape = await call('/api/telegram/link/preview', { method: 'POST', headers: { origin: ORIGIN, ...bearer, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'U-U-U-U-U-U' }) })
+  check('код с недопустимыми символами (U) отклоняется', badShape.status === 400, `status=${badShape.status}`)
 }
 
 console.log(failed === 0 ? '\nTelegram API smoke: все проверки пройдены.' : `\nTelegram API smoke: провалено проверок — ${failed}.`)

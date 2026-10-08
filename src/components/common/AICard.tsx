@@ -67,7 +67,7 @@ export function AICard({
               (cta.to ? (
                 <Link
                   to={cta.to}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-[7px] bg-accent px-2.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hi"
+                  className="inline-flex h-7 items-center gap-1.5 rounded-[7px] bg-accent px-2.5 text-[12px] font-medium text-white transition-colors hover:bg-accent-hover"
                 >
                   {cta.label}
                   <ArrowUpRight className="size-3.5" />

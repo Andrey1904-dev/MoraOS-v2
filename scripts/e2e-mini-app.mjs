@@ -25,7 +25,8 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '..')
 const dist = path.join(root, 'dist')
 const shots = path.join(root, 'node_modules', '.tmp', 'e2e')
-const BASE_PATH = '/LadaGrantaCredit/'
+const site = JSON.parse(fs.readFileSync(path.join(root, 'site.config.json'), 'utf8'))
+const BASE_PATH = site.basePath
 const SDK_URL = 'https://telegram.org/js/telegram-web-app.js'
 const required = process.env.E2E_REQUIRED === '1'
 
@@ -36,8 +37,13 @@ if (!fs.existsSync(path.join(dist, 'index.html'))) {
 fs.mkdirSync(shots, { recursive: true })
 
 // Пакет не экспортирует этот файл через "exports" — берём его из node_modules напрямую.
-const sdkDir = path.join(root, 'node_modules', '@twa-dev', 'sdk')
-const sdkSource = fs.readFileSync(path.join(sdkDir, 'dist', 'telegram-web-apps.js'), 'utf8')
+// Если пакет не установлен (npm ci не выполнялся), тест говорит об этом прямо, а не падает на чтении файла.
+const sdkFile = path.join(root, 'node_modules', '@twa-dev', 'sdk', 'dist', 'telegram-web-apps.js')
+if (!fs.existsSync(sdkFile)) {
+  console.error(`E2E: не найден ${path.relative(root, sdkFile)}. Выполните npm ci.`)
+  process.exit(1)
+}
+const sdkSource = fs.readFileSync(sdkFile, 'utf8')
 
 /* ----------------------------------------------------- статический сервер --- */
 
@@ -124,8 +130,18 @@ function launchUrl({ version = '8.0', platform = 'android', startParam = '', que
  * Новая вкладка «клиента Telegram». sdk: 'serve' | 'fail' | 'none'.
  */
 async function openPage({ width = 390, height = 800, sdk = 'serve' } = {}) {
-  const context = await browser.newContext({ viewport: { width, height }, locale: 'ru-RU', deviceScaleFactor: 1 })
+  // Свой браузер на каждую «вкладку»: так сценарии не влияют друг на друга
+  // (и не зависят от того, переживает ли браузер закрытие контекстов).
+  const pageBrowser = await launchBrowser()
+  const context = await pageBrowser.newContext({ viewport: { width, height }, locale: 'ru-RU', deviceScaleFactor: 1 })
+  const closeContext = context.close.bind(context)
+  context.close = async () => {
+    await closeContext().catch(() => {})
+    await pageBrowser.close().catch(() => {})
+  }
   const page = await context.newPage()
+  // Ограничиваем ожидания: зависший шаг должен упасть с понятной ошибкой, а не висеть.
+  page.setDefaultTimeout(15_000)
   const errors = []
   const sdkRequests = []
   page.on('pageerror', (error) => errors.push(error.message))
@@ -168,8 +184,11 @@ async function enterDemo(page) {
   await waitHash(page, '#/')
 }
 
+/** Переход по разделу меню: на узком экране сначала открывается боковая панель. */
 async function nav(page, label) {
-  await page.locator('nav[aria-label="Primary navigation"]').getByText(label, { exact: true }).click()
+  const opener = page.getByRole('button', { name: 'Open navigation' })
+  if (await opener.isVisible().catch(() => false)) await opener.click()
+  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: label, exact: true }).first().click()
 }
 
 /** Отвечает на последний попап Telegram (web_app_open_popup). */
@@ -196,24 +215,32 @@ async function noHorizontalScroll(page) {
 
 /* ============================================================ сценарии === */
 
-// 1. Обычный браузер: SDK не грузится, интеграция не активна.
-{
-  const { context, page, errors, sdkRequests } = await openPage()
+/** E2E_ONLY=1,3 — прогнать только указанные сценарии (для отладки). */
+const onlyScenarios = process.env.E2E_ONLY ? new Set(process.env.E2E_ONLY.split(',').map((x) => x.trim())) : null
+const run = (scenario) => !onlyScenarios || onlyScenarios.has(scenario)
+
+const ROUTES_TO_CHECK = ['/', '/fans', '/conversations', '/content', '/ai', '/settings']
+const cssVar = (page, name) => page.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), name)
+
+// 1. Обычный браузер: SDK не грузится, интеграция не активна (десктопная ширина: меню видно сразу).
+if (run('1')) {
+  const { context, page, errors, sdkRequests } = await openPage({ width: 1280, height: 860 })
   await page.goto(SITE)
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   check('браузер: экран входа отрисован', true)
   check('браузер: запроса к telegram.org нет', sdkRequests.length === 0, sdkRequests.join(', '))
   check('браузер: класс tg-mini-app не ставится', !(await page.evaluate(() => document.documentElement.classList.contains('tg-mini-app'))))
+  check('браузер: <html lang="en">', (await page.getAttribute('html', 'lang')) === 'en')
   await enterDemo(page)
-  await nav(page, 'Кредит')
-  check('браузер: навигация работает как раньше', await waitHash(page, '#/credit'))
+  await nav(page, 'Conversations')
+  check('браузер: навигация работает', await waitHash(page, '#/conversations'), await hash(page))
   check('браузер: без ошибок JS', errors.length === 0, errors.join(' | '))
   await page.screenshot({ path: path.join(shots, '01-browser.png') })
   await context.close()
 }
 
 // 2. Запуск из Telegram, но SDK недоступен — сайт всё равно открывается.
-{
+if (run('2')) {
   const { context, page, errors } = await openPage({ sdk: 'fail' })
   const started = Date.now()
   await page.goto(launchUrl())
@@ -222,13 +249,13 @@ async function noHorizontalScroll(page) {
   check('SDK недоступен: сайт отрисован', true)
   check('SDK недоступен: отрисовка ≤ 5 с', elapsed <= 5000, `${elapsed} мс`)
   check('SDK недоступен: интеграция выключена', !(await page.evaluate(() => document.documentElement.classList.contains('tg-mini-app'))))
-  check('SDK недоступен: параметры запуска убраны роутером', !(await hash(page)).includes('tgWebApp'), await hash(page))
+  check('SDK недоступен: параметры запуска убраны из адреса', !(await hash(page)).includes('tgWebApp'), await hash(page))
   check('SDK недоступен: без ошибок JS', errors.length === 0, errors.join(' | '))
   await context.close()
 }
 
 // 3. Основной сценарий Mini App (Android, Bot API 8.0).
-{
+if (run('3')) {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl())
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
@@ -236,74 +263,42 @@ async function noHorizontalScroll(page) {
   check('Mini App: expand()', list.includes('web_app_expand'))
   check('Mini App: ready()', list.includes('web_app_ready'))
   check('Mini App: expand до ready', list.indexOf('web_app_expand') < list.lastIndexOf('web_app_ready'))
-  check('Mini App: шапка #08090a', (await lastEvent(page, 'web_app_set_header_color'))?.color === '#08090a')
-  check('Mini App: фон #08090a', (await lastEvent(page, 'web_app_set_background_color'))?.color === '#08090a')
-  check('Mini App: нижняя панель #0b0c0e', (await lastEvent(page, 'web_app_set_bottom_bar_color'))?.color === '#0b0c0e')
+  const header = (await lastEvent(page, 'web_app_set_header_color'))?.color ?? ''
+  check('Mini App: шапка — фирменный цвет сайта', header.toLowerCase() === '#08090a', header)
   check('Mini App: initData убран из адреса', !(await hash(page)).includes('tgWebApp'), await hash(page))
-  check('Mini App: неавторизованный — штатный экран входа', (await hash(page)) === '#/auth')
+  check('Mini App: неавторизованный — штатный экран входа', (await hash(page)) === '#/auth', await hash(page))
   check('Mini App: на экране входа BackButton скрыт', (await lastEvent(page, 'web_app_setup_back_button'))?.is_visible !== true)
   await page.screenshot({ path: path.join(shots, '03-auth.png') })
 
   await enterDemo(page)
   check('Mini App: вход в демо → главная', (await hash(page)) === '#/')
-  await nav(page, 'Кредит')
-  await waitHash(page, '#/credit')
+  check('Mini App: на главной BackButton скрыт', await waitBackButton(page, false))
+
+  // Внутренний экран: BackButton показан и возвращает на родительский маршрут.
+  await page.evaluate(() => (window.location.hash = '#/conversations'))
+  await waitHash(page, '#/conversations')
   check('BackButton: показан на внутреннем экране', await waitBackButton(page, true))
-  await nav(page, 'Расходы')
-  await waitHash(page, '#/expenses')
+  // Без внутренней истории «Назад» ведёт на родительский раздел (parentRoute), а не на «предыдущий» в браузере.
   await receive(page, 'back_button_pressed')
-  check('BackButton: назад к предыдущему экрану', await waitHash(page, '#/credit'), await hash(page))
-  await receive(page, 'back_button_pressed')
-  check('BackButton: назад на главную', await waitHash(page, '#/'), await hash(page))
+  check('BackButton: назад — на родительский раздел (главную)', await waitHash(page, '#/'), await hash(page))
   check('BackButton: на главной скрыт', await waitBackButton(page, false))
   await receive(page, 'back_button_pressed')
   await page.waitForTimeout(200)
   const closed = (await events(page)).some(([t]) => t === 'web_app_close')
   check('BackButton: на корне Mini App не закрывается и адрес не меняется', !closed && (await hash(page)) === '#/')
 
-  // viewport: Mini App частично свёрнут — нижняя панель остаётся в видимой области
-  const navBox = () => page.locator('nav[aria-label="Основная навигация"]').boundingBox()
+  // viewport и safe area: переменные сайта повторяют данные клиента Telegram.
   await receive(page, 'viewport_changed', { height: 520, is_state_stable: true, is_expanded: false })
   await page.waitForTimeout(100)
-  const collapsed = await navBox()
-  check('viewport: панель поднята над скрытой частью WebView', Math.abs(collapsed.y + collapsed.height - 520) <= 2, JSON.stringify(collapsed))
-  await receive(page, 'viewport_changed', { height: 800, is_state_stable: true, is_expanded: true })
-  await page.waitForTimeout(100)
-  const expanded = await navBox()
-  check('viewport: после раскрытия панель у нижнего края', Math.abs(expanded.y + expanded.height - 800) <= 2, JSON.stringify(expanded))
-
+  check('viewport: стабильная высота 520 px применена', (await cssVar(page, '--tg-app-viewport-stable-height')) === '520px', await cssVar(page, '--tg-app-viewport-stable-height'))
   await receive(page, 'safe_area_changed', { top: 0, bottom: 34, left: 0, right: 0 })
   await page.waitForTimeout(100)
-  const pad = await page.locator('nav[aria-label="Основная навигация"]').evaluate((el) => getComputedStyle(el).paddingBottom)
-  check('safe area: отступ панели от home indicator', pad === '34px', pad)
+  check('safe area: нижний отступ 34 px', (await cssVar(page, '--tg-app-inset-bottom')) === '34px', await cssVar(page, '--tg-app-inset-bottom'))
   await page.screenshot({ path: path.join(shots, '03-dashboard.png') })
 
-  // Окно с формой: «Назад» закрывает окно, с несохранёнными данными — спрашивает
-  await nav(page, 'Расходы')
-  await waitHash(page, '#/expenses')
-  await page.getByRole('button', { name: /Добавить расход/ }).first().click()
-  await page.getByRole('dialog').waitFor()
-  check('окно: свайп вниз не сворачивает Mini App', (await lastEvent(page, 'web_app_setup_swipe_behavior'))?.allow_vertical_swipe === false)
-  check('окно: BackButton виден', await waitBackButton(page, true))
-  await page.getByRole('dialog').getByLabel(/Сумма/).fill('1500')
-  await page.waitForTimeout(100)
-  check('окно: подтверждение закрытия Mini App при несохранённой форме', (await lastEvent(page, 'web_app_setup_closing_behavior'))?.need_confirmation === true)
-  await page.screenshot({ path: path.join(shots, '03-sheet.png') })
-  await receive(page, 'back_button_pressed')
-  const discard = await answerPopup(page, false)
-  check('окно: «Назад» с данными спрашивает подтверждение', /без сохранения/.test(discard?.message ?? ''), JSON.stringify(discard))
-  await page.waitForTimeout(100)
-  check('окно: отмена — форма остаётся открытой', await page.getByRole('dialog').isVisible())
-  await receive(page, 'back_button_pressed')
-  await answerPopup(page, true)
-  await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 3000 }).catch(() => {})
-  check('окно: подтверждение — окно закрыто, страница та же', (await page.getByRole('dialog').count()) === 0 && (await hash(page)) === '#/expenses')
-  check('окно: подтверждение закрытия снято', (await lastEvent(page, 'web_app_setup_closing_behavior'))?.need_confirmation === false)
-  check('окно: свайпы снова разрешены', (await lastEvent(page, 'web_app_setup_swipe_behavior'))?.allow_vertical_swipe === true)
-
-  // Ссылки: t.me — внутри Telegram, внешние — во внешнем браузере
+  // Ссылки: t.me — внутри Telegram, внешние — во внешнем браузере.
   await page.evaluate(() => {
-    for (const href of ['https://t.me/LadaGarage_bot?start=site', 'https://example.com/docs']) {
+    for (const href of ['https://t.me/mara_os_bot?start=site', 'https://example.com/docs']) {
       const a = document.createElement('a')
       a.href = href
       a.target = '_blank'
@@ -315,47 +310,31 @@ async function noHorizontalScroll(page) {
   })
   await page.locator('#e2e-tg').click()
   await page.locator('#e2e-ext').click()
-  check('ссылки: t.me → openTelegramLink', (await lastEvent(page, 'web_app_open_tg_link'))?.path_full === '/LadaGarage_bot?start=site')
+  check('ссылки: t.me → openTelegramLink', (await lastEvent(page, 'web_app_open_tg_link'))?.path_full === '/mara_os_bot?start=site')
   check('ссылки: внешняя → openLink', (await lastEvent(page, 'web_app_open_link'))?.url === 'https://example.com/docs')
   check('ссылки: новые вкладки внутри WebView не открываются', context.pages().length === 1, String(context.pages().length))
 
-  // Экспорт на мобильном клиенте: Blob-скачивание заменено
-  await nav(page, 'Гараж')
-  await waitHash(page, '#/garage')
-  await page.getByRole('button', { name: /Резервная копия/ }).click()
+  // Экспорт на мобильном клиенте: файл не скачивается Blob-ом — предлагается браузер.
+  await page.evaluate(() => (window.location.hash = '#/fans'))
+  await waitHash(page, '#/fans')
+  // Экспорт пуст, пока данные не загрузились: ждём счётчик фанов в заголовке.
+  await page.getByText(/[1-9]\d* fans in the all view/).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Export CSV/ }).click()
   const exportPopup = await answerPopup(page, true)
-  check('экспорт: предложено открыть кабинет в браузере', /браузере/.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
-  check('экспорт: открывается внешний браузер на разделе «Гараж»', /#\/garage$/.test((await lastEvent(page, 'web_app_open_link'))?.url ?? ''))
-
-  // Выход: подтверждение нативным попапом Telegram (window.confirm не используется)
-  await page.getByRole('button', { name: /Выйти из демо-режима/ }).click()
-  await answerPopup(page, false)
-  await page.waitForTimeout(150)
-  check('выход: отмена в попапе — остаёмся в кабинете', (await hash(page)) === '#/garage')
-  await page.getByRole('button', { name: /Выйти из демо-режима/ }).click()
-  await answerPopup(page, true)
-  check('выход: подтверждение — экран входа', await waitHash(page, '#/auth'))
-
-  // Перезагрузка внутри Mini App: SDK восстанавливает параметры из sessionStorage
-  await enterDemo(page)
-  await nav(page, 'Кредит')
-  await waitHash(page, '#/credit')
-  await page.reload()
-  await page.waitForFunction(() => document.documentElement.classList.contains('tg-mini-app'), null, { timeout: 8000 }).catch(() => {})
-  check('перезагрузка: остаёмся Mini App', await page.evaluate(() => document.documentElement.classList.contains('tg-mini-app')))
-  check('перезагрузка: текущий раздел сохранён', (await hash(page)) === '#/credit', await hash(page))
+  check('экспорт: предложено открыть кабинет в браузере', /browser/i.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
+  check('экспорт: открывается внешний браузер на разделе «Fans»', /#\/fans$/.test((await lastEvent(page, 'web_app_open_link'))?.url ?? ''))
 
   check('Mini App: без ошибок JS и нативных диалогов', errors.length === 0, errors.join(' | '))
   await context.close()
 }
 
 // 4. Deep links: startapp и ?screen= открываются после штатного входа.
-for (const [name, opts, expected] of [
-  ['startapp=garage', { startParam: 'garage' }, '#/garage'],
-  ['startapp=expenses', { startParam: 'expenses' }, '#/expenses'],
+if (run('4')) for (const [name, opts, expected] of [
+  ['startapp=fans', { startParam: 'fans' }, '#/fans'],
+  ['startapp=ai', { startParam: 'ai' }, '#/ai'],
   ['неизвестный startapp', { startParam: 'admin' }, '#/'],
   ['опасный startapp', { startParam: '..%2Fauth' }, '#/'],
-  ['кнопка бота ?screen=telegram', { query: '?screen=telegram' }, '#/telegram'],
+  ['кнопка бота ?screen=telegram', { query: '?screen=telegram' }, '#/settings'],
   ['неизвестный ?screen=', { query: '?screen=%2F%2Fevil.example' }, '#/'],
 ]) {
   const { context, page, errors } = await openPage()
@@ -371,18 +350,17 @@ for (const [name, opts, expected] of [
   await context.close()
 }
 
-// 5. Старый клиент (Bot API 6.0): без BackButton/цветов, но без падений.
-{
+// 5. Старый клиент (Bot API 6.0): без BackButton и hex-цвета шапки, но без падений.
+if (run('5')) {
   const { context, page, errors } = await openPage()
   await page.goto(launchUrl({ version: '6.0', platform: 'tdesktop' }))
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
-  await nav(page, 'Кредит')
-  await waitHash(page, '#/credit')
+  await page.evaluate(() => (window.location.hash = '#/fans'))
+  await waitHash(page, '#/fans')
   const all = await events(page)
   const list = all.map(([t]) => t)
   check('Bot API 6.0: ready и expand', list.includes('web_app_ready') && list.includes('web_app_expand'))
-  // SDK сам сообщает клиенту color_key темы; сайт не должен слать hex-цвет шапки и BackButton.
   const hexHeader = all.some(([t, d]) => t === 'web_app_set_header_color' && d?.color)
   check('Bot API 6.0: неподдерживаемые методы не вызываются', !hexHeader && !list.includes('web_app_setup_back_button'), JSON.stringify(all))
   check('Bot API 6.0: без ошибок', errors.length === 0, errors.join(' | '))
@@ -390,14 +368,14 @@ for (const [name, opts, expected] of [
 }
 
 // 6. Ширина 320 px: нет горизонтальной прокрутки ни в браузере, ни в Mini App.
-for (const mode of ['browser', 'mini-app']) {
+if (run('6')) for (const mode of ['browser', 'mini-app']) {
   const { context, page, errors } = await openPage({ width: 320, height: 640 })
   await page.goto(mode === 'browser' ? SITE : launchUrl())
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
   const overflow = []
   if (!(await noHorizontalScroll(page))) overflow.push('/auth')
   await enterDemo(page)
-  for (const route of ['/', '/credit', '/expenses', '/service', '/garage', '/telegram']) {
+  for (const route of ROUTES_TO_CHECK) {
     await page.evaluate((r) => (window.location.hash = `#${r}`), route)
     await page.waitForTimeout(350)
     if (!(await noHorizontalScroll(page))) {
@@ -411,8 +389,8 @@ for (const mode of ['browser', 'mini-app']) {
   await context.close()
 }
 
-// 6b. Шапка на планшетах и десктопе: кнопка выхода не уезжает за край.
-{
+// 7. Шапка на планшетах и десктопе: кнопка меню пользователя видна.
+if (run('7')) {
   const { context, page, errors } = await openPage({ width: 768, height: 900 })
   await page.goto(SITE)
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
@@ -423,18 +401,18 @@ for (const mode of ['browser', 'mini-app']) {
     await page.waitForTimeout(150)
     const r = await page.evaluate(() => {
       const row = document.querySelector('header > div')
-      const btn = document.querySelector('header button[aria-label^="Выйти"]').getBoundingClientRect()
-      return { overflow: row.scrollWidth > row.clientWidth + 1, right: btn.right, vw: window.innerWidth }
+      const avatar = document.querySelector('header img[alt="Mara Quinn"]')?.getBoundingClientRect()
+      return { overflow: row.scrollWidth > row.clientWidth + 1, right: avatar?.right ?? 0, vw: window.innerWidth }
     })
     if (r.overflow || r.right > r.vw) clipped.push(`${width}px`)
   }
-  check('шапка 768–1440 px: содержимое помещается, кнопка выхода видна', clipped.length === 0, clipped.join(', '))
+  check('шапка 768–1440 px: содержимое помещается, меню пользователя видно', clipped.length === 0, clipped.join(', '))
   check('шапка: без ошибок', errors.length === 0, errors.join(' | '))
   await context.close()
 }
 
-// 7. Поворот экрана (альбомная ориентация телефона) в Mini App.
-{
+// 8. Поворот экрана (альбомная ориентация телефона) в Mini App.
+if (run('8')) {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl({ platform: 'ios' }))
   await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
@@ -443,13 +421,9 @@ for (const mode of ['browser', 'mini-app']) {
   await receive(page, 'viewport_changed', { height: 390, is_state_stable: true, is_expanded: true })
   await receive(page, 'safe_area_changed', { top: 0, bottom: 21, left: 47, right: 47 })
   await page.waitForTimeout(200)
-  const box = await page.locator('nav[aria-label="Основная навигация"]').boundingBox()
-  const padLeft = await page.locator('nav[aria-label="Основная навигация"]').evaluate((el) => getComputedStyle(el).paddingLeft)
-  check('поворот: панель у нижнего края', Math.abs(box.y + box.height - 390) <= 2, JSON.stringify(box))
-  check('поворот: боковые safe area учтены', padLeft === '47px', padLeft)
+  check('поворот: стабильная высота 390 px', (await cssVar(page, '--tg-app-viewport-stable-height')) === '390px')
+  check('поворот: боковые safe area учтены', (await cssVar(page, '--tg-app-inset-left')) === '47px', await cssVar(page, '--tg-app-inset-left'))
   check('поворот: нет горизонтальной прокрутки', await noHorizontalScroll(page))
-  const logout = await page.locator('header button[aria-label^="Выйти"]').boundingBox()
-  check('поворот: кнопка выхода в видимой области', logout && logout.x + logout.width <= 800 - 47 + 1, JSON.stringify(logout))
   check('поворот: без ошибок', errors.length === 0, errors.join(' | '))
   await page.screenshot({ path: path.join(shots, '07-landscape.png') })
   await context.close()

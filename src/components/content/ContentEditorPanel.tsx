@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Badge, Card, StatusBadge, Divider } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, inputClass, textareaClass, Select } from "@/components/ui/Controls";
@@ -93,7 +94,7 @@ export function ContentEditorPanel({
               variant="primary"
               onClick={() => {
                 setHook("Page 41 is the first page I almost didn't write.");
-                push({ title: "3 variants generated", description: "Applied the top-scoring hook.", tone: "success" });
+                push({ title: "Sample hook applied", description: "AI variant generation is not connected yet.", tone: "default" });
               }}
             >
               <Sparkles className="size-3.5" /> Generate hooks
@@ -103,7 +104,7 @@ export function ContentEditorPanel({
               variant="subtle"
               onClick={() => {
                 setCaption("Week five. The number went the wrong way, and I'm showing you anyway.");
-                push({ title: "Caption drafted", description: "Tone: dry, first-person.", tone: "success" });
+                push({ title: "Sample caption applied", description: "AI caption generation is not connected yet.", tone: "default" });
               }}
             >
               Draft caption
@@ -125,10 +126,10 @@ export function ContentEditorPanel({
             variant="subtle"
             onClick={() => {
               setStatus("Ready");
-              push({ title: "Sent to review", description: "Character Agent will check voice continuity.", tone: "default" });
+              push({ title: "Marked as ready", description: "Status set to Ready here. No agent review runs yet.", tone: "default" });
             }}
           >
-            Send to review
+            Mark ready
           </Button>
           {onCancel && (
             <Button variant="ghost" onClick={onCancel}>
@@ -166,7 +167,7 @@ export function ContentEditorPanel({
             <div className={device === "9:16" ? "aspect-9/16" : device === "4:5" ? "aspect-4/5" : "aspect-square"}>
               <div className="relative size-full bg-canvas-2">
                 {type === "Story" || type === "Image" || type === "Video" ? (
-                  <img src={thumb} alt="preview" className="size-full object-cover opacity-90" loading="lazy" />
+                  <SafeImg src={thumb} alt="Content preview" className="size-full object-cover opacity-90" loading="lazy" />
                 ) : (
                   <div className="grid size-full place-items-center text-faint">
                     <ImageIcon className="size-6" />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SafeImg } from "@/components/ui/SafeImg";
 import { Check, ImagePlus, Info, X } from "lucide-react";
 import { PageContainer, PageHeader } from "@/components/layout/Page";
 import { Card, Badge, StatusBadge, Divider } from "@/components/ui/Card";
@@ -47,7 +48,7 @@ export default function Assets() {
         title="Assets"
         description="Visual library of everything Mara can appear in — generations, references, outfits, locations and expressions."
         actions={
-          <Button variant="primary" onClick={() => push({ title: "Generation queued", description: "8 images requested from the local model.", tone: "success" })}>
+          <Button variant="primary" disabled title="Not available yet">
             <ImagePlus className="size-3.5" /> Generate assets
           </Button>
         }
@@ -82,7 +83,7 @@ export default function Assets() {
                 className="group overflow-hidden rounded-xl border border-line bg-canvas-2 text-left transition-colors hover:border-line-2"
               >
                 <div className="relative aspect-4/5 overflow-hidden bg-surface-3">
-                  <img
+                  <SafeImg
                     src={a.thumb}
                     alt={a.title}
                     loading="lazy"
@@ -121,7 +122,7 @@ export default function Assets() {
       <Drawer open={!!active} onClose={() => setActive(null)} title={active?.title} width="max-w-lg">
         {active && (
           <div className="space-y-5">
-            <img src={active.thumb} alt={active.title} className="w-full rounded-xl border border-line object-cover" />
+            <SafeImg src={active.thumb} alt={active.title} className="w-full rounded-xl border border-line object-cover" />
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{active.kind}</Badge>
               <StatusBadge status={active.approval} />
@@ -164,7 +165,7 @@ export default function Assets() {
                   variant="subtle"
                   onClick={() => {
                     setActive({ ...active, approval: "Rejected" });
-                    push({ title: "Asset rejected", description: "It will not be matched to new content.", tone: "warn" });
+                    push({ title: "Asset rejected here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "warn" });
                   }}
                 >
                   <X className="size-3.5" /> Reject
@@ -174,7 +175,7 @@ export default function Assets() {
                   variant="primary"
                   onClick={() => {
                     setActive({ ...active, approval: "Approved" });
-                    push({ title: "Asset approved", description: "Available for the Content Agent.", tone: "success" });
+                    push({ title: "Asset approved here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "success" });
                   }}
                 >
                   <Check className="size-3.5" /> Approve

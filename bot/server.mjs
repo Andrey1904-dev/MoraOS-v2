@@ -1,14 +1,15 @@
 /**
- * Node.js-транспорт бота LADA Assistant: long polling + HTTP API для сайта.
+ * Node.js-транспорт Telegram-ассистента Mara OS: long polling + HTTP API для сайта.
  *
- * Вся логика (тексты, команды, работа с Supabase) живёт в `core.mjs`, чтобы
- * webhook-версия для Supabase Edge Functions использовала тот же код.
+ * Вся логика (тексты, команды, работа с Supabase) живёт в `core.mjs`, маршруты и
+ * проверки HTTP — в `api.mjs`; их же использует webhook-версия (Edge Function).
  *
  * Запуск: npm run bot:start (переменные окружения см. bot/.env.example)
  */
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
-import { ApiError, createBot, readBearerToken } from './core.mjs'
+import { createBot } from './core.mjs'
+import { MAX_BODY_BYTES, buildAllowedOrigins, createTelegramApi } from './api.mjs'
 
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').trim().replace(/\/+$/, '')
 const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY ?? '').trim()
@@ -16,11 +17,6 @@ const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').
 const TELEGRAM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const WEB_APP_URL = (process.env.WEB_APP_URL ?? '').trim()
 const PORT = Number(process.env.PORT || 3001)
-const MAX_BODY_BYTES = 4 * 1024
-const IP_RATE_WINDOW_MS = 10 * 60 * 1000
-const IP_RATE_LIMIT = 40
-const USER_RATE_LIMIT = 8
-const rateBuckets = new Map()
 
 let polling = true
 let pollingStatus = 'starting'
@@ -41,86 +37,43 @@ function validateEnvironment() {
   }
 }
 
-const allowedOrigins = new Set([
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-  ...(process.env.CORS_ALLOWED_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean),
-])
-if (WEB_APP_URL) {
-  try {
-    allowedOrigins.add(new URL(WEB_APP_URL).origin)
-  } catch {
-    // WEB_APP_URL is validated by the administrator's deployment configuration.
+/** Превращает IncomingMessage в Web Request; тело ограничено MAX_BODY_BYTES. */
+async function toWebRequest(req) {
+  const method = req.method ?? 'GET'
+  const headers = new Headers()
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (value === undefined) continue
+    if (Array.isArray(value)) for (const item of value) headers.append(name, item)
+    else headers.set(name, value)
   }
-}
-
-function applyCors(request, response) {
-  const origin = request.headers.origin
-  if (origin && !allowedOrigins.has(origin)) return false
-  response.setHeader('Vary', 'Origin')
-  response.setHeader('X-Content-Type-Options', 'nosniff')
-  response.setHeader('Referrer-Policy', 'no-referrer')
-  if (origin) {
-    response.setHeader('Access-Control-Allow-Origin', origin)
-    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-    response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
-    response.setHeader('Access-Control-Max-Age', '600')
+  const url = new URL(req.url ?? '/', 'http://internal.invalid')
+  if (method === 'GET' || method === 'HEAD') {
+    return { request: new Request(url, { method, headers }) }
   }
-  return true
-}
-
-function json(response, status, body) {
-  const payload = JSON.stringify(body)
-  response.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'Content-Length': Buffer.byteLength(payload),
-  })
-  response.end(payload)
-}
-
-async function readJson(request) {
-  const contentType = String(request.headers['content-type'] ?? '').toLowerCase()
-  if (!contentType.includes('application/json')) throw new ApiError(415, 'Ожидается JSON-запрос.')
-  const declared = Number(request.headers['content-length'] ?? 0)
-  if (declared > MAX_BODY_BYTES) throw new ApiError(413, 'Слишком большой запрос.')
   const chunks = []
   let size = 0
-  for await (const chunk of request) {
+  for await (const chunk of req) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) throw new ApiError(413, 'Слишком большой запрос.')
+    if (size > MAX_BODY_BYTES) return { tooLarge: true }
     chunks.push(chunk)
   }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  } catch {
-    throw new ApiError(400, 'Некорректный JSON.')
-  }
+  return { request: new Request(url, { method, headers, body: Buffer.concat(chunks) }) }
 }
 
-function clientIp(request) {
-  // Не доверяем X-Forwarded-For: оно может быть подделано, если API открыт напрямую.
-  return request.socket.remoteAddress || 'unknown'
-}
-
-function consumeRateLimit(key, limit) {
-  const now = Date.now()
-  const current = rateBuckets.get(key)
-  if (!current || now - current.startedAt >= IP_RATE_WINDOW_MS) {
-    rateBuckets.set(key, { startedAt: now, count: 1 })
-    if (rateBuckets.size > 5_000) {
-      for (const [bucket, state] of rateBuckets) {
-        if (now - state.startedAt >= IP_RATE_WINDOW_MS) rateBuckets.delete(bucket)
-      }
-    }
-    return true
+async function writeWebResponse(res, response) {
+  const headers = {}
+  response.headers.forEach((value, key) => {
+    headers[key] = value
+  })
+  if (response.status === 204) {
+    res.writeHead(204, headers)
+    res.end()
+    return
   }
-  if (current.count >= limit) return false
-  current.count += 1
-  return true
+  const payload = Buffer.from(await response.arrayBuffer())
+  headers['Content-Length'] = String(payload.length)
+  res.writeHead(response.status, headers)
+  res.end(payload)
 }
 
 export async function start() {
@@ -133,41 +86,18 @@ export async function start() {
     webAppUrl: WEB_APP_URL,
   })
 
-  async function handleApi(request, response) {
-    const url = new URL(request.url ?? '/', 'http://internal.invalid')
-    const route = `${request.method} ${url.pathname}`
-
-    if (route === 'GET /health') {
+  const api = createTelegramApi({
+    bot,
+    allowedOrigins: buildAllowedOrigins({
+      webAppUrl: WEB_APP_URL,
+      extra: process.env.CORS_ALLOWED_ORIGINS ?? '',
+      allowLocal: process.env.ALLOW_LOCAL_ORIGINS === '1',
+    }),
+    health: async () => {
       const report = bot.healthReport({ mode: 'polling', pollingStatus, lastSuccessfulAt: lastSuccessfulPollAt })
-      json(response, report.ok ? 200 : 503, report)
-      return
-    }
-
-    if (route === 'GET /api/telegram/link/status') {
-      json(response, 200, await bot.linkStatus(readBearerToken(request.headers.authorization)))
-      return
-    }
-
-    if (route === 'POST /api/telegram/link/confirm') {
-      if (!consumeRateLimit(`ip:${clientIp(request)}`, IP_RATE_LIMIT)) {
-        throw new ApiError(429, 'Слишком много попыток. Подождите несколько минут.')
-      }
-      const user = await bot.verifySiteSession(readBearerToken(request.headers.authorization))
-      if (!consumeRateLimit(`user:${user.id}`, USER_RATE_LIMIT)) {
-        throw new ApiError(429, 'Лимит попыток для аккаунта исчерпан. Запросите новый код позже.')
-      }
-      const body = await readJson(request)
-      json(response, 200, await bot.confirmLinkForUser(user.id, body?.code))
-      return
-    }
-
-    if (route === 'DELETE /api/telegram/link') {
-      json(response, 200, await bot.unlink(readBearerToken(request.headers.authorization)))
-      return
-    }
-
-    throw new ApiError(404, 'Маршрут не найден.')
-  }
+      return { status: report.ok ? 200 : 503, body: report }
+    },
+  })
 
   async function pollingLoop() {
     let offset = 0
@@ -189,7 +119,7 @@ export async function start() {
             const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id
             if (chatId) {
               try {
-                await bot.sendMessage(chatId, 'Сервис временно недоступен. Попробуйте ещё раз чуть позже.')
+                await bot.sendMessage(chatId, 'The service is temporarily unavailable. Please try again shortly.')
               } catch {
                 // Telegram API недоступен — следующий long-poll запрос повторит связь.
               }
@@ -209,26 +139,21 @@ export async function start() {
   await bot.telegramCall('deleteWebhook', { drop_pending_updates: false })
   await bot.applyBotProfile()
 
-  const server = createServer(async (request, response) => {
-    if (!applyCors(request, response)) {
-      json(response, 403, { error: 'Origin is not allowed.' })
-      return
-    }
-    if (request.method === 'OPTIONS') {
-      response.writeHead(204, { 'Cache-Control': 'no-store' })
-      response.end()
-      return
-    }
+  const server = createServer(async (req, res) => {
     try {
-      await handleApi(request, response)
-    } catch (error) {
-      const status = error instanceof ApiError ? error.status : 500
-      if (status >= 500) {
-        console.error('[api] request failed:', error instanceof Error ? error.message : 'unknown error')
+      const { request, tooLarge } = await toWebRequest(req)
+      if (tooLarge) {
+        res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8', Connection: 'close' })
+        res.end(JSON.stringify({ error: 'Request body is too large.' }))
+        return
       }
-      json(response, status, {
-        error: error instanceof Error ? error.message : 'Внутренняя ошибка сервера.',
-      })
+      await writeWebResponse(res, await api(request))
+    } catch (error) {
+      console.error('[api] transport failure:', error instanceof Error ? error.message : 'unknown error')
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
+      }
+      res.end(JSON.stringify({ error: 'Internal server error.' }))
     }
   })
 
@@ -237,7 +162,7 @@ export async function start() {
     server.listen(PORT, '0.0.0.0', resolve)
   })
 
-  console.log(`LADA Telegram API listening on 0.0.0.0:${PORT}`)
+  console.log(`Mara OS Telegram API listening on 0.0.0.0:${PORT}`)
   console.log(`Telegram bot @${botInfo.username} is ready.`)
   if (!WEB_APP_URL) console.warn('WEB_APP_URL is empty: the bot will not show the website shortcut button.')
   void pollingLoop()

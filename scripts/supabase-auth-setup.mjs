@@ -18,11 +18,15 @@
  *   npm run supabase:auth                        # показать текущие настройки
  *   npm run supabase:auth -- --no-confirm        # регистрация без писем (сразу работает)
  *   npm run supabase:auth -- --confirm           # вернуть подтверждение email
- *   npm run supabase:auth -- --site-url https://andrey1904-dev.github.io/LadaGrantaCredit/
- *   npm run supabase:auth -- --smtp \
+ *   npm run supabase:auth -- --site-url https://andrey1904-dev.github.io/MoraOS-v2/
+ *   SMTP_PASS=re_xxx npm run supabase:auth -- --smtp \
  *     --smtp-host smtp.resend.com --smtp-port 465 \
- *     --smtp-user resend --smtp-pass re_xxx \
- *     --smtp-from no-reply@example.com --smtp-name "LADA Кредит" --rate-limit 100
+ *     --smtp-user resend \
+ *     --smtp-from no-reply@example.com --smtp-name "Mara OS" --rate-limit 100
+ *   npm run supabase:auth -- --disable-signup    # после создания аккаунта владельца
+ *
+ * Пароль SMTP передаётся только через переменную SMTP_PASS (не аргументом).
+ * Каждое применение также ставит минимальную длину пароля 8 символов.
  */
 
 import { readFileSync, existsSync } from 'node:fs'
@@ -133,7 +137,8 @@ function printStatus(cfg) {
       cfg.mailer_allow_unverified_email_sign_ins ? green('разрешён') : 'запрещён'
     }`,
   )
-  console.log(`${bold('Регистрация:')} ${cfg.disable_signup ? red('запрещена') : green('разрешена')}`)
+  console.log(`${bold('Регистрация:')} ${cfg.disable_signup ? green('запрещена') : yellow('разрешена (закройте после создания владельца)')}`)
+  console.log(`${bold('Мин. длина пароля:')} ${cfg.password_min_length ?? '—'}`)
 
   if (confirm && !smtpOn) {
     console.log(
@@ -161,7 +166,10 @@ if (flag('confirm')) {
   patch.mailer_allow_unverified_email_sign_ins = false
 }
 if (flag('allow-signup')) patch.disable_signup = false
+// --disable-signup: закройте регистрацию, когда владелец уже создан (см. docs/setup.md).
 if (flag('disable-signup')) patch.disable_signup = true
+// Минимальная длина пароля — та же, что проверяет приложение (src/lib/authErrors.ts, AuthPage).
+const MIN_PASSWORD_LENGTH = 8
 
 const siteUrl = opt('site-url')
 if (siteUrl) patch.site_url = siteUrl
@@ -173,13 +181,19 @@ if (flag('smtp')) {
   const host = opt('smtp-host')
   const port = opt('smtp-port', '587')
   const user = opt('smtp-user')
-  const pass = opt('smtp-pass') ?? process.env.SMTP_PASS
+  // Пароль SMTP — только из окружения: аргумент командной строки попадает в историю shell
+  // и в список процессов, поэтому флаг --smtp-pass намеренно отвергается.
+  if (opt('smtp-pass') !== undefined || argv.some((a) => a.startsWith('--smtp-pass='))) {
+    console.error(red('--smtp-pass больше не принимается. Задайте пароль в переменной окружения SMTP_PASS.'))
+    process.exit(1)
+  }
+  const pass = process.env.SMTP_PASS ?? ''
   const from = opt('smtp-from')
-  const name = opt('smtp-name', 'LADA Кредит & Гараж')
+  const name = opt('smtp-name', 'Mara OS')
   const missing = [
     ['--smtp-host', host],
     ['--smtp-user', user],
-    ['--smtp-pass (или SMTP_PASS)', pass],
+    ['SMTP_PASS (переменная окружения)', pass],
     ['--smtp-from', from],
   ].filter(([, v]) => !v)
   if (missing.length) {
@@ -200,6 +214,8 @@ if (flag('smtp')) {
 
 const before = await api('GET')
 
+if (Object.keys(patch).length > 0) patch.password_min_length = MIN_PASSWORD_LENGTH
+
 if (Object.keys(patch).length === 0) {
   printStatus(before)
   console.log(`
@@ -215,6 +231,7 @@ if (Object.keys(patch).length === 0) {
 
 const shown = { ...patch }
 if (shown.smtp_pass) shown.smtp_pass = '***'
+// (значения секретов в выводе маскируются)
 console.log(`${bold('Применяю к проекту')} ${REF}:`, shown)
 
 const after = await api('PATCH', patch)

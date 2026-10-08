@@ -26,7 +26,7 @@ const dir = mkdtempSync(path.join(tmpdir(), 'tg-setup-'))
 // Фиктивные значения нужного формата — не настоящие секреты.
 const TOKEN = '1234567890:SMOKE_fake_token_abcdefghijklmnopqrstuv'
 const SECRET = 'smoke-webhook-secret-0123456789abcdef'
-const SITE = 'https://andrey1904-dev.github.io/LadaGrantaCredit/'
+const SITE = 'https://andrey1904-dev.github.io/MoraOS-v2/'
 
 let failed = 0
 const check = (name, ok, detail = '') => {
@@ -83,7 +83,7 @@ function runSetup(name, env, args = []) {
 /* -------------------------------------------------------- ошибки конфигурации --- */
 for (const [name, url] of [
   ['нет WEB_APP_URL', ''],
-  ['HTTP вместо HTTPS', 'http://andrey1904-dev.github.io/LadaGrantaCredit/'],
+  ['HTTP вместо HTTPS', 'http://andrey1904-dev.github.io/MoraOS-v2/'],
   ['localhost', 'https://localhost:5173/'],
 ]) {
   const { status, output, calls } = runSetup(`bad-${name}`, { WEB_APP_URL: url })
@@ -96,6 +96,27 @@ for (const [name, url] of [
   const { status, output } = runSetup('ignored', { WEB_APP_URL: SITE, SMOKE_TG_IGNORE_MENU: '1' }, ['--menu-only'])
   check('расхождение getChatMenuButton считается ошибкой', status !== 0 && /не применилась/.test(output), output)
   check('в тексте ошибки нет токена', !output.includes(TOKEN))
+}
+
+/* ---------------------------------------- ref проекта и секреты (F2, F13) --- */
+{
+  // Без ref проекта, SUPABASE_URL и адреса функции скрипт не выходит в сеть и не падает молча.
+  const { status, output, calls } = runSetup('no-ref', { WEB_APP_URL: SITE, TELEGRAM_API_URL: '', TELEGRAM_WEBHOOK_SECRET: SECRET, SUPABASE_URL: '' })
+  check('без ref проекта: ошибка до вызовов Telegram API', status === 1 && calls.length === 0, output)
+  check('без ref проекта: fallback на supabase/config.toml не происходит', !/ladagrantacredit/.test(output) && !calls.some((c) => /ladagrantacredit/.test(JSON.stringify(c))))
+}
+{
+  // Секрет вебхука принимается только из окружения: аргумент --secret не используется.
+  const { status, output, calls } = runSetup('secret-arg', { WEB_APP_URL: SITE, TELEGRAM_WEBHOOK_SECRET: '' }, ['--secret', 'argv-leak-value'])
+  check('без TELEGRAM_WEBHOOK_SECRET (даже с --secret) скрипт останавливается до API', status === 1 && calls.length === 0, output)
+  check('значение из аргумента не попадает в вывод', !output.includes('argv-leak-value'))
+}
+{
+  // Ref из SUPABASE_PROJECT_REF задаёт адрес функции, когда TELEGRAM_API_URL не указан.
+  const { status, output, calls } = runSetup('ref-env', { WEB_APP_URL: SITE, TELEGRAM_API_URL: '', SUPABASE_PROJECT_REF: 'dcgurmwvpgzmlfivxoso', TELEGRAM_WEBHOOK_SECRET: SECRET })
+  const hook = calls.find((c) => c.method === 'setWebhook')
+  check('ref из SUPABASE_PROJECT_REF формирует адрес функции', status === 0 && hook?.body?.url === 'https://dcgurmwvpgzmlfivxoso.supabase.co/functions/v1/telegram-api', output)
+  check('некорректный ref отклоняется', runSetup('bad-ref', { WEB_APP_URL: SITE, SUPABASE_PROJECT_REF: 'LADA-bad' }).status === 1)
 }
 
 console.log(failed === 0 ? '\nTelegram setup smoke: все проверки пройдены.' : `\nTelegram setup smoke: провалено проверок — ${failed}.`)

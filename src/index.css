@@ -5,9 +5,9 @@
 /* ------------------------------------------------------------------ */
 @theme {
   /* Typography */
-  --font-sans: "Inter", "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Base — graphite canvas */
   --color-canvas: #08090a;
@@ -21,19 +21,20 @@
   /* Text */
   --color-ink: #f2f3f5;
   --color-ink-2: #c3c7cd;
-  --color-muted: #83888f;
-  --color-faint: #5c6167;
+  --color-muted: #9aa0a8;
+  --color-faint: #80858d;
 
   /* Brand accent — muted wine / burgundy (Mara's red notebook) */
   --color-accent: #a13542;
-  --color-accent-hi: #bb4553;
+  --color-accent-hi: #d86a76; /* текст-акцент: контраст ≥4.5 на всех фонах */
+  --color-accent-hover: #bb4553; /* фон кнопки при наведении (белый текст) */
   --color-accent-lo: #7d2833;
 
   /* Status */
   --color-pos: #57a06f;
   --color-warn: #c2913c;
-  --color-neg: #c05348;
-  --color-info: #5d86ad;
+  --color-neg: #d26a5f;
+  --color-info: #6f9bc4;
 
   /* Radius */
   --radius-xs: 5px;

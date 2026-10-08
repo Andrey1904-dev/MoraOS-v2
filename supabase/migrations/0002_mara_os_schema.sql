@@ -1,14 +1,11 @@
 -- ============================================================================
--- Mara OS — схема БД Supabase (PostgreSQL) + Row Level Security
+-- Миграция 0002 — схема Mara OS (PostgreSQL) + Row Level Security
 --
--- Операционная система виртуального AI-креатора. Полная свежая установка:
--- profiles + привязка Telegram + предметная область Mara OS.
--- Для проекта, где уже стоит старая (автомобильная) схема, используйте
--- supabase/migrations/0001_mara_os.sql — он архивирует старые таблицы
--- и применяет эту же модель без потери данных.
+-- Единственный источник схемы: все изменения БД добавляются новыми файлами
+-- в supabase/migrations/ (не правьте уже применённые миграции).
 --
--- Применение: Supabase Dashboard → SQL Editor → вставить весь скрипт → Run
--- (или `supabase db push` при работе через Supabase CLI).
+-- Порядок применения: 0001 → 0002 → 0003 → 0004 (см. docs/setup.md).
+-- Файл идемпотентен: create ... if not exists, проверки pg_type/policy.
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
@@ -503,7 +500,7 @@ create table if not exists public.events (
 create index if not exists events_user_type_idx on public.events (user_id, type, occurred_at desc);
 
 -- ----------------------------------------------------------------------------
--- 7. Привязка Telegram (то же, что supabase/telegram.sql — идемпотентно)
+-- 7. Привязка Telegram
 -- ----------------------------------------------------------------------------
 create table if not exists public.telegram_link_codes (
   code_hash        text primary key check (code_hash ~ '^[0-9a-f]{64}$'),

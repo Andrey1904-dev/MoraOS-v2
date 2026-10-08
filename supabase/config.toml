@@ -1,9 +1,10 @@
-# Конфигурация Supabase CLI для проекта LADA Кредит & Гараж.
+# Конфигурация Supabase CLI для Mara OS.
+# Миграции: supabase/migrations/ (0001 → 0004). Сид: supabase/seed/ (вручную).
 # Функция telegram-api сама проверяет access token сайта (Supabase Auth)
 # и секрет webhook, поэтому встроенная проверка JWT выключена:
 # без этого Telegram не смог бы доставлять обновления.
 
-project_id = "ladagrantacredit"
+project_id = "mara-os"
 
 [functions.telegram-api]
 verify_jwt = false

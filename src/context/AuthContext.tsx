@@ -38,7 +38,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
  * 2 письма в час на проект. Поэтому «лишние» попытки гасим ещё на клиенте,
  * чтобы не тратить лимит и не получать 429 (email rate limit exceeded).
  */
-const COOLDOWN_KEY = 'lada.auth.lastMailAt'
+const COOLDOWN_KEY = 'mara.auth.lastMailAt'
 const COOLDOWN_SEC = 60
 
 export function mailCooldownLeft(): number {
