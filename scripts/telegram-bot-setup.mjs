@@ -11,7 +11,7 @@
  *
  * Адрес Mini App берётся только из конфигурации: WEB_APP_URL (или --webapp-url).
  * Нужен публичный HTTPS-адрес опубликованного сайта, например
- *   WEB_APP_URL=https://andrey1904-dev.github.io/LadaGrantaCredit/
+ *   WEB_APP_URL=https://andrey1904-dev.github.io/MoraOS-v2/
  *
  * Пример:
  *   TELEGRAM_BOT_TOKEN=123:AA... SUPABASE_ACCESS_TOKEN=sbp_... \
@@ -28,7 +28,8 @@
  */
 import { randomBytes } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from '../bot/core.mjs'
@@ -37,6 +38,12 @@ import { miniAppMenuButton, normalizeMiniAppUrl } from '../bot/format.mjs'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '..')
 
+/**
+ * Версия Supabase CLI, которой деплоится функция. Закреплена, чтобы результат
+ * деплоя не менялся при выходе новой версии CLI (обновляйте осознанно).
+ */
+export const SUPABASE_CLI = 'supabase@2.120.0'
+
 const args = process.argv.slice(2)
 const flag = (name) => args.includes(name)
 const value = (name, fallback = '') => {
@@ -44,26 +51,29 @@ const value = (name, fallback = '') => {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback
 }
 
-const projectRefFromConfig = () => {
-  try {
-    const config = readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8')
-    return /^\s*project_id\s*=\s*"([^"]+)"/m.exec(config)?.[1] ?? ''
-  } catch {
-    return ''
-  }
-}
-
+// Ref проекта: флаг → SUPABASE_PROJECT_REF → домен из SUPABASE_URL. supabase/config.toml
+// здесь не используется: там имя локального проекта, а не ref облачного.
+const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/
 const projectRef =
   value('--project-ref') ||
-  (process.env.SUPABASE_URL ?? '').match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1] ||
-  projectRefFromConfig()
+  (process.env.SUPABASE_PROJECT_REF ?? '').trim() ||
+  (process.env.SUPABASE_URL ?? '').trim().match(/^https:\/\/([a-z0-9]{20})\.supabase\.co\/?$/)?.[1] ||
+  ''
+if (projectRef && !PROJECT_REF_PATTERN.test(projectRef)) {
+  console.error('Некорректный ref проекта Supabase: ожидаются 20 символов a-z0-9 (Settings → General → Reference ID).')
+  process.exit(1)
+}
 
 const botToken = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const rawWebAppUrl = (value('--webapp-url') || process.env.WEB_APP_URL || '').trim()
 const webAppUrl = normalizeMiniAppUrl(rawWebAppUrl)
 const menuOnly = flag('--menu-only')
 const functionUrl = (value('--api-url') || process.env.TELEGRAM_API_URL || (projectRef ? `https://${projectRef}.supabase.co/functions/v1/telegram-api` : '')).replace(/\/+$/, '')
-const webhookSecret = (value('--secret') || process.env.TELEGRAM_WEBHOOK_SECRET || randomBytes(24).toString('hex')).trim()
+// Секрет вебхука задаётся только через окружение: аргумент командной строки виден в списке процессов.
+// При --deploy генерируется новый, если не задан; без --deploy он обязан совпадать с секретом функции.
+const providedWebhookSecret = (process.env.TELEGRAM_WEBHOOK_SECRET ?? '').trim()
+const deploy = flag('--deploy') && !menuOnly
+const webhookSecret = providedWebhookSecret || (deploy ? randomBytes(24).toString('hex') : '')
 
 if (!botToken || !/^\d{6,12}:[A-Za-z0-9_-]{25,}$/.test(botToken)) {
   console.error('Не задан TELEGRAM_BOT_TOKEN (ожидается токен из @BotFather).')
@@ -78,7 +88,11 @@ if (!webAppUrl) {
   process.exit(1)
 }
 if (!menuOnly && !functionUrl.startsWith('https://')) {
-  console.error('Нужен публичный HTTPS-адрес функции: укажите --api-url или SUPABASE_URL/--project-ref.')
+  console.error('Нужен публичный HTTPS-адрес функции: укажите --api-url, SUPABASE_PROJECT_REF или SUPABASE_URL.')
+  process.exit(1)
+}
+if (!menuOnly && !webhookSecret) {
+  console.error('Не задан TELEGRAM_WEBHOOK_SECRET: укажите тот же секрет, что записан у функции (или запустите с --deploy).')
   process.exit(1)
 }
 
@@ -105,18 +119,30 @@ const run = (command, commandArgs, env = {}) => {
   execFileSync(command, commandArgs, { stdio: 'inherit', cwd: root, env: { ...process.env, ...env } })
 }
 
-if (flag('--deploy') && !menuOnly) {
+if (deploy) {
   if (!process.env.SUPABASE_ACCESS_TOKEN) {
     console.error('Для --deploy нужен SUPABASE_ACCESS_TOKEN (https://supabase.com/dashboard/account/tokens).')
     process.exit(1)
   }
-  run('npx', ['--yes', 'supabase', 'secrets', 'set',
-    `TELEGRAM_BOT_TOKEN=${botToken}`,
-    `TELEGRAM_WEBHOOK_SECRET=${webhookSecret}`,
-    `WEB_APP_URL=${webAppUrl}`,
-    '--project-ref', projectRef,
-  ])
-  run('npx', ['--yes', 'supabase', 'functions', 'deploy', 'telegram-api', '--project-ref', projectRef])
+  if (!projectRef) {
+    console.error('Для --deploy нужен ref проекта: --project-ref, SUPABASE_PROJECT_REF или SUPABASE_URL.')
+    process.exit(1)
+  }
+  // Секреты передаются файлом (--env-file), а не аргументами: значения не попадают в argv.
+  // Файл создаётся с правами 0600 в отдельном каталоге и удаляется сразу после загрузки.
+  const secretsDir = mkdtempSync(path.join(tmpdir(), 'mara-os-secrets-'))
+  const envFile = path.join(secretsDir, 'secrets.env')
+  try {
+    writeFileSync(
+      envFile,
+      `TELEGRAM_BOT_TOKEN=${botToken}\nTELEGRAM_WEBHOOK_SECRET=${webhookSecret}\nWEB_APP_URL=${webAppUrl}\n`,
+      { mode: 0o600 },
+    )
+    run('npx', ['--yes', SUPABASE_CLI, 'secrets', 'set', '--env-file', envFile, '--project-ref', projectRef])
+  } finally {
+    rmSync(secretsDir, { recursive: true, force: true })
+  }
+  run('npx', ['--yes', SUPABASE_CLI, 'functions', 'deploy', 'telegram-api', '--project-ref', projectRef])
 }
 
 const bot = await api('getMe')

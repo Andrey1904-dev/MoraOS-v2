@@ -1,3 +1,4 @@
+import { PASSWORD_MIN_LENGTH } from './passwordPolicy'
 /**
  * Человеческие сообщения об ошибках Supabase Auth.
  *
@@ -162,7 +163,7 @@ export function toAuthProblem(error: unknown): AuthProblem {
   }
 
   if (code === 'weak_password' || msg.includes('password should be')) {
-    return new AuthProblem('weak_password', 'Слишком короткий пароль — минимум 6 символов', { raw })
+    return new AuthProblem('weak_password', `Пароль слишком короткий — минимум ${PASSWORD_MIN_LENGTH} символов`, { raw })
   }
 
   if (code === 'signup_disabled' || code === 'email_provider_disabled' || msg.includes('signups not allowed')) {

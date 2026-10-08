@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { passwordProblem } from '../lib/passwordPolicy'
 import { ArrowUpRight, Bell, Mail, ShieldCheck, Sparkles } from 'lucide-react'
 import { mailCooldownLeft, useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/Button'
@@ -66,8 +67,10 @@ export default function AuthPage() {
       setProblem(new AuthProblem('email_invalid', check.error ?? 'Enter a valid email'))
       return
     }
-    if (password.length < 6) {
-      setProblem(new AuthProblem('weak_password', 'Password must be at least 6 characters'))
+    // Минимальная длина — только при регистрации: старые аккаунты с короче паролем должны входить.
+    const weak = isRegister ? passwordProblem(password) : null;
+    if (weak) {
+      setProblem(new AuthProblem('weak_password', weak))
       return
     }
     setBusy(true)
@@ -259,7 +262,7 @@ export default function AuthPage() {
                       ref={passwordRef}
                       type={showPassword ? 'text' : 'password'}
                       autoComplete={isRegister ? 'new-password' : 'current-password'}
-                      placeholder={isRegister ? 'At least 6 characters' : 'Your password'}
+                      placeholder={isRegister ? 'At least 8 characters' : 'Your password'}
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value)
