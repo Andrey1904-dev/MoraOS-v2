@@ -5,7 +5,7 @@
  * который пересоздаётся при смене режима данных (демо ⇄ облако), чтобы
  * ai_runs писались в то же хранилище, что читает интерфейс.
  */
-import { getRepositories } from "@/repositories";
+import { repositories } from "@/repositories";
 import { MockAIProvider } from "./mock";
 import { AiOrchestrator } from "./orchestrator";
 import type { AIProvider } from "./provider";
@@ -22,7 +22,7 @@ export function getAiOrchestrator(): AiOrchestrator {
     const logger: AiRunLogger = {
       async log(entry) {
         try {
-          await getRepositories().ai.logRun(entry);
+          await repositories.ai.logRun(entry);
         } catch {
           // Лог запуска — вспомогательный канал: не ломаем UX из-за него.
         }

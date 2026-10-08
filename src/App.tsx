@@ -1,26 +1,28 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { Suspense, lazy, type ReactNode } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AppShell } from './components/layout/AppShell'
 import { ToastProvider } from './components/ui/Feedback'
 import SplashScreen from './components/SplashScreen'
 import TelegramMiniAppBridge from './components/TelegramMiniAppBridge'
 import AuthPage from './pages/AuthPage'
-import Overview from './pages/Overview'
-import Fans from './pages/Fans'
-import FanProfile from './pages/FanProfile'
-import Conversations from './pages/Conversations'
-import Content from './pages/Content'
-import ContentEditor from './pages/ContentEditor'
-import Episodes from './pages/Episodes'
-import Assets from './pages/Assets'
-import Offers from './pages/Offers'
-import Revenue from './pages/Revenue'
-import Analytics from './pages/Analytics'
-import AIStudio from './pages/AIStudio'
-import Automations from './pages/Automations'
-import Tasks from './pages/Tasks'
-import Settings from './pages/Settings'
+
+// Страницы грузятся по маршрутам: в первый экран попадает только вход и оболочка.
+const Overview = lazy(() => import('./pages/Overview'))
+const Fans = lazy(() => import('./pages/Fans'))
+const FanProfile = lazy(() => import('./pages/FanProfile'))
+const Conversations = lazy(() => import('./pages/Conversations'))
+const Content = lazy(() => import('./pages/Content'))
+const ContentEditor = lazy(() => import('./pages/ContentEditor'))
+const Episodes = lazy(() => import('./pages/Episodes'))
+const Assets = lazy(() => import('./pages/Assets'))
+const Offers = lazy(() => import('./pages/Offers'))
+const Revenue = lazy(() => import('./pages/Revenue'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const AIStudio = lazy(() => import('./pages/AIStudio'))
+const Automations = lazy(() => import('./pages/Automations'))
+const Tasks = lazy(() => import('./pages/Tasks'))
+const Settings = lazy(() => import('./pages/Settings'))
 
 function FullScreenLoader() {
   return (
@@ -52,6 +54,7 @@ export default function App() {
         <ToastProvider>
           <SplashScreen />
           <TelegramMiniAppBridge />
+          <Suspense fallback={<FullScreenLoader />}>
           <Routes>
             <Route
               path="/auth"
@@ -87,6 +90,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
+          </Suspense>
         </ToastProvider>
       </AuthProvider>
     </HashRouter>

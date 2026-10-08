@@ -1,43 +1,63 @@
 import { isDemoActive } from "@/lib";
-import { demoRepositories } from "./demo";
-import { supabaseRepositories } from "./supabase";
 import type { Repositories } from "./types";
+import * as ops from "@/data/ops-compat";
 
 /**
  * Сервис-локатор слоя данных Mara OS.
  *
- * Компоненты не знают, откуда приходят данные: локатор отдаёт либо
- * Supabase-реализацию, либо демо-репозитории поверх вымышленного датасета
- * — в зависимости от текущего режима бэкенда (`src/lib/index.ts`).
- * Переключение «демо ⇄ облако» происходит на лету: каждый вызов метода
- * смотрит актуальный режим.
+ * Компоненты не знают, откуда приходят данные. Вызов любого метода уходит к
+ * активной реализации: Supabase (облако) или демо (вымышленный датасет). Выбор
+ * делается в момент вызова, поэтому переключение «демо ⇄ облако» работает на лету.
+ *
+ * Реализации грузятся лениво (динамический import): датасет `src/data` попадает
+ * в отдельный чанк и скачивается только тогда, когда демо действительно нужно.
  */
-export function getRepositories(): Repositories {
-  return isDemoActive() ? demoRepositories : supabaseRepositories;
+
+type Impl = Repositories;
+const loaded: Partial<Record<"demo" | "cloud", Promise<Impl>>> = {};
+
+function implementation(): Promise<Impl> {
+  const key = isDemoActive() ? "demo" : "cloud";
+  if (!loaded[key]) {
+    loaded[key] =
+      key === "demo"
+        ? import("./demo").then((m) => m.demoRepositories as Impl)
+        : import("./supabase").then((m) => m.supabaseRepositories as Impl);
+  }
+  return loaded[key]!;
 }
 
-/** Прокси: вызов методов репозиториев всегда идёт к активной реализации. */
-const delegate = <T extends object>(pick: (repos: Repositories) => T): T =>
-  new Proxy({} as T, {
-    get(_target, prop) {
-      const active = pick(getRepositories()) as Record<PropertyKey, unknown>;
-      return active[prop as keyof T];
+/** Все методы репозиториев асинхронны, поэтому вызов возвращает Promise активной реализации. */
+export function getRepositories(): Promise<Repositories> {
+  return implementation();
+}
+
+type AnyMethods = Record<string, (...args: unknown[]) => unknown>;
+
+function delegate<K extends keyof Repositories>(key: K): Repositories[K] {
+  return new Proxy({} as Repositories[K], {
+    get(_target, method) {
+      if (typeof method !== "string") return undefined;
+      return (...args: unknown[]) =>
+        implementation().then((impl) => {
+          const repo = impl[key] as unknown as AnyMethods;
+          return repo[method](...args);
+        });
     },
   });
+}
 
 export const repositories: Repositories = {
-  fans: delegate((r) => r.fans),
-  conversations: delegate((r) => r.conversations),
-  content: delegate((r) => r.content),
-  commerce: delegate((r) => r.commerce),
-  analytics: delegate((r) => r.analytics),
-  ai: delegate((r) => r.ai),
-  character: delegate((r) => r.character),
+  fans: delegate("fans"),
+  conversations: delegate("conversations"),
+  content: delegate("content"),
+  commerce: delegate("commerce"),
+  analytics: delegate("analytics"),
+  ai: delegate("ai"),
+  character: delegate("character"),
 };
 
 export type { Repositories } from "./types";
-export {
-  actionQueue,
-  story,
-  character as staticCharacter,
-} from "@/data/ops-compat";
+export const actionQueue = ops.actionQueue;
+export const story = ops.story;
+export const staticCharacter = ops.character;
