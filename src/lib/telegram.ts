@@ -3,6 +3,13 @@ export type TelegramLinkStatus = {
   linkedAt?: string
 }
 
+/** Шаг 1 привязки: какой Telegram-аккаунт у введённого кода. Код ещё не потрачен. */
+export type TelegramLinkPreview = {
+  telegramAccount: string
+  expiresAt: string
+}
+
+/** Ответ /health. Адрес webhook и текст последней ошибки Telegram сервер не отдаёт. */
 export type TelegramApiHealth = {
   ok: boolean
   service?: string
@@ -10,11 +17,6 @@ export type TelegramApiHealth = {
   configured?: boolean
   botPolling?: 'starting' | 'online' | 'degraded' | 'stopped'
   lastSuccessfulPollAt?: string | null
-  webhook?: {
-    url?: string
-    pendingUpdates?: number
-    lastError?: string
-  }
   hint?: string
 }
 
@@ -35,14 +37,14 @@ const isDev = Boolean(import.meta.env.DEV)
 
 const CONFIG_MESSAGES: Record<Exclude<TelegramConfigIssue, ''>, string> = {
   'missing-username':
-    'Задайте публичное имя бота (без @) в переменной сборки VITE_TELEGRAM_BOT_USERNAME.',
+    'Set the bot username (without @) in the build variable VITE_TELEGRAM_BOT_USERNAME.',
   'missing-url':
-    'Задайте HTTPS-адрес API бота в переменной сборки VITE_TELEGRAM_API_URL — например, адрес Supabase Edge Function …/functions/v1/telegram-api.',
+    'Set the HTTPS address of the bot API in VITE_TELEGRAM_API_URL — for example, the Supabase Edge Function URL …/functions/v1/telegram-api.',
   'relative-in-prod':
-    'VITE_TELEGRAM_API_URL — относительный путь. Такой адрес работает только в режиме разработки через прокси Vite. Для задеплоенного сайта укажите полный HTTPS-адрес API бота.',
+    'VITE_TELEGRAM_API_URL is a relative path. It only works in development through the Vite proxy. For a deployed site, use the full HTTPS address of the bot API.',
   'not-https':
-    'VITE_TELEGRAM_API_URL должен быть HTTPS-адресом: браузер не отправит авторизацию на HTTP-адрес.',
-  'invalid-url': 'VITE_TELEGRAM_API_URL не является корректным URL. Укажите адрес вида https://example.com.',
+    'VITE_TELEGRAM_API_URL must be an HTTPS address: browsers do not send credentials to plain HTTP.',
+  'invalid-url': 'VITE_TELEGRAM_API_URL is not a valid URL. Use an address such as https://example.com.',
 }
 
 type ApiUrlResult = { url: string; issue: TelegramConfigIssue }
@@ -100,27 +102,27 @@ export const TELEGRAM_CONFIG_MESSAGE = TELEGRAM_CONFIG_ISSUE ? CONFIG_MESSAGES[T
 export const isTelegramConfigured = Boolean(TELEGRAM_BOT_URL && TELEGRAM_API_URL)
 
 function hostLabel(): string {
-  return TELEGRAM_API_HOST || 'указанный адрес'
+  return TELEGRAM_API_HOST || 'the configured address'
 }
 
-/** Человеческое описание HTTP-ответа вместо голого кода. */
+/** Понятное описание HTTP-ответа вместо голого кода. */
 export function describeTelegramHttpError(status: number): string {
   if (status === 404) {
-    return `API бота не найден по адресу ${hostLabel()} (404). Проверьте VITE_TELEGRAM_API_URL: там должен быть адрес сервиса бота, а не сайта.`
+    return `The bot API was not found at ${hostLabel()} (404). Check VITE_TELEGRAM_API_URL: it must point to the bot service, not to the website.`
   }
   if (status === 405) {
-    return `Адрес ${hostLabel()} не принимает запросы API (405). Так отвечает статический сайт — например, GitHub Pages. Проверьте VITE_TELEGRAM_API_URL: нужен адрес работающего сервиса бота.`
+    return `${hostLabel()} does not accept API requests (405). That is how a static host such as GitHub Pages responds. Check VITE_TELEGRAM_API_URL: it must point to the running bot service.`
   }
   if (status === 401 || status === 403) {
-    return 'Сервис бота отклонил сессию сайта. Войдите в аккаунт повторно и попробуйте ещё раз.'
+    return 'The bot service rejected the website session. Sign in again and retry.'
   }
   if (status === 429) {
-    return 'Слишком много попыток. Подождите несколько минут и повторите.'
+    return 'Too many attempts. Wait a few minutes and try again.'
   }
   if (status >= 500) {
-    return `Сервис бота временно недоступен (${status}). Попробуйте ещё раз через минуту.`
+    return `The bot service is temporarily unavailable (${status}). Try again in a minute.`
   }
-  return `Не удалось связаться с ботом (${status}).`
+  return `Could not reach the bot service (${status}).`
 }
 
 async function readJsonBody(response: Response): Promise<unknown> {
@@ -128,7 +130,7 @@ async function readJsonBody(response: Response): Promise<unknown> {
 }
 
 export async function checkTelegramHealth(): Promise<TelegramApiHealth> {
-  if (!TELEGRAM_API_URL) throw new Error(TELEGRAM_CONFIG_MESSAGE || 'API Telegram-бота не настроен')
+  if (!TELEGRAM_API_URL) throw new Error(TELEGRAM_CONFIG_MESSAGE || 'The Telegram bot API is not configured.')
 
   let response: Response
   try {
@@ -137,14 +139,14 @@ export async function checkTelegramHealth(): Promise<TelegramApiHealth> {
       signal: AbortSignal.timeout(8_000),
     })
   } catch {
-    throw new Error(`Сервер Telegram-бота не отвечает (${hostLabel()}). Проверьте публичный HTTPS-адрес API.`)
+    throw new Error(`The bot server does not respond (${hostLabel()}). Check the public HTTPS address of the API.`)
   }
 
   const payload = (await readJsonBody(response)) as TelegramApiHealth | null
   if (!payload || typeof payload.ok !== 'boolean') {
     throw new Error(
       response.ok
-        ? `Адрес ${hostLabel()} отвечает, но это не API бота: ответ не в формате JSON.`
+        ? `${hostLabel()} responds, but it is not the bot API: the reply is not JSON.`
         : describeTelegramHttpError(response.status),
     )
   }
@@ -156,7 +158,7 @@ export async function requestTelegram<T>(
   accessToken: string,
   init: { method?: 'GET' | 'POST' | 'DELETE'; body?: unknown } = {},
 ): Promise<T> {
-  if (!TELEGRAM_API_URL) throw new Error(TELEGRAM_CONFIG_MESSAGE || 'API Telegram-бота не настроен')
+  if (!TELEGRAM_API_URL) throw new Error(TELEGRAM_CONFIG_MESSAGE || 'The Telegram bot API is not configured.')
 
   const response = await fetch(`${TELEGRAM_API_URL}${path}`, {
     method: init.method ?? 'GET',
@@ -175,8 +177,19 @@ export async function requestTelegram<T>(
     throw new Error(payload?.error || payload?.message || describeTelegramHttpError(response.status))
   }
   if (!payload || typeof payload !== 'object') {
-    throw new Error(`Адрес ${hostLabel()} вернул неожиданный ответ. Проверьте VITE_TELEGRAM_API_URL.`)
+    throw new Error(`${hostLabel()} returned an unexpected reply. Check VITE_TELEGRAM_API_URL.`)
   }
 
   return payload as T
+}
+
+/**
+ * Второй шаг привязки начинается с предпросмотра: сервер сообщает, какой аккаунт
+ * Telegram запросил код. Пользователь подтверждает именно этот аккаунт.
+ */
+export function previewTelegramLink(accessToken: string, code: string): Promise<TelegramLinkPreview> {
+  return requestTelegram<TelegramLinkPreview>('/api/telegram/link/preview', accessToken, {
+    method: 'POST',
+    body: { code },
+  })
 }

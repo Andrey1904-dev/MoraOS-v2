@@ -1,7 +1,7 @@
 // Shared formatting helpers for the Mara OS Telegram bot.
 // `node:crypto` works in both Node.js and Deno (Supabase Edge Functions),
 // so this file is copied unchanged into supabase/functions/telegram-api/.
-import { createHash } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 
 /** Cryptographically secure random bytes without Buffer. */
 function secureRandomBytes(size) {
@@ -26,25 +26,75 @@ const monthFormat = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/Chicago',
 })
 
+/** Имя сервиса в /health и логах. Должно совпадать во всех транспортах. */
+export const SERVICE_NAME = 'mara-telegram-api'
+
+/**
+ * Алфавит кодов привязки — Crockford base32 (без I, L, O, U): 32 символа,
+ * 5 бит на символ. Код из 10 символов даёт 50 бит энтропии — перебор
+ * недостижим даже при утечке хэшей. 256 делится на 32, поэтому выбор символа
+ * по 5 младшим битам байта равномерен.
+ */
+export const LINK_CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+export const LINK_CODE_LENGTH = 10
+export const LINK_CODE_PATTERN = /^[0-9A-HJKMNP-TV-Z]{10}$/
+
+/**
+ * Мягкая нормализация ввода: регистр, пробелы и дефисы не важны, а похожие
+ * символы сводятся к алфавиту (O→0, I и L→1). Остальное не «исправляется»,
+ * а отвергается проверкой LINK_CODE_PATTERN.
+ */
 export function normalizeLinkCode(value) {
-  return String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return String(value ?? '')
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, '')
+    .replace(/O/g, '0')
+    .replace(/[IL]/g, '1')
 }
 
 export function hashLinkCode(value) {
   return createHash('sha256').update(normalizeLinkCode(value), 'utf8').digest('hex')
 }
 
-/**
- * Canonical link code: 10 A-Z0-9 chars without a separator. The transport
- * adds the human-readable dash in the message text — formatting it twice
- * used to send codes like `A4K9P--72QX8` to Telegram.
- */
+/** Каноническая форма кода: 10 символов без разделителя (хранится и сравнивается так). */
 export function createLinkCode(randomBytes = secureRandomBytes) {
-  let hex = ''
-  for (const byte of randomBytes(5)) {
-    hex += Number(byte).toString(16).padStart(2, '0')
+  let code = ''
+  for (const byte of randomBytes(LINK_CODE_LENGTH)) {
+    code += LINK_CODE_ALPHABET[byte & 31]
   }
-  return hex.toUpperCase()
+  return code
+}
+
+/** Вид для человека: `ABCDE-FGHJK`. Разделитель добавляется только в тексте сообщения. */
+export function formatLinkCode(code) {
+  const value = String(code ?? '')
+  return `${value.slice(0, 5)}-${value.slice(5)}`
+}
+
+/**
+ * Сравнение секретов за постоянное время. Сравниваем SHA-256 от обеих строк,
+ * поэтому длина секрета не утекает через время ответа.
+ */
+export function safeEqual(a, b) {
+  const left = createHash('sha256').update(String(a ?? ''), 'utf8').digest()
+  const right = createHash('sha256').update(String(b ?? ''), 'utf8').digest()
+  return timingSafeEqual(left, right)
+}
+
+/**
+ * Имя аккаунта Telegram для предпросмотра при привязке: «Anna (@anna)».
+ * Управляющие символы убираются, длина ограничивается — значение попадает
+ * в интерфейс и в базу, поэтому оно считается недоверенным.
+ */
+export function telegramDisplayName(user) {
+  const name = [user?.first_name, user?.last_name].filter(Boolean).join(' ')
+  const handle = user?.username ? `@${String(user.username)}` : ''
+  return [name, handle]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .trim()
+    .slice(0, 80)
 }
 
 export function formatMoney(value) {

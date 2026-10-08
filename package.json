@@ -19,7 +19,8 @@
     "bot:setup": "node scripts/telegram-bot-setup.mjs",
     "check:dist": "node scripts/check-dist.mjs",
     "bot:menu": "node scripts/telegram-bot-setup.mjs --menu-only",
-    "e2e": "node scripts/e2e-mini-app.mjs"
+    "e2e": "node scripts/e2e-mini-app.mjs",
+    "sync:edge": "node scripts/sync-edge.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist-mono": "^5.3.0",

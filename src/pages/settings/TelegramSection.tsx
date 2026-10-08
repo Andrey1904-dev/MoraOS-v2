@@ -1,10 +1,10 @@
 /**
  * Telegram-интеграция: раздел в Settings.
  *
- * Переиспользует всю существующую модель безопасности: бот выдаёт одноразовый
- * код (/link), его хэш живёт в telegram_link_codes, привязку выполняет
- * security-definer функция link_telegram_account через Edge Function
- * telegram-api. Токен бота и service-role ключ остаются на сервере.
+ * Привязка в два шага: сначала предпросмотр («код принадлежит аккаунту …»),
+ * затем подтверждение. Код одноразовый, его хэш хранится в telegram_link_codes,
+ * привязку выполняет link_telegram_account через Edge Function telegram-api.
+ * Токен бота и service-role ключ остаются на сервере.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link2, Link2Off, Bot, RefreshCw, CheckCircle2, AlertTriangle, Copy } from "lucide-react";
@@ -18,8 +18,10 @@ import {
   TELEGRAM_CONFIG_MESSAGE,
   checkTelegramHealth,
   isTelegramConfigured,
+  previewTelegramLink,
   requestTelegram,
   type TelegramApiHealth,
+  type TelegramLinkPreview,
   type TelegramLinkStatus,
 } from "@/lib/telegram";
 
@@ -29,6 +31,9 @@ type Status =
   | { kind: "unlinked" }
   | { kind: "error"; message: string };
 
+/** Код, который прошёл предпросмотр: подтверждается ровно он и ровно этот аккаунт. */
+type PendingLink = TelegramLinkPreview & { code: string };
+
 export function TelegramSection() {
   const { push } = useToast();
   const { backend, mode } = useAuth();
@@ -36,7 +41,8 @@ export function TelegramSection() {
   const [health, setHealth] = useState<TelegramApiHealth | null>(null);
   const [healthBad, setHealthBad] = useState<string>("");
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState<"confirm" | "unlink" | "refresh" | null>(null);
+  const [pending, setPending] = useState<PendingLink | null>(null);
+  const [busy, setBusy] = useState<"preview" | "confirm" | "unlink" | "refresh" | null>(null);
 
   const refresh = useCallback(async () => {
     setBusy((b) => b ?? "refresh");
@@ -71,24 +77,43 @@ export function TelegramSection() {
       .then((report) => {
         const ok = report.configured && (report.botPolling === "online" || report.mode === "webhook");
         setHealth(report);
-        setHealthBad(ok ? "" : "Bot webhook or polling is offline. Run npm run bot:setup.");
+        setHealthBad(ok ? "" : "The bot is offline (webhook or polling). Run npm run bot:setup.");
       })
-      .catch(() => setHealthBad("Bot API did not answer /health."));
+      .catch(() => setHealthBad("The bot API did not answer /health."));
   }, [mode]);
 
-  const confirmCode = async () => {
+  /** Шаг 1: показать, какой Telegram-аккаунт выдал код. Ничего не привязывается. */
+  const checkCode = async () => {
     const value = code.trim();
     if (!value) return;
+    setBusy("preview");
+    try {
+      const token = await backend.auth.getAccessToken();
+      if (!token) throw new Error("Sign in first.");
+      const preview = await previewTelegramLink(token, value);
+      setPending({ ...preview, code: value });
+    } catch (e) {
+      setPending(null);
+      push({ title: "Code not accepted", description: e instanceof Error ? e.message : "Request a new code with /link.", tone: "error" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Шаг 2: привязка — только после явного подтверждения аккаунта. */
+  const confirmPending = async () => {
+    if (!pending) return;
     setBusy("confirm");
     try {
       const token = await backend.auth.getAccessToken();
       if (!token) throw new Error("Sign in first.");
-      await requestTelegram("/api/telegram/link/confirm", token, { method: "POST", body: { code: value } });
+      await requestTelegram("/api/telegram/link/confirm", token, { method: "POST", body: { code: pending.code } });
+      setPending(null);
       setCode("");
-      push({ title: "Telegram linked", description: "Mara OS Assistant now has access to your summaries.", tone: "success" });
+      push({ title: "Telegram connected", description: `Linked to ${pending.telegramAccount}.`, tone: "success" });
       await refresh();
     } catch (e) {
-      push({ title: "Link failed", description: e instanceof Error ? e.message : "Try a fresh code.", tone: "error" });
+      push({ title: "Link failed", description: e instanceof Error ? e.message : "Request a new code with /link.", tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -141,7 +166,7 @@ export function TelegramSection() {
       <Card>
         <CardHeader
           title="Telegram link"
-          subtitle="One-time code from the bot → account binding (link_telegram_account)"
+          subtitle="Step 1: check the code's account. Step 2: connect it."
           action={
             <Button variant="ghost" size="sm" loading={busy === "refresh"} onClick={() => void refresh()}><i className="mr-1.5 inline-flex"><RefreshCw className="size-3.5" /></i>
               Refresh
@@ -177,27 +202,31 @@ export function TelegramSection() {
 
           <div className="grid gap-3 text-[12.5px] text-muted sm:grid-cols-3">
             <KeyStat label="1" value="Send /link to the bot" />
-            <KeyStat label="2" value="Paste the code here" />
-            <KeyStat label="3" value="Summaries arrive in chat" />
+            <KeyStat label="2" value="Check the account shown here" />
+            <KeyStat label="3" value="Connect it — then use /menu in chat" />
           </div>
 
           <div className="flex flex-wrap items-end gap-2">
-            <Field label="One-time code" hint="Format: XXXXX-XXXXX, valid 10 minutes. Never share it.">
+            <Field label="One-time code" hint="10 letters or digits, valid 10 minutes. Never share it.">
               <input
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="A4K9P-72QX8"
+                onChange={(e) => {
+                  setCode(e.target.value);
+                  setPending(null);
+                }}
+                placeholder="e.g. 4K9PQ-72QX8"
                 autoComplete="off"
+                spellCheck={false}
                 className={inputClass}
               />
             </Field>
             <Button
-              variant="primary"
-              loading={busy === "confirm"}
-              onClick={() => void confirmCode()}
-              disabled={!code.trim() || !isTelegramConfigured}
-            ><i className="mr-1.5 inline-flex"><Link2 className="size-4" /></i>
-              Connect account
+              variant="secondary"
+              loading={busy === "preview"}
+              onClick={() => void checkCode()}
+              disabled={!code.trim() || !isTelegramConfigured || busy !== null}
+            >
+              Check code
             </Button>
             {status.kind === "linked" && (
               <Button variant="danger" loading={busy === "unlink"} onClick={() => void unlink()}><i className="mr-1.5 inline-flex"><Link2Off className="size-4" /></i>
@@ -205,12 +234,35 @@ export function TelegramSection() {
               </Button>
             )}
           </div>
+
+          {pending && (
+            <div role="group" aria-label="Confirm Telegram account" className="space-y-3 rounded-lg border border-line-2 bg-canvas-2 p-4">
+              <p className="text-[13px] leading-6 text-ink-2">
+                This code was requested from the Telegram account{" "}
+                <strong className="font-semibold text-ink">{pending.telegramAccount}</strong>.
+                Connect it only if that is your own account.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="primary"
+                  loading={busy === "confirm"}
+                  onClick={() => void confirmPending()}
+                  disabled={busy !== null}
+                ><i className="mr-1.5 inline-flex"><Link2 className="size-4" /></i>
+                  Connect this account
+                </Button>
+                <Button variant="ghost" onClick={() => setPending(null)} disabled={busy !== null}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
       {(health || healthBad) && (
         <Card>
-          <CardHeader title="Bot service health" subtitle="Edge Function telegram-api /health" />
+          <CardHeader title="Bot service health" subtitle="telegram-api /health" />
           <div className="space-y-2 px-5 pb-5 text-[12.5px]">
             {health && (
               <div className="flex flex-wrap items-center gap-2">
@@ -222,7 +274,7 @@ export function TelegramSection() {
             )}
             <div className="flex items-start gap-2 text-muted">
               {healthBad ? <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warn" /> : <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-pos" />}
-              <span>{healthBad || "Bot transport is online."}</span>
+              <span>{healthBad || "The bot transport is online."}</span>
             </div>
           </div>
         </Card>

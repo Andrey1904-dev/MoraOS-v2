@@ -142,13 +142,13 @@ try {
   const message = String(error.message)
   check(
     '405 объясняет, что адрес ведёт на статический сайт',
-    message.includes('405') && message.includes('стат') && message.includes('VITE_TELEGRAM_API_URL'),
+    message.includes('405') && message.includes('static') && message.includes('VITE_TELEGRAM_API_URL'),
     message,
   )
 }
 
 globalThis.fetch = async () =>
-  new Response(JSON.stringify({ error: 'Код недействителен или истёк. Запросите новый командой /link.' }), {
+  new Response(JSON.stringify({ error: 'Code is invalid or expired. Request a new one with /link.' }), {
     status: 400,
     headers: { 'Content-Type': 'application/json' },
   })
@@ -156,7 +156,7 @@ try {
   await good.requestTelegram('/api/telegram/link/confirm', 'token', { method: 'POST', body: { code: 'AAAAAAAAAA' } })
   check('текст ошибки сервера показывается как есть', false, 'исключение не выброшено')
 } catch (error) {
-  check('текст ошибки сервера показывается как есть', String(error.message).includes('Код недействителен'), String(error.message))
+  check('текст ошибки сервера показывается как есть', String(error.message).includes('Code is invalid or expired'), String(error.message))
 }
 
 globalThis.fetch = async () => new Response('Unauthorized', { status: 401 })
@@ -164,7 +164,7 @@ try {
   await good.requestTelegram('/api/telegram/link/status', 'expired-token')
   check('401 подсказывает войти заново', false, 'исключение не выброшено')
 } catch (error) {
-  check('401 подсказывает войти заново', /Войдите в аккаунт повторно/.test(String(error.message)), String(error.message))
+  check('401 подсказывает войти заново', /Sign in again/.test(String(error.message)), String(error.message))
 }
 
 console.log(failed === 0 ? '\nTelegram config smoke: все проверки пройдены.' : `\nTelegram config smoke: провалено проверок — ${failed}.`)

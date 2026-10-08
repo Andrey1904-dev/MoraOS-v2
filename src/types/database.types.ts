@@ -1,8 +1,8 @@
 /**
  * Типы схемы Mara OS (Supabase / PostgreSQL).
  *
- * Соответствуют supabase/schema.sql. Формат — как у `supabase gen types`,
- * но поддерживается вручную вместе со схемой: меняете SQL — обновляйте файл.
+ * Соответствуют миграциям supabase/migrations/ (0002–0004). Формат — как у
+ * `supabase gen types`, но поддерживается вручную: меняете SQL — обновляйте файл.
  */
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
@@ -730,6 +730,42 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['events']['Insert']>
         Relationships: []
       }
+      telegram_link_codes: {
+        Row: {
+          code_hash: string
+          telegram_chat_id: number
+          telegram_user_id: number
+          telegram_display: string
+          created_at: string
+          expires_at: string
+          used_at: string | null
+        }
+        Insert: {
+          code_hash: string
+          telegram_chat_id: number
+          telegram_user_id: number
+          telegram_display?: string
+          created_at?: string
+          expires_at: string
+          used_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['telegram_link_codes']['Insert']>
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          key: string
+          window_start: string
+          hits: number
+        }
+        Insert: {
+          key: string
+          window_start?: string
+          hits?: number
+        }
+        Update: Partial<Database['public']['Tables']['rate_limits']['Insert']>
+        Relationships: []
+      }
       telegram_links: {
         Row: {
           user_id: string
@@ -751,6 +787,10 @@ export interface Database {
     Functions: {
       link_telegram_account: {
         Args: { p_code_hash: string; p_user_id: string }
+        Returns: boolean
+      }
+      consume_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
       }
     }
