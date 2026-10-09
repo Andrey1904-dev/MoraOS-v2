@@ -190,6 +190,104 @@ export class MockAIProvider implements AIProvider {
           ],
         };
       }
+      case "strategy": {
+        return {
+          ideas: [
+            { id: "idea_1", title: "The morning the notebook almost won", angle: "vulnerable confession", purpose: "Build emotional connection with audience", episodeLink: null, experimental: false },
+            { id: "idea_2", title: "I counted every dollar for 30 days — here is what broke", angle: "data-driven story", purpose: "Show the math behind the mission", episodeLink: null, experimental: false },
+            { id: "idea_3", title: "What $54k actually looks like in Chicago", angle: "reality check", purpose: "Relatable money content", episodeLink: null, experimental: false },
+            { id: "idea_4", title: "The red notebook rule I broke last Tuesday", angle: "narrative twist", purpose: "Show vulnerability through rule-breaking", episodeLink: null, experimental: true },
+            { id: "idea_5", title: "6am gym vs 6am scrolling — the hourly cost", angle: "comparison", purpose: "Interactive hook that invites engagement", episodeLink: null, experimental: false },
+          ],
+          reasoning: "These ideas mix vulnerability, data, and interactive hooks — all within Mara's voice and storyline.",
+        };
+      }
+      case "hooks": {
+        return {
+          hooks: [
+            { id: "hook_1", text: "The notebook says I owe myself 43 more mornings. Today almost didn't count.", type: "vulnerable confession", audienceInterest: "high", topicRelevance: "high", clicheRisk: "low", recommendation: "Strong opener — leads with emotion and stakes." },
+            { id: "hook_2", text: "I priced my Tuesday at $14.27. That's what an hour of my life costs right now.", type: "surprising number", audienceInterest: "high", topicRelevance: "high", clicheRisk: "low", recommendation: "Specific numbers hook — use for data-driven audience." },
+            { id: "hook_3", text: "Do you track your life in hours or dollars? I track mine in both.", type: "question", audienceInterest: "medium", topicRelevance: "high", clicheRisk: "medium", recommendation: "Good for engagement — invites replies." },
+            { id: "hook_4", text: "The red notebook has a rule I broke last week. I'm telling you because you earned it.", type: "bold statement", audienceInterest: "high", topicRelevance: "medium", clicheRisk: "low", recommendation: "Creates insider feeling — use sparingly." },
+            { id: "hook_5", text: "6am. Empty gym. The debt counter didn't move but I did.", type: "scene-setting", audienceInterest: "medium", topicRelevance: "high", clicheRisk: "low", recommendation: "Visual opener — pair with strong imagery." },
+          ],
+        };
+      }
+      case "script": {
+        return {
+          hook: "The notebook says I owe myself 43 more mornings. Today almost didn't count.",
+          setup: "Page 43. The handwriting gets worse when the numbers barely move.",
+          mainBeats: [
+            { label: "The alarm", text: "5:55am. The phone buzzed and I almost let it win.", durationSec: 5, visualDirection: "Close-up on phone screen, dark room" },
+            { label: "The choice", text: "But the notebook was on the nightstand. It doesn't negotiate.", durationSec: 8, visualDirection: "Red notebook on nightstand, morning light" },
+            { label: "The gym", text: "6am. Empty. Just me and the math.", durationSec: 6, visualDirection: "Wide shot of empty gym" },
+          ],
+          emotionalTurn: "For a second I thought about adding today's hour to the debt column. Then I wrote it in the 'bought back' column instead.",
+          ending: "43 more mornings. The number went down by one.",
+          cta: "Follow the countdown.",
+          visualDirection: "Morning light, minimal color grading, red notebook as recurring visual anchor.",
+          onScreenText: ["Day 323", "$27,000 → $26,847", "Page 43"],
+          caption: "The notebook doesn't negotiate. Neither do I. Page 43 today.",
+          estimatedDurationSec: 30,
+        };
+      }
+      case "platform_adapter": {
+        return {
+          variants: [
+            {
+              platform: "TikTok",
+              text: "6am. Empty gym. The debt counter didn't move but I did. The notebook says 43 more mornings — today I gave it one less. #debtcountdown #marasjournal #365days",
+              format: "Short-form vertical video, 15-30s",
+              cta: "Follow for daily countdown",
+              visualNotes: "Quick cuts, text overlays on beat, trending audio underneath",
+              platformConstraints: ["Keep under 60s for maximum reach", "Text overlays critical for sound-off viewing"],
+            },
+            {
+              platform: "Instagram",
+              text: "Page 43.\n\nThe handwriting gets worse when the numbers barely move. But this morning I woke up at 5:55 and chose the gym over the snooze button.\n\nThe red notebook doesn't negotiate. Neither do I.\n\n43 more mornings. One just went into the 'bought back' column.\n\nFollow the countdown — link in bio.",
+              format: "Reel, 30-60s with editorial caption",
+              cta: "Follow for the full 365-day journey",
+              visualNotes: "Slightly more polished than TikTok, editorial color grading",
+              platformConstraints: ["Caption can be longer here", "Check current Reels length guidelines"],
+            },
+            {
+              platform: "Threads",
+              text: "The notebook says I owe myself 43 more mornings.\n\nToday almost didn't count. I hit snooze at 5:55am. Then I looked at the red notebook on the nightstand and it doesn't negotiate.\n\n6am gym. Empty. Just me and the math.\n\nFor a second I thought about adding today to the debt column. Instead I wrote it in 'bought back.'\n\nThe number went down by one. That's the whole plot.",
+              format: "Text post, diary-style",
+              cta: "Reply if you track something daily",
+              visualNotes: "No video needed — this is a text-first moment",
+              platformConstraints: ["No character limit concerns for this length", "No hashtags needed on Threads"],
+            },
+          ],
+        };
+      }
+      case "captions": {
+        return {
+          captions: [
+            { style: "short", text: "The notebook doesn't negotiate. Neither do I. Page 43 today. #debtcountdown #marasjournal" },
+            { style: "extended", text: "Page 43.\n\nThe handwriting gets worse when the numbers barely move. But the number does move — slowly, stubbornly, one bought-back hour at a time.\n\n43 more mornings. That's the deal I made with myself." },
+            { style: "conversational", text: "ok so I almost hit snooze this morning. the notebook was literally staring at me from the nightstand. you know that feeling when something you wrote to yourself in a moment of clarity is judging you at 5:55am? yeah. that." },
+            { style: "story", text: "Day 323 of 365.\n\nThe red notebook says I owe myself 43 more mornings. Today I woke up at 5:55 and the snooze button was right there. But page 43 doesn't negotiate.\n\n$27k debt. $54k salary. One red notebook. The math is slow but it's honest." },
+            { style: "engagement", text: "What's the one thing you wrote to yourself that you can't ignore anymore?\n\nMine is a red notebook that says 43 more mornings. Today it went down to 42. Slowly, stubbornly, one bought-back hour at a time.\n\nTell me yours." },
+          ],
+        };
+      }
+      case "character_check": {
+        return {
+          passed: true,
+          score: 92,
+          issues: [],
+          suggestions: ["Consider adding a specific dollar amount from the debt for extra authenticity"],
+        };
+      }
+      case "quality_check": {
+        return {
+          passed: true,
+          score: 88,
+          issues: [],
+          suggestions: ["Hook is strong — keep it as is", "Consider adding a visual beat at the 10s mark for retention"],
+        };
+      }
       default:
         return { note: "mock provider: unknown agent", agent: request.agent };
     }

@@ -45,3 +45,40 @@ export { MemoryAgent } from "./memory-agent";
 export { SalesAgent } from "./sales-agent";
 export { ContentAgent } from "./content-agent";
 export { AnalyticsAgent } from "./analytics-agent";
+export {
+  ContentFactoryPipeline,
+  StrategyAgent,
+  HookAgent,
+  ScriptAgent,
+  PlatformAdapterAgent,
+  CaptionAgent,
+  CharacterCheckAgent,
+  QualityCheckAgent,
+  MARA_BIBLE,
+  buildCharacterContext,
+  buildFactorySystemPrompt,
+  DEFAULT_BRIEF,
+} from "./content-factory";
+export type {
+  CharacterBible,
+  ContentBrief,
+  ContentFormat,
+  ContentPlatform,
+  ContentIdea,
+  StrategyAgentResult,
+  HookVariant,
+  HookAgentResult,
+  ScriptBeat,
+  ScriptResult,
+  PlatformVariant,
+  PlatformAdapterResult,
+  CaptionVariant,
+  CaptionAgentResult,
+  CheckIssue,
+  CharacterCheckResult,
+  QualityCheckResult,
+  PipelineStep,
+  PipelineStatus,
+  PipelineState,
+  ContentFactoryDraft,
+} from "./content-factory";

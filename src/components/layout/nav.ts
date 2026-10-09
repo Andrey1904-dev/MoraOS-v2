@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Clapperboard,
+  Factory,
   FolderOpen,
   Images,
   LayoutDashboard,
@@ -40,6 +41,7 @@ export const navGroups: NavGroup[] = [
     label: "Content",
     items: [
       { label: "Content", to: "/content", icon: Images },
+      { label: "Content Factory", to: "/content-factory", icon: Factory },
       { label: "Episodes", to: "/episodes", icon: Clapperboard },
       { label: "Assets", to: "/assets", icon: FolderOpen },
     ],

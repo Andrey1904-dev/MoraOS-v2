@@ -695,3 +695,324 @@ describe('Phase 2: episodes CRUD', () => {
     assert.equal(finalList.some((e) => e.id === ep.id), false)
   })
 })
+
+/* ===================== Content Factory ===================== */
+
+import { ContentFactoryPipeline } from '../src/lib/ai/content-factory/pipeline'
+import { StrategyAgent } from '../src/lib/ai/content-factory/strategy-agent'
+import { HookAgent } from '../src/lib/ai/content-factory/hook-agent'
+import { ScriptAgent } from '../src/lib/ai/content-factory/script-agent'
+import { CharacterCheckAgent } from '../src/lib/ai/content-factory/character-check-agent'
+import { QualityCheckAgent } from '../src/lib/ai/content-factory/quality-check-agent'
+import { MARA_BIBLE, buildCharacterContext, buildFactorySystemPrompt } from '../src/lib/ai/character-bible'
+import type { ContentBrief } from '../src/lib/ai/content-factory/types'
+
+const FACTORY_BRIEF: ContentBrief = {
+  topic: 'Why I decided to change my life in a year',
+  platform: 'TikTok',
+  format: 'Short Video',
+  mood: 'Confident',
+  language: 'English',
+}
+
+describe('Character Bible', () => {
+  test('MARA_BIBLE contains required fields', () => {
+    assert.equal(MARA_BIBLE.name, 'Mara Quinn')
+    assert.ok(MARA_BIBLE.personality.length > 0)
+    assert.ok(MARA_BIBLE.boundaries.length > 0)
+    assert.ok(MARA_BIBLE.recurringObjects.length > 0)
+    assert.ok(MARA_BIBLE.storyFacts.length > 0)
+    assert.ok(MARA_BIBLE.vocabulary.preferred.length > 0)
+    assert.ok(MARA_BIBLE.vocabulary.avoid.length > 0)
+    assert.ok(MARA_BIBLE.goodExamples.length > 0)
+    assert.ok(MARA_BIBLE.badExamples.length > 0)
+  })
+
+  test('buildCharacterContext produces valid CharacterContext', () => {
+    const character = {
+      id: 'test',
+      name: 'Mara Quinn',
+      age: 23,
+      city: 'Chicago',
+      occupation: 'Marketing Coordinator',
+      story: '365 days to buy back my time',
+      logline: '$54k salary. $27k debt.',
+      voice: 'Dry, confident',
+      boundaries: ['No explicit content'],
+      traits: [
+        { label: 'Personality', value: 'dry, confident' },
+        { label: 'Signature object', value: 'red notebook' },
+      ],
+    }
+    const ctx = buildCharacterContext(character)
+    assert.equal(ctx.name, 'Mara Quinn')
+    assert.ok(ctx.personality.includes('dry'))
+    assert.ok(ctx.recurringObjects.includes('red notebook'))
+  })
+
+  test('buildFactorySystemPrompt includes Character Bible data', () => {
+    const ctx = buildCharacterContext({
+      id: 'test',
+      name: 'Mara Quinn',
+      age: 23,
+      city: 'Chicago',
+      occupation: 'Marketing Coordinator',
+      story: '365 days',
+      logline: '',
+      voice: 'Dry',
+      boundaries: ['No explicit content'],
+      traits: [],
+    })
+    const prompt = buildFactorySystemPrompt(ctx)
+    assert.ok(prompt.includes('Mara Quinn'))
+    assert.ok(prompt.includes('red notebook'))
+    assert.ok(prompt.toLowerCase().includes('story facts'))
+    assert.ok(prompt.includes('fictional virtual AI-creator'))
+  })
+})
+
+describe('Content Factory Pipeline', () => {
+  test('createPipelineState creates valid initial state', () => {
+    const pf = new ContentFactoryPipeline(mock())
+    const state = pf.createPipelineState(FACTORY_BRIEF)
+    assert.ok(state.id.startsWith('pipeline_'))
+    assert.equal(state.currentStep, 'brief')
+    assert.equal(state.status, 'pending')
+    assert.equal(state.brief.topic, FACTORY_BRIEF.topic)
+    assert.equal(state.retryCount, 0)
+    assert.equal(state.maxRetries, 3)
+  })
+
+  test('generateIdeas returns structured ideas', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    const state = pf.createPipelineState(FACTORY_BRIEF)
+    const result = await pf.generateIdeas(state, CHARACTER)
+    assert.ok(result.ideas)
+    assert.ok(result.ideas.ideas.length > 0)
+    assert.ok(result.ideas.ideas[0].title)
+    assert.ok(result.ideas.ideas[0].angle)
+    assert.equal(typeof result.ideas.ideas[0].experimental, 'boolean')
+  })
+
+  test('generateHooks returns hook variants', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    const result = await pf.generateHooks(state, idea, CHARACTER)
+    assert.ok(result.hooks)
+    assert.ok(result.hooks.hooks.length > 0)
+    assert.ok(result.hooks.hooks[0].text)
+    assert.ok(['low', 'medium', 'high'].includes(result.hooks.hooks[0].audienceInterest))
+    assert.ok(['low', 'medium', 'high'].includes(result.hooks.hooks[0].clicheRisk))
+  })
+
+  test('generateScript returns structured script', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    const result = await pf.generateScript(state, idea, hook, CHARACTER)
+    assert.ok(result.script)
+    assert.ok(result.script.hook)
+    assert.ok(result.script.mainBeats.length > 0)
+    assert.ok(result.script.cta)
+    assert.ok(result.script.caption)
+    assert.equal(typeof result.script.estimatedDurationSec, 'number')
+  })
+
+  test('generatePlatformVariants returns variants for each platform', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    const result = await pf.generatePlatformVariants(state, CHARACTER)
+    assert.ok(result.platformVariants)
+    assert.ok(result.platformVariants.variants.length > 0)
+    assert.ok(result.platformVariants.variants[0].platform)
+    assert.ok(result.platformVariants.variants[0].text)
+  })
+
+  test('generateCaptions returns multiple styles', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    const result = await pf.generateCaptions(state, CHARACTER)
+    assert.ok(result.captions)
+    assert.ok(result.captions.captions.length > 0)
+    assert.ok(['short', 'extended', 'conversational', 'story', 'engagement'].includes(result.captions.captions[0].style))
+  })
+
+  test('runCharacterCheck returns score and issues', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    const result = await pf.runCharacterCheck(state, CHARACTER)
+    assert.ok(result.characterCheck)
+    assert.equal(typeof result.characterCheck.passed, 'boolean')
+    assert.equal(typeof result.characterCheck.score, 'number')
+    assert.ok(result.characterCheck.score >= 0 && result.characterCheck.score <= 100)
+  })
+
+  test('runQualityCheck returns score and issues', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    state = await pf.generateCaptions(state, CHARACTER)
+    const result = await pf.runQualityCheck(state, CHARACTER)
+    assert.ok(result.qualityCheck)
+    assert.equal(typeof result.qualityCheck.passed, 'boolean')
+    assert.equal(typeof result.qualityCheck.score, 'number')
+  })
+
+  test('buildDraft produces valid ContentFactoryDraft', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    state = await pf.generateCaptions(state, CHARACTER)
+    const draft = pf.buildDraft(state)
+    assert.ok(draft.title)
+    assert.ok(draft.hook)
+    assert.ok(draft.caption)
+    assert.ok(draft.script)
+    assert.ok(draft.cta)
+    assert.equal(draft.status, 'Draft')
+    assert.equal(draft.platform, 'TikTok')
+  })
+
+  test('full pipeline runs from brief to draft', async () => {
+    const pf = new ContentFactoryPipeline(mock())
+    const result = await pf.runFull(FACTORY_BRIEF, CHARACTER, 'idea_1', 0)
+    assert.ok(result.ideas)
+    assert.ok(result.hooks)
+    assert.ok(result.script)
+    assert.ok(result.characterCheck)
+    assert.ok(result.qualityCheck)
+  })
+
+  test('pipeline handles error and tracks retry count', async () => {
+    const failProvider = {
+      ...mock(),
+      generateStructured: async () => { throw new Error('Provider failure') },
+    } as any
+    const pf = new ContentFactoryPipeline(failProvider)
+    const state = pf.createPipelineState(FACTORY_BRIEF)
+    const result = await pf.generateIdeas(state, CHARACTER)
+    assert.equal(result.status, 'failed')
+    assert.ok(result.error?.includes('Provider failure'))
+    assert.equal(result.retryCount, 1)
+  })
+
+  test('save draft to content repository', async () => {
+    resetDemoStore()
+    const pf = new ContentFactoryPipeline(mock())
+    let state = pf.createPipelineState(FACTORY_BRIEF)
+    state = await pf.generateIdeas(state, CHARACTER)
+    const idea = state.ideas!.ideas[0]
+    state = await pf.generateHooks(state, idea, CHARACTER)
+    const hook = state.hooks!.hooks[0]
+    state = await pf.generateScript(state, idea, hook, CHARACTER)
+    const draft = pf.buildDraft(state)
+    const saved = await demoRepositories.content.saveDraft({
+      ...draft,
+      platform: draft.platform as any,
+      type: draft.type as any,
+    })
+    assert.ok(saved.id)
+    assert.equal(saved.title, draft.title)
+    assert.equal(saved.status, 'Draft')
+    const all = await demoRepositories.content.list()
+    assert.ok(all.some((c) => c.id === saved.id))
+  })
+})
+
+describe('Content Factory individual agents', () => {
+  test('StrategyAgent generates ideas with correct structure', async () => {
+    const agent = new StrategyAgent(mock())
+    const result = await agent.generateIdeas(FACTORY_BRIEF, CHARACTER, ['existing title'])
+    assert.ok(result.ideas.length > 0)
+    assert.ok(result.ideas[0].id)
+    assert.ok(result.ideas[0].title)
+    assert.equal(typeof result.ideas[0].experimental, 'boolean')
+  })
+
+  test('HookAgent generates hooks with assessment', async () => {
+    const agent = new HookAgent(mock())
+    const idea = { id: 'i1', title: 'Test', angle: 'test', purpose: 'test', experimental: false }
+    const result = await agent.generateHooks(FACTORY_BRIEF, idea, CHARACTER)
+    assert.ok(result.hooks.length > 0)
+    assert.ok(result.hooks[0].text)
+    assert.ok(['low', 'medium', 'high'].includes(result.hooks[0].type ? 'medium' : result.hooks[0].audienceInterest))
+  })
+
+  test('ScriptAgent generates structured script', async () => {
+    const agent = new ScriptAgent(mock())
+    const idea = { id: 'i1', title: 'Test', angle: 'test', purpose: 'test', experimental: false }
+    const hook = { id: 'h1', text: 'Hook text', type: 'question', audienceInterest: 'high' as const, topicRelevance: 'high' as const, clicheRisk: 'low' as const, recommendation: 'Use this' }
+    const result = await agent.generateScript(FACTORY_BRIEF, idea, hook, CHARACTER)
+    assert.ok(result.hook)
+    assert.ok(result.mainBeats.length > 0)
+    assert.ok(result.cta)
+    assert.equal(typeof result.estimatedDurationSec, 'number')
+  })
+
+  test('CharacterCheckAgent returns score between 0 and 100', async () => {
+    const agent = new CharacterCheckAgent(mock())
+    const script = {
+      hook: 'Test hook',
+      setup: 'Setup text',
+      mainBeats: [{ label: 'Beat 1', text: 'Beat text' }],
+      emotionalTurn: 'Turn',
+      ending: 'Ending',
+      cta: 'Follow',
+      visualDirection: '',
+      onScreenText: [],
+      caption: 'Caption',
+      estimatedDurationSec: 30,
+    }
+    const result = await agent.check(script, undefined, CHARACTER)
+    assert.ok(result.score >= 0 && result.score <= 100)
+    assert.equal(typeof result.passed, 'boolean')
+    assert.ok(Array.isArray(result.issues))
+  })
+
+  test('QualityCheckAgent returns score and blocking reason on failure', async () => {
+    const agent = new QualityCheckAgent(mock())
+    const script = {
+      hook: 'Test',
+      setup: 'Setup',
+      mainBeats: [{ label: 'Beat', text: 'Text' }],
+      emotionalTurn: 'Turn',
+      ending: 'End',
+      cta: 'CTA',
+      visualDirection: '',
+      onScreenText: [],
+      caption: 'Caption',
+      estimatedDurationSec: 30,
+    }
+    const result = await agent.check(FACTORY_BRIEF, script, undefined, CHARACTER)
+    assert.ok(result.score >= 0 && result.score <= 100)
+    assert.equal(typeof result.passed, 'boolean')
+  })
+})

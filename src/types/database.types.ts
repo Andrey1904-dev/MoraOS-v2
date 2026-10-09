@@ -58,6 +58,8 @@ export type RunStatusDb = 'success' | 'error' | 'pending'
 export type AutomationTriggerTypeDb = 'schedule' | 'event' | 'condition' | 'manual'
 export type AutomationStatusDb = 'active' | 'paused' | 'disabled'
 export type EpisodeStatusDb = 'outline' | 'in_production' | 'scheduled' | 'published' | 'archived'
+export type PipelineStepDb = 'brief' | 'ideas' | 'hooks' | 'script' | 'platform_variants' | 'captions' | 'character_check' | 'quality_check' | 'draft' | 'approved'
+export type PipelineStatusDb = 'pending' | 'running' | 'completed' | 'failed' | 'waiting_approval'
 
 export interface Database {
   public: {
@@ -334,6 +336,11 @@ export interface Database {
           asset_ids: string[]
           scheduled_at: string | null
           published_at: string | null
+          generation_pipeline_id: string | null
+          generation_brief: Json
+          character_check_score: number | null
+          quality_check_score: number | null
+          check_passed: boolean | null
           created_at: string
           updated_at: string
         }
@@ -354,10 +361,65 @@ export interface Database {
           asset_ids?: string[]
           scheduled_at?: string | null
           published_at?: string | null
+          generation_pipeline_id?: string | null
+          generation_brief?: Json
+          character_check_score?: number | null
+          quality_check_score?: number | null
+          check_passed?: boolean | null
           created_at?: string
           updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['content']['Insert']>
+        Relationships: []
+      }
+      content_generation_steps: {
+        Row: {
+          id: string
+          user_id: string
+          pipeline_id: string
+          step: PipelineStepDb
+          status: PipelineStatusDb
+          input_data: Json
+          output_data: Json
+          error_message: string | null
+          ai_model: string | null
+          ai_duration_ms: number | null
+          ai_tokens: number | null
+          ai_run_id: string | null
+          content_id: string | null
+          episode_id: string | null
+          check_passed: boolean | null
+          check_score: number | null
+          check_issues: Json
+          retry_count: number
+          max_retries: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          pipeline_id: string
+          step: PipelineStepDb
+          status?: PipelineStatusDb
+          input_data?: Json
+          output_data?: Json
+          error_message?: string | null
+          ai_model?: string | null
+          ai_duration_ms?: number | null
+          ai_tokens?: number | null
+          ai_run_id?: string | null
+          content_id?: string | null
+          episode_id?: string | null
+          check_passed?: boolean | null
+          check_score?: number | null
+          check_issues?: Json
+          retry_count?: number
+          max_retries?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['content_generation_steps']['Insert']>
         Relationships: []
       }
       assets: {

@@ -20,6 +20,7 @@ const Offers = lazy(() => import('./pages/Offers'))
 const Revenue = lazy(() => import('./pages/Revenue'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const AIStudio = lazy(() => import('./pages/AIStudio'))
+const ContentFactory = lazy(() => import('./pages/ContentFactory'))
 const Automations = lazy(() => import('./pages/Automations'))
 const Tasks = lazy(() => import('./pages/Tasks'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -84,6 +85,7 @@ export default function App() {
               <Route path="revenue" element={<Revenue />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="ai" element={<AIStudio />} />
+              <Route path="content-factory" element={<ContentFactory />} />
               <Route path="automations" element={<Automations />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="settings" element={<Settings />} />

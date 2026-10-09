@@ -26,6 +26,15 @@ export type MaraEventType =
   | 'content_published'
   | 'reply_sent'
   | 'automation_run'
+  | 'content_brief_created'
+  | 'content_idea_generated'
+  | 'content_script_generated'
+  | 'content_variant_generated'
+  | 'content_quality_checked'
+  | 'content_approved'
+  | 'content_rejected'
+  | 'content_regenerated'
+  | 'asset_prompt_created'
 
 export interface MaraEvent {
   type: MaraEventType
