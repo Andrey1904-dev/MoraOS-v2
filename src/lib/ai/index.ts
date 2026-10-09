@@ -37,6 +37,7 @@ export function getAiOrchestrator(): AiOrchestrator {
 export * from "./provider";
 export * from "./types";
 export { MockAIProvider } from "./mock";
+export { HttpAIProvider } from "./http-provider";
 export { AiOrchestrator, runReplyPipeline } from "./orchestrator";
 export { CharacterAgent } from "./character-agent";
 export { ConversationAgent } from "./conversation-agent";

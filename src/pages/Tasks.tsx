@@ -10,17 +10,26 @@ import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import type { Task } from "@/types";
 import { cn } from "@/utils/cn";
+import { inputClass, textareaClass } from "@/components/ui/Controls";
 
 const FILTERS = ["All", "Todo", "In progress", "Waiting", "Done"] as const;
 const PRIORITY_TONE = { Urgent: "neg", High: "neg", Normal: "info", Low: "neutral" } as const;
 
+const PRIORITIES = ["Low", "Normal", "High", "Urgent"] as const;
+const GROUPS = ["Today", "This week"] as const;
+
 export default function Tasks() {
   const { push } = useToast();
-  const { data, loading } = useResource(() => repositories.ai.tasks());
+  const { data, loading, refetch } = useResource(() => repositories.ai.tasks());
   const [filter, setFilter] = useState<string>("All");
   const [group, setGroup] = useState<"Today" | "This week" | "All">("Today");
   const [local, setLocal] = useState<Record<string, Task["status"]>>({});
   const [modal, setModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDetail, setNewDetail] = useState("");
+  const [newPriority, setNewPriority] = useState<Task["priority"]>("Normal");
+  const [newGroup, setNewGroup] = useState<"Today" | "This week">("Today");
 
   const rows = useMemo(() => {
     return (data ?? [])
@@ -34,11 +43,49 @@ export default function Tasks() {
   const todo = all.filter((t) => t.status === "Todo").length;
   const progress = (done / Math.max(1, all.length)) * 100;
 
-  const setStatus = (t: Task, status: Task["status"]) => {
+  const setStatus = async (t: Task, status: Task["status"]) => {
     setLocal((prev) => ({ ...prev, [t.id]: status }));
-    void repositories.ai.setTaskStatus(t.id, status);
-    if (status === "Done") push({ title: "Task completed", description: t.title, tone: "success" });
+    try {
+      await repositories.ai.setTaskStatus(t.id, status);
+      if (status === "Done") push({ title: "Task completed", description: t.title, tone: "success" });
+    } catch (error) {
+      push({ title: "Update failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      setLocal((prev) => {
+        const copy = { ...prev };
+        delete copy[t.id];
+        return copy;
+      });
+    }
   };
+
+  async function createTask() {
+    if (!newTitle.trim()) {
+      push({ title: "Title required", description: "Give the task a short title.", tone: "error" });
+      return;
+    }
+    setCreating(true);
+    try {
+      await repositories.ai.addTask({
+        title: newTitle.trim(),
+        detail: newDetail.trim(),
+        priority: newPriority,
+        group: newGroup,
+        due: newGroup === "Today" ? "Today" : "This week",
+        source: "Manual",
+      });
+      push({ title: "Task created", description: newTitle.trim(), tone: "success" });
+      setModal(false);
+      setNewTitle("");
+      setNewDetail("");
+      setNewPriority("Normal");
+      setNewGroup("Today");
+      void refetch();
+    } catch (error) {
+      push({ title: "Create failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <PageContainer>
@@ -67,7 +114,7 @@ export default function Tasks() {
           { label: "Todo", value: todo, tone: "text-ink" },
           { label: "In progress", value: all.filter((t) => t.status === "In progress").length, tone: "text-info" },
           { label: "Done today", value: done, tone: "text-pos" },
-          { label: "High priority", value: all.filter((t) => t.priority === "High").length, tone: "text-neg" },
+          { label: "High priority", value: all.filter((t) => t.priority === "High" || t.priority === "Urgent").length, tone: "text-neg" },
         ].map((s) => (
           <Card key={s.label} className="p-4">
             <div className="label">{s.label}</div>
@@ -119,7 +166,7 @@ export default function Tasks() {
                     <span className={cn("text-[13px]", t.status === "Done" ? "text-faint line-through" : "font-medium text-ink")}>
                       {t.title}
                     </span>
-                    <Badge tone={PRIORITY_TONE[t.priority]}>{t.priority}</Badge>
+                    <Badge tone={PRIORITY_TONE[t.priority] ?? "neutral"}>{t.priority}</Badge>
                   </div>
                   <div className="mt-1 text-[12px] leading-relaxed text-muted">{t.detail}</div>
                   <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[11px] text-faint">
@@ -136,7 +183,7 @@ export default function Tasks() {
                   <Select
                     ariaLabel="Change status"
                     value={t.status}
-                    onChange={(v) => setStatus(t, v as Task["status"])}
+                    onChange={(v) => void setStatus(t, v as Task["status"])}
                     options={["Todo", "In progress", "Waiting", "Done"] as const}
                     className="w-32"
                   />
@@ -151,22 +198,25 @@ export default function Tasks() {
         <Card className="lg:col-span-2">
           <CardHeader title="Approvals blocking agents" subtitle="Agents slow down when these wait" />
           <div className="space-y-3 px-5 pb-5">
-            {[
-              { label: "8 conversation drafts", detail: "Conversation Agent · median wait 41 min", tone: "warn" as const },
-              { label: "3 asset approvals", detail: "Content Agent · blocks episode 05 cuts", tone: "warn" as const },
-              { label: "1 churn intervention", detail: "Sales Agent · waiting on win-back approval", tone: "neg" as const },
-            ].map((r) => (
-              <div key={r.label} className="flex items-center gap-3 rounded-lg border border-line bg-canvas-2/50 px-4 py-3">
-                <span className={cn("size-1.5 rounded-full", r.tone === "neg" ? "bg-neg" : "bg-warn")} />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12.5px] text-ink">{r.label}</div>
-                  <div className="text-[11px] text-faint">{r.detail}</div>
-                </div>
-                <Button size="sm" variant="subtle">
-                  Review
-                </Button>
-              </div>
-            ))}
+            {all.filter((t) => t.source === "Conversations" && t.status !== "Done").length === 0 ? (
+              <p className="text-[12.5px] text-muted">No pending conversation approvals.</p>
+            ) : (
+              all
+                .filter((t) => t.source === "Conversations" && t.status !== "Done")
+                .slice(0, 5)
+                .map((t) => (
+                  <div key={t.id} className="flex items-center gap-3 rounded-lg border border-line bg-canvas-2/50 px-4 py-3">
+                    <span className="size-1.5 rounded-full bg-warn" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12.5px] text-ink">{t.title}</div>
+                      <div className="text-[11px] text-faint">{t.detail}</div>
+                    </div>
+                    <Button size="sm" variant="subtle" onClick={() => window.location.hash = "#/conversations"}>
+                      Review
+                    </Button>
+                  </div>
+                ))
+            )}
           </div>
         </Card>
 
@@ -187,7 +237,7 @@ export default function Tasks() {
             })}
             <Divider className="my-4" />
             <p className="text-[11.5px] leading-relaxed text-muted">
-              Clearing the approval queue unblocks roughly 40 agent runs per hour.
+              Clearing the approval queue unblocks agent runs.
             </p>
           </div>
         </Card>
@@ -195,22 +245,16 @@ export default function Tasks() {
 
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() => !creating && setModal(false)}
         title="New task"
-        subtitle="Tasks are created locally in this prototype."
+        subtitle="Create a real task in this workspace."
         width="max-w-lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModal(false)}>
+            <Button variant="ghost" onClick={() => setModal(false)} disabled={creating}>
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              onClick={() => {
-                setModal(false);
-                push({ title: "Task created", description: "Added to Today.", tone: "success" });
-              }}
-            >
+            <Button variant="primary" loading={creating} onClick={() => void createTask()}>
               Create task
             </Button>
           </>
@@ -219,11 +263,30 @@ export default function Tasks() {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-[12px] font-medium text-ink-2">Title</span>
-            <input placeholder="Approve episode 05 caption" className="h-9 w-full rounded-[9px] border border-line bg-canvas-2 px-3 text-[13px] focus:outline-none" />
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Approve episode 05 caption"
+              className={inputClass}
+            />
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-1.5 block text-[12px] font-medium text-ink-2">Detail</span>
-            <textarea rows={3} placeholder="What has to be decided…" className="w-full resize-y rounded-[9px] border border-line bg-canvas-2 px-3 py-2.5 text-[13px] focus:outline-none" />
+            <textarea
+              rows={3}
+              value={newDetail}
+              onChange={(e) => setNewDetail(e.target.value)}
+              placeholder="What has to be decided…"
+              className={textareaClass}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-[12px] font-medium text-ink-2">Priority</span>
+            <Select value={newPriority} onChange={(v) => setNewPriority(v as Task["priority"])} options={PRIORITIES} />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-[12px] font-medium text-ink-2">Group</span>
+            <Select value={newGroup} onChange={(v) => setNewGroup(v as "Today" | "This week")} options={GROUPS} />
           </label>
         </div>
       </Modal>

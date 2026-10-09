@@ -12,7 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
-import { Card, CardHeader, Badge, StatusBadge, Avatar, ProgressBar, Divider } from "@/components/ui/Card";
+import { Card, CardHeader, Badge, Avatar, Divider } from "@/components/ui/Card";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Button } from "@/components/ui/Button";
 import { DateRangePicker } from "@/components/ui/Controls";
@@ -21,8 +21,7 @@ import { AICard } from "@/components/common/AICard";
 import { EmptyState, SkeletonRows } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories, story, actionQueue } from "@/repositories";
-import { ago, number as fmtNum, signed } from "@/lib/format";
-import { episodes } from "@/data/content";
+import { ago, number as fmtNum, signed, currency } from "@/lib/format";
 import { media } from "@/data/media";
 import { cn } from "@/utils/cn";
 
@@ -37,34 +36,45 @@ export default function Overview() {
   const navigate = useNavigate();
   const [period, setPeriod] = useState("30 days");
 
-  const { data: metrics, loading: loadingMetrics } = useResource(() => repositories.analytics.metrics(period), [period]);
   const { data: revenue } = useResource(() => repositories.analytics.revenue(period), [period]);
   const { data: audience } = useResource(() => repositories.analytics.audience(period), [period]);
   const { data: top } = useResource(() => repositories.analytics.topContent());
   const { data: insights } = useResource(() => repositories.ai.insights());
   const { data: funnel } = useResource(() => repositories.analytics.funnel());
+  const { data: fans } = useResource(() => repositories.fans.list());
+  const { data: content } = useResource(() => repositories.content.list());
+  const { data: tasks } = useResource(() => repositories.ai.tasks());
+  const { data: summary } = useResource(() => repositories.analytics.revenueSummary());
+  const { data: agents } = useResource(() => repositories.ai.agents());
 
+  const totalFans = fans?.length ?? 0;
+  const activeFans = fans?.filter((f) => f.status === "Active").length ?? 0;
+  const subscribers = fans?.filter((f) => f.subscription?.status === "Active").length ?? 0;
+  const totalRevenue = summary?.total ?? 0;
+  const totalPurchases = summary?.purchases ?? 0;
+  const totalContent = content?.length ?? 0;
+  const pendingTasks = tasks?.filter((t) => t.status !== "Done").length ?? 0;
+
+  const onlineAgents = (agents ?? []).filter((a) => a.status === "Online").length;
   const insight = insights?.[0];
-  const nextEpisodes = episodes.filter((e) => e.status !== "Published").slice(0, 2);
-  const publishedEpisodes = episodes.filter((e) => e.status === "Published");
+  const nextContent = (content ?? [])
+    .filter((c) => c.status === "Scheduled" || c.status === "Ready")
+    .slice(0, 3);
 
   return (
     <PageContainer>
       <PageHeader
         eyebrow="Command"
-        title="Good morning, Andrey"
+        title="Good morning"
         description="Mara's business overview — what changed since yesterday and what needs a decision today."
         meta={
           <>
             <span className="flex items-center gap-1.5 text-[12px] text-muted">
               <span className="size-1.5 rounded-full bg-pos" />
-              All 6 agents online
+              {onlineAgents} of {(agents ?? []).length} agents online
             </span>
             <span className="text-[12px] text-muted">
-              Last sync <span className="num text-ink-2">2 min ago</span>
-            </span>
-            <span className="text-[12px] text-muted">
-              Story week <span className="num text-ink-2">20 of 52</span>
+              Last sync <span className="num text-ink-2">just now</span>
             </span>
           </>
         }
@@ -78,30 +88,27 @@ export default function Overview() {
         }
       />
 
-      {/* KPI */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        {(metrics ?? Array.from({ length: 6 })).map((m, i) =>
-          !m || loadingMetrics ? (
-            <MetricCard key={i} label="" value="" loading />
-          ) : (
-            <MetricCard
-              key={m.key}
-              label={m.label}
-              value={m.value}
-              delta={m.delta}
-              hint={m.hint}
-              accent={m.accent}
-              invertDelta={m.key === "churn"}
-              spark={[8, 12, 9, 15, 14, 19, 22, 26]}
-              onClick={() => {
-                if (m.key === "revenue") window.location.hash = "#/revenue";
-                if (m.key === "subs" || m.key === "fans") window.location.hash = "#/fans";
-                if (m.key === "ppv" || m.key === "ltv") window.location.hash = "#/offers";
-                if (m.key === "churn") window.location.hash = "#/analytics";
-              }}
-            />
-          ),
-        )}
+      {/* KPI - real numbers */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
+        {[
+          { key: "total_fans", label: "Total Fans", value: String(totalFans), hint: "in CRM" },
+          { key: "active_fans", label: "Active Fans", value: String(activeFans), hint: "active status" },
+          { key: "subscribers", label: "Subscribers", value: String(subscribers), hint: "active subs" },
+          { key: "revenue", label: "Revenue", value: currency(totalRevenue), hint: "all time gross", accent: true, onClick: () => (window.location.hash = "#/revenue") },
+          { key: "purchases", label: "Purchases", value: String(totalPurchases), hint: "paid orders" },
+          { key: "content", label: "Content", value: String(totalContent), hint: "items" },
+          { key: "tasks", label: "Tasks", value: String(pendingTasks), hint: "to do" },
+          { key: "ai_activity", label: "AI Runs", value: String((agents ?? []).reduce((s, a) => s + a.tasks, 0)), hint: "all time" },
+        ].map((m) => (
+          <MetricCard
+            key={m.key}
+            label={m.label}
+            value={m.value}
+            hint={m.hint}
+            accent={m.accent}
+            onClick={m.onClick}
+          />
+        ))}
       </div>
 
       {/* Revenue + AI insight */}
@@ -112,7 +119,7 @@ export default function Overview() {
             subtitle={`${period} · gross, all platforms`}
             action={
               <>
-                <Badge tone="pos">{signed(12.4)}</Badge>
+                {summary?.thisMonth ? <Badge tone="pos">{signed(0)}</Badge> : null}
                 <Link to="/revenue" className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-ink">
                   Revenue detail <ChevronRight className="size-3.5" />
                 </Link>
@@ -120,22 +127,24 @@ export default function Overview() {
             }
           />
           <div className="px-5 pb-5">
-            {revenue ? (
+            {revenue && revenue.length > 0 ? (
               <AreaChart data={revenue} height={216} format="currency" />
             ) : (
-              <div className="h-[216px] animate-pulse rounded-lg bg-surface-2" />
+              <div className="flex h-[216px] items-center justify-center rounded-lg bg-surface-2 text-[12.5px] text-muted">
+                No revenue events yet
+              </div>
             )}
             <Divider className="my-4" />
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               {[
-                { label: "Subscriptions", value: "$2,610", tone: "text-ink" },
-                { label: "PPV", value: "$1,940", tone: "text-ink" },
-                { label: "Tips", value: "$270", tone: "text-ink" },
-                { label: "Net after fees", value: "$3,910", tone: "text-accent-hi" },
+                { label: "Subscriptions", value: currency(summary?.byCategory?.subscription ?? 0) },
+                { label: "PPV", value: currency(summary?.byCategory?.ppv ?? 0) },
+                { label: "Tips", value: currency(summary?.byCategory?.tip ?? 0) },
+                { label: "AOV", value: currency(summary?.averageOrderValue ?? 0) },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="label">{s.label}</div>
-                  <div className={cn("num mt-1.5 text-[15px] font-medium", s.tone)}>{s.value}</div>
+                  <div className={cn("num mt-1.5 text-[15px] font-medium", "text-ink")}>{s.value}</div>
                 </div>
               ))}
             </div>
@@ -162,30 +171,19 @@ export default function Overview() {
         <Card>
           <CardHeader
             title="Audience growth"
-            subtitle="Followers across platforms"
-            action={<Badge tone="accent">+{fmtNum(327)} new</Badge>}
+            subtitle="Fans in CRM over time"
+            action={
+              <Badge tone="accent">
+                +{fmtNum((audience ?? []).reduce((s, p) => s + p.value, 0))} new
+              </Badge>
+            }
           />
           <div className="px-5 pb-5">
             <AreaChart data={audience ?? []} height={150} showCompare={false} />
             <Divider className="my-4" />
-            <div className="space-y-3">
-              {[
-                { label: "TikTok", value: 148200, delta: "+18.2%" },
-                { label: "Instagram", value: 62400, delta: "+9.4%" },
-                { label: "Telegram", value: 21800, delta: "+24.1%" },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div className="mb-1.5 flex items-center justify-between text-[12px]">
-                    <span className="text-ink-2">{s.label}</span>
-                    <span className="num flex items-center gap-2 text-muted">
-                      {fmtNum(s.value, true)}
-                      <span className="text-pos">{s.delta}</span>
-                    </span>
-                  </div>
-                  <ProgressBar value={s.value} max={160000} tone="accent" />
-                </div>
-              ))}
-            </div>
+            <p className="text-[11.5px] text-muted">
+              External follower counts (TikTok/Instagram) are not connected — only fans in CRM are shown.
+            </p>
           </div>
         </Card>
 
@@ -221,11 +219,13 @@ export default function Overview() {
                 <Badge>{item.platform}</Badge>
               </Link>
             ))}
-            {!top && <SkeletonRows rows={3} />}
+            {(!top || top.length === 0) && (
+              <div className="p-4 text-[12.5px] text-muted">No content performance data yet.</div>
+            )}
           </div>
           <Divider />
           <div className="px-5 py-4">
-            <div className="label mb-3">Reach → subscriber funnel</div>
+            <div className="label mb-3">Funnel</div>
             <FunnelBars data={funnel ?? []} />
           </div>
         </Card>
@@ -234,7 +234,7 @@ export default function Overview() {
           <CardHeader
             title="Action queue"
             subtitle="Needs attention"
-            action={<Badge tone="warn">4</Badge>}
+            action={<Badge tone="warn">{actionQueue.length}</Badge>}
           />
           <div className="space-y-1 px-2 pb-4">
             {actionQueue.map((item) => (
@@ -254,25 +254,27 @@ export default function Overview() {
           </div>
           <Divider />
           <div className="px-5 py-4">
-            <div className="label mb-3">Storyline progress · {story.season}</div>
-            <div className="space-y-2.5">
-              {nextEpisodes.map((ep) => (
-                <div key={ep.id} className="flex items-center gap-3">
-                  <span className="num w-6 text-[11px] text-faint">{String(ep.number).padStart(2, "0")}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-[12.5px] text-ink-2">{ep.title}</div>
-                    <ProgressBar value={ep.status === "In production" ? 72 : 18} max={100} className="mt-1.5" height={3} />
+            <div className="label mb-3">Storyline · {story.season}</div>
+            {nextContent.length > 0 ? (
+              <div className="space-y-2.5">
+                {nextContent.slice(0, 2).map((c) => (
+                  <div key={c.id} className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[12.5px] text-ink-2">{c.title}</div>
+                    </div>
+                    <Badge>{c.status}</Badge>
                   </div>
-                  <StatusBadge status={ep.status} dot={false} />
-                </div>
-              ))}
-              <Link
-                to="/episodes"
-                className="mt-1 flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
-              >
-                {publishedEpisodes.length} episodes published <ChevronRight className="size-3.5" />
-              </Link>
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[12px] text-muted">No content scheduled.</p>
+            )}
+            <Link
+              to="/content"
+              className="mt-3 flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
+            >
+              All content <ChevronRight className="size-3.5" />
+            </Link>
           </div>
         </Card>
       </Grid>
@@ -280,19 +282,21 @@ export default function Overview() {
       {/* Revenue mix + Mara panel + secondary insights */}
       <Grid className="mt-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Revenue mix" subtitle="Subscription · PPV · tips by week" action={<Badge>6 weeks</Badge>} />
+          <CardHeader title="Revenue mix" subtitle="From revenue_events" />
           <div className="px-5 pb-5">
-            <StackedBars
-              data={["W15", "W16", "W17", "W18", "W19", "W20"].map((label, i) => ({
-                label,
-                segments: [
-                  { key: "Subscriptions", value: 520 + i * 62 },
-                  { key: "PPV", value: 300 + i * 84 },
-                  { key: "Tips", value: 40 + i * 9 },
-                ],
-              }))}
-              height={176}
-            />
+            {revenue && revenue.length > 0 ? (
+              <StackedBars
+                data={revenue.slice(-6).map((p) => ({
+                  label: p.label,
+                  segments: [
+                    { key: "Gross", value: Math.round(p.value) },
+                  ],
+                }))}
+                height={176}
+              />
+            ) : (
+              <EmptyState title="No revenue data" description="Revenue breakdown appears when events exist." />
+            )}
           </div>
         </Card>
 
@@ -311,17 +315,19 @@ export default function Overview() {
               <div className="mt-1.5 text-[13px] leading-snug text-ink">{story.title}</div>
               <p className="mt-2 text-[12px] leading-relaxed text-muted">{story.logline}</p>
             </div>
-            <div className="mt-4 space-y-2.5">
-              {(insights ?? []).slice(1, 3).map((ins) => (
-                <div key={ins.id} className="flex items-start gap-2.5">
-                  <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" strokeWidth={1.9} />
-                  <div className="min-w-0">
-                    <div className="text-[12.5px] leading-snug text-ink-2">{ins.title}</div>
-                    <div className="mt-0.5 text-[11.5px] leading-relaxed text-faint">{ins.body}</div>
+            {(insights ?? []).slice(1, 3).length > 0 && (
+              <div className="mt-4 space-y-2.5">
+                {(insights ?? []).slice(1, 3).map((ins) => (
+                  <div key={ins.id} className="flex items-start gap-2.5">
+                    <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-warn" strokeWidth={1.9} />
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] leading-snug text-ink-2">{ins.title}</div>
+                      <div className="mt-0.5 text-[11.5px] leading-relaxed text-faint">{ins.body}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             <Link
               to="/ai"
               className="mt-4 flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
@@ -334,13 +340,13 @@ export default function Overview() {
 
       {/* Latest activity */}
       <Card className="mt-4 lg:mt-5">
-        <CardHeader title="Latest activity" subtitle="System, content and revenue events from the last 24 hours" />
+        <CardHeader title="Latest activity" subtitle="System, content and revenue events from your workspace" />
         <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: <Users className="size-3.5" />, label: "New fans", value: "+38", meta: "24h · TikTok dominant" },
-            { icon: <Images className="size-3.5" />, label: "Assets generated", value: "12", meta: "9 approved · 3 pending" },
-            { icon: <Clock3 className="size-3.5" />, label: "Median reply time", value: "41 min", meta: "AI draft ready in 8s" },
-            { icon: <TriangleAlert className="size-3.5" />, label: "Churn signals", value: "4", meta: "1 high LTV" },
+            { icon: <Users className="size-3.5" />, label: "Total fans", value: fmtNum(totalFans), meta: "in CRM" },
+            { icon: <Images className="size-3.5" />, label: "Content items", value: String(totalContent), meta: `${(content ?? []).filter((c) => c.status === "Published").length} published` },
+            { icon: <Clock3 className="size-3.5" />, label: "Pending tasks", value: String(pendingTasks), meta: "need attention" },
+            { icon: <TriangleAlert className="size-3.5" />, label: "AI insights", value: String((insights ?? []).length), meta: `${onlineAgents} agents online` },
           ].map((item) => (
             <div key={item.label} className="bg-surface px-5 py-4">
               <div className="flex items-center gap-2 text-faint">
@@ -354,7 +360,7 @@ export default function Overview() {
         </div>
       </Card>
 
-      {!insights && (
+      {!insights?.length && (
         <EmptyState
           title="No AI insights yet"
           description="The Analytics Agent will publish insights once the first sync completes."
@@ -362,7 +368,7 @@ export default function Overview() {
         />
       )}
       <div className="mt-6 text-[11px] text-faint">
-        Mock data · revenue figures are illustrative · last rendered {ago(new Date().toISOString())}
+        Real data from Supabase / demo dataset · last rendered {ago(new Date().toISOString())}
       </div>
     </PageContainer>
   );

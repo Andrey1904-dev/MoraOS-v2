@@ -8,17 +8,20 @@ import {
   Eye,
   Images,
   Plus,
+  Trash2,
   UserPlus,
 } from "lucide-react";
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, StatusBadge, ProgressBar, Divider, KeyStat } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { SkeletonRows } from "@/components/ui/Feedback";
+import { EmptyState, SkeletonRows, useToast } from "@/components/ui/Feedback";
 import { AINote } from "@/components/common/AICard";
+import { Modal } from "@/components/ui/Overlays";
+import { Field, inputClass, textareaClass } from "@/components/ui/Controls";
 import { useResource } from "@/hooks/useResource";
 import { repositories, story } from "@/repositories";
 import { media } from "@/data/media";
-import { currency, longDate, number as fmtNum, shortDate } from "@/lib/format";
+import { currency, number as fmtNum, shortDate } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 const statusColor: Record<string, string> = {
@@ -29,12 +32,58 @@ const statusColor: Record<string, string> = {
 };
 
 export default function Episodes() {
-  const { data, loading } = useResource(() => repositories.content.episodes());
-  const [expanded, setExpanded] = useState<string | null>("ep04");
+  const { push } = useToast();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { data, loading } = useResource(() => repositories.content.episodes(), [refreshKey]);
+  const { data: content } = useResource(() => repositories.content.list(), [refreshKey]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [modal, setModal] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newLogline, setNewLogline] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const published = (data ?? []).filter((e) => e.status === "Published");
   const totalViews = published.reduce((s, e) => s + e.performance.views, 0);
   const totalFollowers = published.reduce((s, e) => s + e.performance.followers, 0);
+
+  const contentById = new Map((content ?? []).map((c) => [c.id, c]));
+
+  async function createEpisode() {
+    if (!newTitle.trim()) {
+      push({ title: "Title required", description: "Give the episode a title.", tone: "error" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const nextNumber = Math.max(0, ...(data ?? []).map((e) => e.number)) + 1;
+      await repositories.content.createEpisode({
+        title: newTitle.trim(),
+        number: nextNumber,
+        logline: newLogline.trim(),
+        description: newLogline.trim(),
+      });
+      push({ title: "Episode created", description: newTitle.trim(), tone: "success" });
+      setModal(false);
+      setNewTitle("");
+      setNewLogline("");
+      setRefreshKey((k) => k + 1);
+    } catch (error) {
+      push({ title: "Create failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteEpisode(id: string, title: string) {
+    if (!confirm(`Delete episode "${title}"? Content will be detached.`)) return;
+    try {
+      await repositories.content.deleteEpisode(id);
+      push({ title: "Episode deleted", description: title, tone: "success" });
+      setRefreshKey((k) => k + 1);
+    } catch (error) {
+      push({ title: "Delete failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    }
+  }
 
   return (
     <PageContainer>
@@ -50,7 +99,7 @@ export default function Episodes() {
           </>
         }
         actions={
-          <Button variant="primary" disabled title="Not available yet">
+          <Button variant="primary" onClick={() => setModal(true)}>
             <Plus className="size-3.5" /> New episode
           </Button>
         }
@@ -61,7 +110,7 @@ export default function Episodes() {
           { label: "Episodes published", value: published.length },
           { label: "Storyline views", value: fmtNum(totalViews, true) },
           { label: "Followers gained", value: `+${fmtNum(totalFollowers, true)}` },
-          { label: "Avg. retention", value: "64%" },
+          { label: "Avg. retention", value: "N/A" },
         ].map((s) => (
           <Card key={s.label} className="p-4">
             <div className="label">{s.label}</div>
@@ -77,10 +126,14 @@ export default function Episodes() {
             <CardHeader title={story.season} subtitle="Vertical storyline — every episode carries the arc forward" />
             <div className="px-5 pb-6">
               {loading && <SkeletonRows rows={5} />}
+              {!loading && (!data || data.length === 0) && (
+                <EmptyState title="No episodes yet" description="Create your first episode to start building the storyline." />
+              )}
               <div className="relative pl-7">
                 <span className="absolute top-1 bottom-1 left-[7px] w-px bg-line" />
                 {(data ?? []).map((ep) => {
                   const open = expanded === ep.id;
+                  const relatedContent = ep.contentIds.map((id) => contentById.get(id)).filter(Boolean);
                   return (
                     <div key={ep.id} className="relative pb-5 last:pb-0">
                       <span
@@ -110,10 +163,10 @@ export default function Episodes() {
                         <div className="mt-3 flex flex-wrap items-center gap-4 text-[11.5px] text-faint">
                           <span className="flex items-center gap-1.5">
                             <CalendarDays className="size-3" />
-                            {ep.status === "Published" ? shortDate(ep.publishedAt) : `target ${shortDate(ep.publishedAt)}`}
+                            {ep.status === "Published" ? shortDate(ep.publishedAt) : ep.publishedAt ? `target ${shortDate(ep.publishedAt)}` : "not scheduled"}
                           </span>
                           <span className="flex items-center gap-1.5">
-                            <Images className="size-3" /> {ep.assetIds.length} assets
+                            <Images className="size-3" /> {relatedContent.length} content
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Eye className="size-3" /> {ep.performance.views ? fmtNum(ep.performance.views, true) : "—"}
@@ -126,14 +179,14 @@ export default function Episodes() {
 
                       {open && (
                         <div className="anim-fade mt-2 rounded-xl border border-line bg-canvas-2/30 p-4">
-                          <p className="text-[12.5px] leading-relaxed text-ink-2">{ep.description}</p>
+                          <p className="text-[12.5px] leading-relaxed text-ink-2">{ep.description || ep.logline}</p>
 
                           <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                            <KeyStat label="Beat" value={ep.beat} />
+                            <KeyStat label="Beat" value={ep.beat || "—"} />
                             <KeyStat label="Retention" value={ep.performance.retention ? `${ep.performance.retention}%` : "—"} />
                             <KeyStat
                               label="Revenue"
-                              value={ep.performance.views ? currency(Math.round(ep.performance.views * 0.006), { compact: true }) : "—"}
+                              value={ep.performance.views ? currency(Math.round(ep.performance.followers * 2), { compact: true }) : "—"}
                             />
                           </div>
 
@@ -143,39 +196,23 @@ export default function Episodes() {
                             <div>
                               <div className="label mb-2.5">Related content</div>
                               <div className="space-y-2">
-                                {ep.contentIds.map((id) => (
+                                {relatedContent.map((c) => c && (
                                   <Link
-                                    key={id}
-                                    to={`/content?open=${id}`}
+                                    key={c.id}
+                                    to={`/content?open=${c.id}`}
                                     className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] text-ink-2 transition-colors hover:border-line-2 hover:text-ink"
                                   >
                                     <Images className="size-3.5 text-faint" />
-                                    <span className="truncate">
-                                      {id === "cnt_01"
-                                        ? "The red notebook"
-                                        : id === "cnt_02"
-                                          ? "Monday again"
-                                          : id === "cnt_03"
-                                            ? "Debt update"
-                                            : id === "cnt_04"
-                                              ? "Apartment, 7am"
-                                              : id === "cnt_05"
-                                                ? "Late night"
-                                                : id === "cnt_06"
-                                                  ? "The reality check"
-                                                  : id === "cnt_09"
-                                                    ? "The decision — trailer"
-                                                    : "First week — honest cut"}
-                                    </span>
+                                    <span className="truncate">{c.title}</span>
                                   </Link>
                                 ))}
-                                {ep.contentIds.length === 0 && <div className="text-[11.5px] text-faint">No content attached yet.</div>}
+                                {relatedContent.length === 0 && <div className="text-[11.5px] text-faint">No content attached yet.</div>}
                               </div>
                             </div>
                             <div>
                               <div className="label mb-2.5">Assets</div>
                               <div className="flex flex-wrap gap-2">
-                                {ep.assetIds.map((id, i) => (
+                                {ep.assetIds.length > 0 ? ep.assetIds.slice(0, 6).map((id, i) => (
                                   <Link key={id} to="/assets" className="group relative">
                                     <SafeImg
                                       src={[media.portraits[0], media.portraits[2], media.portraits[6], media.portraits[3], media.portraits[8], media.wide[9]][i % 6]}
@@ -184,18 +221,19 @@ export default function Episodes() {
                                       className="size-16 rounded-lg border border-line object-cover transition-opacity group-hover:opacity-80"
                                     />
                                   </Link>
-                                ))}
-                                {ep.assetIds.length === 0 && <div className="text-[11.5px] text-faint">No assets attached yet.</div>}
+                                )) : <div className="text-[11.5px] text-faint">No assets attached yet.</div>}
                               </div>
                             </div>
                           </div>
 
                           <div className="mt-4 flex flex-wrap gap-2">
-                            <Button size="sm" variant="primary" disabled title="Not available yet">
-                              Open editor
-                            </Button>
-                            <Button size="sm" variant="subtle" disabled title="Not available yet">
-                              Schedule publish
+                            <Link to={`/content/new`}>
+                              <Button size="sm" variant="primary">
+                                <Plus className="size-3.5" /> Add content
+                              </Button>
+                            </Link>
+                            <Button size="sm" variant="subtle" onClick={() => deleteEpisode(ep.id, ep.title)}>
+                              <Trash2 className="size-3.5" /> Delete
                             </Button>
                           </div>
                         </div>
@@ -217,26 +255,6 @@ export default function Episodes() {
                 <div className="label">Logline</div>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{story.logline}</p>
               </div>
-              <div>
-                <div className="label mb-2">Arc</div>
-                <div className="space-y-2.5">
-                  {[
-                    { beat: "Setup", pct: 100 },
-                    { beat: "Rising", pct: 78 },
-                    { beat: "Midpoint", pct: 46 },
-                    { beat: "Complication", pct: 22 },
-                    { beat: "Resolution", pct: 4 },
-                  ].map((b) => (
-                    <div key={b.beat}>
-                      <div className="mb-1 flex justify-between text-[11.5px]">
-                        <span className="text-muted">{b.beat}</span>
-                        <span className="num text-faint">{b.pct}%</span>
-                      </div>
-                      <ProgressBar value={b.pct} tone={b.pct > 50 ? "accent" : "info"} height={3} />
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </Card>
 
@@ -248,40 +266,49 @@ export default function Episodes() {
               </Link>
             }
           >
-            Episode 05 should ship this Friday, not next week — the storyline is outperforming standalone posts by 34%.
+            Episodes released on Fridays at 18:00 tend to get 34% higher engagement than mid-week drops.
           </AINote>
-
-          <Card>
-            <CardHeader title="Publishing cadence" subtitle="Fridays at 18:00 local" />
-            <div className="px-5 pb-5">
-              <div className="space-y-2.5">
-                {[
-                  { day: "Mon", label: "Story snippet", status: "Approved" },
-                  { day: "Wed", label: "Behind the scenes", status: "In production" },
-                  { day: "Fri", label: "Episode 05", status: "Scheduled" },
-                ].map((r) => (
-                  <div key={r.day} className="flex items-center gap-3">
-                    <span className="num w-8 text-[11px] text-faint">{r.day}</span>
-                    <span className="flex-1 text-[12.5px] text-ink-2">{r.label}</span>
-                    <StatusBadge status={r.status} dot={false} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
 
           <Card className="p-5">
             <div className="flex items-center gap-2 text-faint">
               <Clapperboard className="size-3.5" />
               <span className="label">Next milestone</span>
             </div>
-            <div className="mt-3 text-[13px] text-ink">Episode 05 · The reality check</div>
-            <p className="mt-1 text-[12px] text-muted">Publishes {longDate(new Date(Date.now() + 2 * 86_400_000).toISOString())}</p>
-            <ProgressBar value={72} className="mt-3" />
-            <div className="num mt-2 text-[11px] text-faint">72% of production tasks complete</div>
+            <div className="mt-3 text-[13px] text-ink">{(data ?? []).find((e) => e.status !== "Published")?.title ?? "All episodes published"}</div>
+            <p className="mt-1 text-[12px] text-muted">
+              {(data ?? []).filter((e) => e.status !== "Published").length} episode(s) in progress.
+            </p>
+            <div className="mt-3">
+              <ProgressBar value={Math.min(100, published.length * 20)} />
+            </div>
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={modal}
+        onClose={() => !saving && setModal(false)}
+        title="New episode"
+        subtitle="Create a new story beat."
+        width="max-w-lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setModal(false)} disabled={saving}>Cancel</Button>
+            <Button variant="primary" loading={saving} onClick={() => void createEpisode()}>
+              Create episode
+            </Button>
+          </>
+        }
+      >
+        <div className="grid gap-4">
+          <Field label="Title">
+            <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Episode title" className={inputClass} />
+          </Field>
+          <Field label="Logline / summary">
+            <textarea value={newLogline} onChange={(e) => setNewLogline(e.target.value)} rows={3} placeholder="One-line description" className={textareaClass} />
+          </Field>
+        </div>
+      </Modal>
     </PageContainer>
   );
 }

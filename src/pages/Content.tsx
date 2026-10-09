@@ -20,7 +20,6 @@ import { ContentEditorPanel } from "@/components/content/ContentEditorPanel";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { currency, number as fmtNum, shortDate } from "@/lib/format";
-import { episodes } from "@/data/content";
 import { cn } from "@/utils/cn";
 
 const FILTERS = ["All", "Idea", "Draft", "Ready", "Scheduled", "Published"] as const;
@@ -34,33 +33,42 @@ const PLATFORM_TONE: Record<string, "accent" | "info" | "neutral" | "pos"> = {
   Telegram: "info",
 };
 
+const PLACEHOLDER_IMAGES: Record<string, string> = {
+  Fanvue: "https://images.pexels.com/photos/37657504/pexels-photo-37657504.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000",
+  Instagram: "https://images.pexels.com/photos/14995251/pexels-photo-14995251.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000",
+  TikTok: "https://images.pexels.com/photos/34011808/pexels-photo-34011808.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000",
+};
+
 export default function Content() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<string>("All");
   const [view, setView] = useState<string>("Grid");
   const [search, setSearch] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const { data, loading } = useResource(() => repositories.content.list());
+  const { data, loading } = useResource(
+    () => repositories.content.list({ search: search || undefined, status: filter !== "All" ? filter : undefined }),
+    [filter, search, refreshKey],
+  );
+  const { data: episodes } = useResource(() => repositories.content.episodes());
 
   const openId = params.get("open");
   const openItem = data?.find((c) => c.id === openId) ?? null;
 
-  const rows = useMemo(() => {
-    let list = [...(data ?? [])];
-    if (filter !== "All") list = list.filter((c) => c.status === filter);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((c) => c.title.toLowerCase().includes(q) || c.platform.toLowerCase().includes(q));
-    }
-    return list;
-  }, [data, filter, search]);
+  const rows = useMemo(() => data ?? [], [data]);
 
   const counts = useMemo(() => {
     const acc: Record<string, number> = {};
     (data ?? []).forEach((c) => (acc[c.status] = (acc[c.status] ?? 0) + 1));
     return acc;
   }, [data]);
+
+  const episodesById = useMemo(() => {
+    const map = new Map<string, { number: number; title: string }>();
+    for (const e of episodes ?? []) map.set(e.id, { number: e.number, title: e.title });
+    return map;
+  }, [episodes]);
 
   const calendarCells = useMemo(() => {
     const now = new Date();
@@ -74,6 +82,10 @@ export default function Content() {
       ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
     ];
   }, []);
+
+  function getImage(c: { platform: string }) {
+    return PLACEHOLDER_IMAGES[c.platform] ?? PLACEHOLDER_IMAGES.TikTok;
+  }
 
   return (
     <PageContainer>
@@ -117,7 +129,7 @@ export default function Content() {
         {!loading && view === "Grid" && (
           <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {rows.map((c) => {
-              const ep = episodes.find((e) => e.id === c.episodeId);
+              const ep = episodesById.get(c.episodeId ?? "");
               return (
                 <button
                   key={c.id}
@@ -131,13 +143,7 @@ export default function Content() {
                       </div>
                     ) : (
                       <SafeImg
-                        src={
-                          c.platform === "Fanvue"
-                            ? "https://images.pexels.com/photos/37657504/pexels-photo-37657504.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000"
-                            : c.platform === "Instagram"
-                              ? "https://images.pexels.com/photos/14995251/pexels-photo-14995251.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000"
-                              : "https://images.pexels.com/photos/34011808/pexels-photo-34011808.jpeg?auto=compress&cs=tinysrgb&fit=crop&w=800&h=1000"
-                        }
+                        src={getImage(c)}
                         alt={c.title}
                         loading="lazy"
                         className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
@@ -209,7 +215,7 @@ export default function Content() {
               <span>Title</span><span>Platform</span><span>Episode</span><span>Status</span><span>Views</span><span>Engagement</span><span>Revenue</span>
             </div>
             {rows.map((c) => {
-              const ep = episodes.find((e) => e.id === c.episodeId);
+              const ep = episodesById.get(c.episodeId ?? "");
               return (
                 <button
                   key={c.id}
@@ -233,7 +239,7 @@ export default function Content() {
             {/* Mobile list */}
             <div className="divide-y divide-line lg:hidden">
               {rows.map((c) => {
-                const ep = episodes.find((e) => e.id === c.episodeId);
+                const ep = episodesById.get(c.episodeId ?? "");
                 return (
                   <button key={c.id} onClick={() => setParams({ open: c.id })} className="w-full px-4 py-4 text-left">
                     <div className="flex items-center gap-2">
@@ -333,13 +339,18 @@ export default function Content() {
         subtitle="Changes stay in Mara OS until you publish."
         width="max-w-4xl"
         footer={
-          <Button variant="primary" onClick={() => setParams({})}>
+          <Button variant="primary" onClick={() => { setRefreshKey((k) => k + 1); setParams({}); }}>
             Done
           </Button>
         }
       >
         {openItem && (
-          <ContentEditorPanel item={openItem} onCancel={() => setParams({})} onSaved={() => setParams({})} />
+          <ContentEditorPanel
+            item={openItem}
+            onCancel={() => setParams({})}
+            onSaved={() => { setRefreshKey((k) => k + 1); setParams({}); }}
+            onDeleted={() => { setRefreshKey((k) => k + 1); setParams({}); }}
+          />
         )}
       </Modal>
 

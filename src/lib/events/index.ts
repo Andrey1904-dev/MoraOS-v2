@@ -22,9 +22,9 @@ export type MaraEventType =
   | 'fan_exported'
   | 'fan_erased'
   | 'demo_reset'
-  // Зарезервированы: пока нигде не отправляются (список — в README, раздел «События»).
-  | 'reply_sent'
+  | 'content_created'
   | 'content_published'
+  | 'reply_sent'
   | 'automation_run'
 
 export interface MaraEvent {

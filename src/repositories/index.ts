@@ -57,7 +57,7 @@ export const repositories: Repositories = {
   character: delegate("character"),
 };
 
-export type { Repositories } from "./types";
+export type { Repositories, RevenueSummary } from "./types";
 export const actionQueue = ops.actionQueue;
 export const story = ops.story;
 export const staticCharacter = ops.character;

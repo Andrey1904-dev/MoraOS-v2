@@ -1,4 +1,4 @@
-import type { Automation, ContentItem, Memory, Message, Task, Fan } from "@/types";
+import type { Automation, ContentItem, Episode, Memory, Message, Task, Fan } from "@/types";
 import type { AiRunEntry } from "./types";
 
 /**
@@ -35,6 +35,7 @@ export interface DemoStoreState {
   aiRuns: AiRunEntry[];
   contentDrafts: ContentItem[];
   contentStatus: Record<string, ContentItem["status"]>;
+  addedEpisodes: Episode[];
   fansRelationship: Record<string, Fan["relationship"]>;
   events: DemoFanEvent[];
   /** Фаны, чьи данные «удалены» в демо (право на удаление): скрываются из всех экранов. */
@@ -52,6 +53,7 @@ const EMPTY: DemoStoreState = {
   aiRuns: [],
   contentDrafts: [],
   contentStatus: {},
+  addedEpisodes: [],
   fansRelationship: {},
   events: [],
   erasedFanIds: [],
@@ -106,6 +108,15 @@ export function resetDemoStore(): void {
   } catch {
     /* ignore */
   }
+  // Fire demo_reset event (fire-and-forget, must not throw).
+  void (async () => {
+    try {
+      const { trackEvent } = await import("@/lib/events");
+      await trackEvent({ type: "demo_reset", entityType: "system" });
+    } catch {
+      /* ignore */
+    }
+  })();
 }
 
 export const demoId = (prefix: string): string =>

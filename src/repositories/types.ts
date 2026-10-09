@@ -67,12 +67,16 @@ export interface ConversationRepository {
 }
 
 export interface ContentRepository {
-  list(): Promise<ContentItem[]>;
+  list(query?: { search?: string; status?: string; platform?: string; type?: string }): Promise<ContentItem[]>;
   get(id: string): Promise<ContentItem | null>;
   episodes(): Promise<Episode[]>;
   assets(): Promise<Asset[]>;
   saveDraft(item: Partial<ContentItem> & { title: string }): Promise<ContentItem>;
   setStatus(id: string, status: ContentItem["status"]): Promise<ContentItem | null>;
+  delete(id: string): Promise<boolean>;
+  createEpisode(episode: Partial<Episode> & { title: string; number: number }): Promise<Episode>;
+  updateEpisode(id: string, patch: Partial<Episode>): Promise<Episode | null>;
+  deleteEpisode(id: string): Promise<boolean>;
 }
 
 export interface CommerceRepository {
@@ -82,6 +86,19 @@ export interface CommerceRepository {
   topSpenders(): Promise<
     { fanId: string; name: string; handle: string; amount: number; orders: number; last: string }[]
   >;
+}
+
+export interface RevenueSummary {
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  total: number;
+  purchases: number;
+  subscriptions: number;
+  averageOrderValue: number;
+  byCategory: Record<string, number>;
+  /** Revenue split by source platform: telegram / fanvue / tiktok / etc. */
+  bySource: SeriesPoint[];
 }
 
 export interface AnalyticsRepository {
@@ -94,6 +111,9 @@ export interface AnalyticsRepository {
   topContent(): Promise<
     { rank: number; title: string; views: number; followers: number; platform: ContentItem["platform"]; id: string }[]
   >;
+  /** Aggregated revenue KPIs (all platforms, all time). */
+  revenueSummary(): Promise<RevenueSummary>;
+  followersByPlatform(): Promise<SeriesPoint[]>;
 }
 
 export interface AiRunEntry {

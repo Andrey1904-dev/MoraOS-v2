@@ -117,8 +117,10 @@ export type ContentType = "Image" | "Video" | "Text" | "Story";
 export interface ContentItem {
   id: string;
   title: string;
+  description: string;
   hook: string;
   caption: string;
+  script: string;
   cta: string;
   platform: Platform;
   type: ContentType;

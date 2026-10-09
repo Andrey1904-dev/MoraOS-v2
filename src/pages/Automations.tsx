@@ -1,7 +1,8 @@
-import { ArrowDown, Bot, Cog, Pause, Play, Workflow, Zap } from "lucide-react";
+import { ArrowDown, Bot, Cog, Pause, Play, Zap, Plus } from "lucide-react";
 import { PageContainer, PageHeader, Grid } from "@/components/layout/Page";
 import { Card, CardHeader, Badge, StatusBadge, Divider } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Feedback";
 
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
@@ -9,29 +10,50 @@ import { ago, number as fmtNum } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 export default function Automations() {
-  const { data, loading } = useResource(() => repositories.ai.automations());
+  const { push } = useToast();
+  const { data, loading, refetch } = useResource(() => repositories.ai.automations());
+
+  async function setStatus(id: string, currentStatus: string) {
+    const next = currentStatus === "Active" ? "Paused" : "Active";
+    try {
+      await repositories.ai.setAutomationStatus(id, next);
+      push({ title: next === "Active" ? "Automation enabled" : "Automation disabled", tone: "success" });
+      void refetch();
+    } catch (error) {
+      push({ title: "Update failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    }
+  }
+
+  async function runNow(id: string, name: string) {
+    try {
+      await repositories.ai.recordAutomationRun(id);
+      push({ title: `Ran: ${name}`, description: "Run logged to automation_runs.", tone: "success" });
+      void refetch();
+    } catch (error) {
+      push({ title: "Run failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+    }
+  }
 
   return (
     <PageContainer>
       <PageHeader
         eyebrow="AI"
         title="Automations"
-        description="Workflow definitions that connect fans, content and money. Every step is either deterministic or an AI decision point."
+        description="Workflow definitions that connect fans, content and money. MVP: every action runs synchronously when triggered; no enterprise engine yet."
         actions={
           <>
-            <Button variant="outline" disabled title="The automation engine is not connected yet" aria-label="Pause all (not available yet)">
+            <Button variant="outline" disabled title="Pause-all control coming after MVP">
               <Pause className="size-3.5" /> Pause all
             </Button>
-            <Button variant="primary" disabled title="The visual builder ships with the automation engine" aria-label="New workflow (not available yet)">
-              <Workflow className="size-3.5" /> New workflow
+            <Button variant="primary" disabled title="Visual workflow builder is post-MVP">
+              <Plus className="size-3.5" /> New workflow
             </Button>
           </>
         }
       />
 
-      <div role="note" className="mt-4 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-[12.5px] leading-6 text-warn">
-        The automation engine is not connected yet, so nothing on this page runs by itself. The workflows and
-        runs shown are sample definitions.
+      <div role="note" className="mt-4 rounded-lg border border-info/40 bg-info/10 px-4 py-3 text-[12.5px] leading-6 text-info">
+        MVP runner: triggers are defined but conditions execute as simple pass-through. Each "Run now" logs an entry to <code className="rounded bg-surface-2 px-1 font-mono text-[11px]">automation_runs</code>.
       </div>
 
       <Grid className="lg:grid-cols-4">
@@ -67,12 +89,18 @@ export default function Automations() {
                 <Button
                   size="sm"
                   variant="subtle"
-                  disabled
-                  title="The automation engine is not connected yet"
-                  aria-label={`${w.status === "Active" ? "Pause" : "Resume"} ${w.name} (not available yet)`}
+                  onClick={() => void setStatus(w.id, w.status)}
                 >
                   {w.status === "Active" ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                  {w.status === "Active" ? "Pause" : "Resume"}
+                  {w.status === "Active" ? "Disable" : "Enable"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => void runNow(w.id, w.name)}
+                  disabled={w.status !== "Active"}
+                >
+                  <Play className="size-3.5" /> Run now
                 </Button>
               </div>
             </div>
@@ -145,42 +173,39 @@ export default function Automations() {
 
       <Grid className="mt-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Run history" subtitle="Sample data — the engine does not run workflows yet" />
+          <CardHeader title="Kill switch" subtitle="One click to disable every automation" />
           <div className="space-y-3 px-5 pb-5">
-            {[
-              { wf: "PPV purchase → next action", at: "4 min ago", status: "Success" },
-              { wf: "New fan onboarding", at: "12 min ago", status: "Success" },
-              { wf: "Churn risk rescue", at: "38 min ago", status: "Success" },
-              { wf: "Episode publishing", at: "2 days ago", status: "Paused" },
-            ].map((r) => (
-              <div key={r.at} className="flex items-center gap-3">
-                <span className="size-1.5 rounded-full bg-pos" />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[12.5px] text-ink-2">{r.wf}</div>
-                </div>
-                <span className="num text-[11px] text-faint">{r.at}</span>
-                <StatusBadge status={r.status} dot={false} />
-              </div>
-            ))}
+            <p className="text-[12.5px] leading-relaxed text-muted">
+              If an automation misbehaves, use the Disable button next to it above. The button below pauses every active workflow at once.
+            </p>
+            <Button
+              variant="primary"
+              onClick={async () => {
+                for (const w of data ?? []) {
+                  if (w.status === "Active") {
+                    await repositories.ai.setAutomationStatus(w.id, "Paused");
+                  }
+                }
+                push({ title: "All automations paused", tone: "success" });
+                void refetch();
+              }}
+            >
+              <Pause className="size-3.5" /> Pause all workflows
+            </Button>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Approval policy" subtitle="What the system may do without you" />
+          <CardHeader title="Supported triggers" subtitle="MVP" />
           <div className="space-y-3 px-5 pb-5">
             {[
-              { label: "Create CRM records", value: "Allowed" },
-              { label: "Update LTV and relationship", value: "Allowed" },
-              { label: "Draft messages", value: "Allowed" },
-              { label: "Send messages", value: "Requires approval" },
-              { label: "Publish content", value: "Requires approval" },
-              { label: "Change prices", value: "Blocked" },
+              { t: "manual", d: "Triggered by the operator (Run now)." },
+              { t: "schedule", d: "Time-based; runner invoked externally (cron or Edge Function cron)." },
+              { t: "event", d: "Fires on matching event types (fan_created, subscription_started, etc.)." },
             ].map((r) => (
-              <div key={r.label} className="flex items-center justify-between text-[12.5px]">
-                <span className="text-muted">{r.label}</span>
-                <Badge tone={r.value === "Allowed" ? "pos" : r.value === "Blocked" ? "neg" : "warn"} dot>
-                  {r.value}
-                </Badge>
+              <div key={r.t} className="flex items-start gap-3">
+                <span className="num mt-0.5 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px]">{r.t}</span>
+                <span className="text-[12px] leading-relaxed text-muted">{r.d}</span>
               </div>
             ))}
           </div>
