@@ -147,6 +147,39 @@ export function plural(value, one, many = `${one}s`) {
   return Math.abs(Number(value)) === 1 ? one : many
 }
 
+/** One-line preview of a longer text (draft excerpts in bot screens). */
+export function truncateText(value, limit = 220) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim()
+  return text.length > limit ? `${text.slice(0, Math.max(1, limit - 1))}…` : text
+}
+
+/**
+ * uuid ↔ base64url for Telegram callback_data (64-byte budget).
+ * 'xxxxxxxx-xxxx-…' (36 chars) becomes 22 url-safe chars:
+ * callback 'dra<conv><msg>' = 3+22+22 = 47 bytes — fits with room to spare.
+ */
+export function uuidToB64Uuid(value) {
+  const hex = String(value ?? '').replace(/-/g, '').toLowerCase()
+  if (!/^[0-9a-f]{32}$/.test(hex)) return ''
+  const bytes = new Uint8Array(16)
+  for (let i = 0; i < 16; i += 1) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+export function b64UuidToUuid(value) {
+  const b64 = String(value ?? '').replace(/-/g, '+').replace(/_/g, '/')
+  if (!/^[A-Za-z0-9+/]{22}(==)?$/.test(b64)) return ''
+  let binary = ''
+  try {
+    binary = atob(b64)
+  } catch {
+    return ''
+  }
+  if (binary.length !== 16) return ''
+  const hex = [...binary].map((ch) => ch.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
 /* ------------------------------------------------------- Telegram Mini App --- */
 
 /**
@@ -159,9 +192,12 @@ export const MINI_APP_SCREENS = Object.freeze([
   'fans',
   'messages',
   'content',
+  'episodes',
   'analytics',
+  'revenue',
   'tasks',
   'ai',
+  'automations',
   'settings',
   'telegram',
 ])

@@ -35,6 +35,9 @@ interface AppConfig {
   telegramToken?: string
   webhookSecret?: string
   webAppUrl?: string
+  aiApiKey?: string
+  aiBaseUrl?: string
+  aiModel?: string
   corsAllowedOrigins?: string
   allowLocalOrigins?: boolean
   fetchImpl?: typeof fetch
@@ -65,6 +68,12 @@ export function createApp(config: AppConfig = {}) {
     supabaseAnonKey: supabaseAnonKey || 'not-configured',
     supabaseServiceRoleKey: supabaseServiceRoleKey || 'not-configured',
     webAppUrl,
+    ai: {
+      apiKey: config.aiApiKey ?? readEnv('AI_API_KEY'),
+      baseUrl: config.aiBaseUrl ?? readEnv('AI_BASE_URL'),
+      model: config.aiModel ?? readEnv('AI_MODEL'),
+    },
+    transportMode: 'webhook',
     fetchImpl,
     logger,
     now,

@@ -14,7 +14,7 @@ import path from 'node:path'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-export const EDGE_SHARED_FILES = Object.freeze(['core.mjs', 'format.mjs', 'api.mjs'])
+export const EDGE_SHARED_FILES = Object.freeze(['core.mjs', 'format.mjs', 'api.mjs', 'ai.mjs'])
 export const EDGE_DIR = path.join(root, 'supabase', 'functions', 'telegram-api')
 
 /** Возвращает список расхождений; пустой массив — копии совпадают. */

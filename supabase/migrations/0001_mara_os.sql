@@ -7,7 +7,8 @@
 -- ПОРЯДОК ПРИМЕНЕНИЯ (Supabase Dashboard → SQL Editor):
 --   Шаг 1. Выполнить ЭТОТ файл целиком (Run).
 --   Шаг 2. Выполнить 0002_mara_os_schema.sql, затем 0003_mara_os_storage.sql,
---          затем 0004_telegram_rate_limit.sql (все идемпотентны).
+--          затем 0004_telegram_link_safety.sql и 0005_telegram_notifications.sql
+--          (все идемпотентны).
 --   Шаг 3. (Опционально) supabase/seed/mara_seed.sql — демо-данные, вручную.
 --
 -- Что делает этот файл:
