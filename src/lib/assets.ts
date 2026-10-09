@@ -11,11 +11,5 @@ export function publicAssetUrl(path: string): string {
   return `${base}/${path.replace(/^\/+/, '')}`
 }
 
-/** Фирменный знак Mara OS (public/logo.png): навигация, заставка, экран входа. */
+/** Фирменный знак Mara OS (public/logo.png): навигация, заставка, экран входа, аватар ассистента. */
 export const BRAND_LOGO_URL = publicAssetUrl('logo.png')
-
-/** Аватар ассистента в Telegram (public/images/): WebP с запасным JPG. */
-export const TELEGRAM_ASSISTANT_AVATAR = {
-  webp: publicAssetUrl('images/telegram-assistant-avatar.webp'),
-  jpg: publicAssetUrl('images/telegram-assistant-avatar.jpg'),
-} as const

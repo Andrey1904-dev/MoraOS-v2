@@ -25,24 +25,24 @@ import {
   type TelegramLinkPreview,
   type TelegramLinkStatus,
 } from "@/lib/telegram";
-import { TELEGRAM_ASSISTANT_AVATAR } from "@/lib/assets";
+import { BRAND_LOGO_URL } from "@/lib/assets";
 
-/** Узнаваемая «визитка» ассистента: аватар, имя и публичный @username из сборки. */
+/**
+ * Узнаваемая «визитка» ассистента: знак Mara OS как аватар, имя и публичный @username из сборки.
+ * Отдельного фото ассистента пока нет — когда оно появится, заменяется только этот src.
+ */
 function BotIdentity() {
   return (
     <div className="flex items-center gap-3">
-      <picture>
-        <source srcSet={TELEGRAM_ASSISTANT_AVATAR.webp} type="image/webp" />
-        <img
-          src={TELEGRAM_ASSISTANT_AVATAR.jpg}
-          alt="Аватар Mara OS Assistant"
-          width={48}
-          height={48}
-          loading="lazy"
-          decoding="async"
-          className="size-12 shrink-0 rounded-full object-cover ring-1 ring-line"
-        />
-      </picture>
+      <img
+        src={BRAND_LOGO_URL}
+        alt=""
+        width={48}
+        height={48}
+        loading="lazy"
+        decoding="async"
+        className="size-12 shrink-0 rounded-[12px]"
+      />
       <div className="min-w-0">
         <div className="text-[13px] font-medium text-ink">Mara OS Assistant</div>
         <div className="truncate text-[12px] text-muted">
