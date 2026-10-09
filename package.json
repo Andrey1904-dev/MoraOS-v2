@@ -12,6 +12,7 @@
     "test": "node scripts/test.mjs",
     "bot:start": "node bot/server.mjs",
     "bot:local": "node --env-file=bot/.env bot/server.mjs",
+    "bot:doctor": "node scripts/telegram-doctor.mjs",
     "bot:test": "node --test tests/telegram.test.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run smoke && npm run build && npm run check:dist && npm run sync:edge -- --check",
     "smoke": "node scripts/smoke-demo.mjs && node scripts/smoke-build.mjs && node scripts/smoke-telegram-config.mjs && node scripts/smoke-telegram-api.mjs && node scripts/smoke-telegram-setup.mjs",

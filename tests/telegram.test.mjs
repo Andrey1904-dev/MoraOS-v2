@@ -1013,3 +1013,104 @@ test('main keyboard covers all Mara OS sections', async () => {
     assert.ok(buttons.some((b) => b.callback_data === key), key)
   }
 })
+
+/* --------------------------------------------- telegram-doctor: вердикты --- */
+
+test('doctor: без webhookа — главная причина молчания /start', async () => {
+  const { diagnose } = await import('../scripts/telegram-doctor.mjs')
+  const { findings, ok } = diagnose({
+    me: { username: 'MaraOSAssistant_bot' },
+    webhookInfo: { url: '', pending_update_count: 0 },
+    health: null,
+    probe: null,
+  })
+  const missing = findings.find((f) => f.title.startsWith('Webhook не установлен'))
+  assert.ok(missing, 'находка о webhookе есть')
+  assert.equal(missing.level, 'fail')
+  assert.match(missing.fix, /bot:setup/)
+  assert.equal(ok, false)
+})
+
+test('doctor: 403 от функции — секрет вебхука не совпадает', async () => {
+  const { diagnose, mapWebhookError } = await import('../scripts/telegram-doctor.mjs')
+  const mapped = mapWebhookError('Wrong response from the webhook: 403 Forbidden')
+  assert.equal(mapped.level, 'fail')
+  assert.match(mapped.title, /секрет/)
+
+  const recent = Math.floor(Date.now() / 1000) - 60
+  const { findings } = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api', last_error_date: recent, last_error_message: mapped.title },
+    health: null,
+    probe: { withSecret: 403, withoutSecret: 403 },
+  })
+  const secretFail = findings.filter((f) => f.level === 'fail' && /секрет/i.test(f.title))
+  assert.ok(secretFail.length >= 2, 'ошибка секрета видна и в доставке, и в пробе')
+})
+
+test('doctor: секрет совпал, маршрут работает — всё зелёное', async () => {
+  const { diagnose } = await import('../scripts/telegram-doctor.mjs')
+  const { findings, ok } = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api', pending_update_count: 0 },
+    health: { status: 200, body: { ok: true, mode: 'webhook', botPolling: 'online', configured: true } },
+    probe: { withSecret: 200, withoutSecret: 403 },
+    functionUrlKnown: true,
+  })
+  assert.equal(ok, true)
+  assert.ok(findings.every((f) => f.level === 'ok'), findings.map((f) => f.title).join('; '))
+})
+
+test('doctor: у функции нет токена (configured=false) и разные боты', async () => {
+  const { diagnose } = await import('../scripts/telegram-doctor.mjs')
+  const noToken = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api' },
+    health: { status: 503, body: { ok: false, configured: false, hint: 'Для функции telegram-api не задан TELEGRAM_BOT_TOKEN.' } },
+    probe: null,
+  })
+  assert.ok(noToken.findings.some((f) => f.level === 'fail' && f.title.includes('нет токена')))
+
+  const otherBot = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api' },
+    health: { status: 503, body: { ok: false, configured: true, botPolling: 'stopped', hint: 'Webhook не настроен. Запустите scripts/telegram-bot-setup.mjs.' } },
+    probe: null,
+  })
+  assert.ok(otherBot.findings.some((f) => f.level === 'fail' && f.title.includes('разные боты')))
+})
+
+test('doctor: функция не развёрнута (404) и недоступна (сеть)', async () => {
+  const { diagnose } = await import('../scripts/telegram-doctor.mjs')
+  const notFound = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api', pending_update_count: 3, last_error_date: Math.floor(Date.now() / 1000) - 120, last_error_message: 'Wrong response from the webhook: 404 Not Found' },
+    health: { status: 404, body: null },
+    probe: { withSecret: 404, withoutSecret: 403 },
+  })
+  assert.ok(notFound.findings.some((f) => f.level === 'fail' && /404|не найдена|не задеплоена|не совпадает/i.test(f.title)))
+  assert.ok(notFound.findings.some((f) => f.level === 'warn' && /очереди 3/.test(f.title)))
+
+  const unreachable = diagnose({
+    me: null,
+    webhookInfo: null,
+    health: { status: null, body: null },
+    probe: { withSecret: null, withoutSecret: null },
+  })
+  assert.equal(unreachable.ok, false)
+  assert.ok(unreachable.findings.length >= 3, 'по находке на каждый шаг')
+})
+
+test('doctor: старая ошибка доставки не считается текущей', async () => {
+  const { diagnose } = await import('../scripts/telegram-doctor.mjs')
+  const stale = Math.floor(Date.now() / 1000) - 6 * 3600
+  const { findings } = diagnose({
+    me: { username: 'bot' },
+    webhookInfo: { url: 'https://ref.supabase.co/functions/v1/telegram-api', last_error_date: stale, last_error_message: 'Wrong response from the webhook: 500' },
+    health: { status: 200, body: { ok: true, mode: 'webhook', botPolling: 'online' } },
+    probe: null,
+    functionUrlKnown: true,
+  })
+  assert.ok(findings.some((f) => f.level === 'warn' && /Ранее была ошибка/.test(f.title)))
+  assert.ok(!findings.some((f) => f.level === 'fail' && /5xx/.test(f.title)))
+})
