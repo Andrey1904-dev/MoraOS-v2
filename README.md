@@ -94,17 +94,27 @@ npm run dev        # http://localhost:5173 — демо-режим (данные
 npm run lint         # ESLint (flat config, react-hooks)
 npm run typecheck    # строгий TypeScript
 npm test             # юнит-тесты, Mini App, бот и API (≈100 тестов)
-npm run smoke        # демо-сценарий, контракты Telegram API, config и setup
-npm run build        # сборка для GitHub Pages (base из site.config.json)
-npm run check:dist   # в сборке нет секретов и localhost-адресов
+npm run smoke         # демо-сценарий, контракты Telegram API, config и setup
+npm run build         # сборка для GitHub Pages (base из site.config.json)
+npm run check:dist    # в сборке нет секретов и localhost-адресов
 npm run sync:edge -- --check   # копии общих модулей бота совпадают
-npm run check        # всё вместе
-npm run e2e          # Mini App в настоящем Chrome (нужен npm run build)
+npm run check         # всё вместе
+npm run e2e           # Mini App в настоящем Chrome (нужен npm run build)
 E2E_ONLY=1,3 npm run e2e   # выбранные сценарии
 ```
 
 Для e2e нужен Chrome (`CHROME_PATH` или установленный Google Chrome). Без браузера тест
 пропускается; с `E2E_REQUIRED=1` это ошибка (так и сделано в CI).
+
+Бот:
+
+```bash
+npm run bot:start               # Node-транспорт бота (long polling)
+npm run bot:local               # то же с секретами из bot/.env
+npm run bot:doctor              # диагностика молчащего бота (webhook, /health, секрет) — read-only
+npm run bot:setup -- --deploy   # секреты + деплой Edge Function + webhook + меню
+npm run bot:test                # тесты бота и API
+```
 
 ## Деплой
 

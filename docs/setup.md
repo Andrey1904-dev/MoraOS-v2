@@ -109,6 +109,29 @@ Actions → «Telegram bot — Mini App setup» → Run workflow. Секреты
 Опционально: `CORS_ALLOWED_ORIGINS` (через запятую) — дополнительные origin сайта.
 `ALLOW_LOCAL_ORIGINS=1` — только для локальной разработки (localhost:5173). В продакшне не задавать.
 
+### Диагностика молчащего бота
+
+Если бот не реагирует на `/start`, запустите read-only проверку всей цепочки доставки
+(токен → webhook → `/health` функции → секрет вебхука). Скрипт ничего не меняет:
+
+```bash
+TELEGRAM_BOT_TOKEN=… node scripts/telegram-doctor.mjs
+node --env-file=bot/.env scripts/telegram-doctor.mjs    # с секретами из bot/.env
+```
+
+С опциональным `TELEGRAM_WEBHOOK_SECRET` дополнительно проверяется совпадение секрета
+функции (частая «тихая» причина: Telegram получает 403 и молча теряет обновления).
+Типовые вердикты и исправления:
+
+| Находка | Причина | Исправление |
+|---|---|---|
+| «Webhook не установлен» | setup не запускался или шёл в режиме `menu` (ставит только кнопку Mini App) | `npm run bot:setup -- --deploy` или workflow `mode: full` |
+| «секрет вебхука не совпадает» | `TELEGRAM_WEBHOOK_SECRET` у функции и в webhook разные | повторить setup с `--deploy` (секрет генерируется заново) |
+| «функция не найдена» (404) | Edge Function не задеплоена в этот проект | `npm run bot:setup -- --deploy` |
+| «У функции нет токена» | секрет `TELEGRAM_BOT_TOKEN` не задан | `npm run bot:setup -- --deploy` или `supabase secrets set` |
+| «Токен функции и токен проверки — разные боты» | в секретах функции токен другого бота | записать токен этого бота, повторить setup |
+| «проект Supabase недоступен» | free tier проект ушёл в паузу | разбудить проект в дашборде Supabase |
+
 ### AI-провайдер бота (опционально)
 
 Команды `/ai` → «Ideas» и «Briefings» работают через реальный OpenAI-совместимый
