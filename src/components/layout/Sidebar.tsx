@@ -8,14 +8,14 @@ import { cn } from "@/utils/cn";
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-line bg-canvas-2">
-      {/* Wordmark */}
+      {/* Логотип */}
       <div className="flex h-14 items-center gap-2.5 px-5">
         <span className="grid size-6 place-items-center rounded-[6px] bg-accent text-[11px] font-bold text-white">M</span>
         <span className="text-[12.5px] font-semibold tracking-[0.14em] text-ink">MARA OS</span>
         <span className="num ml-auto rounded border border-line px-1 py-0.5 text-[10px] text-faint">v2</span>
       </div>
 
-      {/* Active character */}
+      {/* Активный персонаж */}
       <div className="mx-3 mb-4 flex items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5">
         <SafeImg
           src={media.mara}
@@ -28,12 +28,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <span className="size-1.5 shrink-0 rounded-full bg-pos shadow-[0_0_0_3px_rgba(87,160,111,0.15)]" />
             <span className="truncate text-[12.5px] font-medium text-ink">Mara Quinn</span>
           </div>
-          <div className="mt-0.5 truncate text-[11px] text-muted">Virtual Creator</div>
+          <div className="mt-0.5 truncate text-[11px] text-muted">Виртуальный креатор</div>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav aria-label="Primary navigation" className="hide-scrollbar flex-1 overflow-y-auto px-3 pb-4">
+      {/* Навигация */}
+      <nav aria-label="Основная навигация" className="hide-scrollbar flex-1 overflow-y-auto px-3 pb-4">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-5">
             <div className="label mb-2 px-2">{group.label}</div>
@@ -81,12 +81,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      {/* System footer */}
+      {/* Системный футер */}
       <div className="border-t border-line px-4 py-3">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-[11px] text-faint">
             <Circle className="size-1.5 fill-pos text-pos" />
-            All systems normal
+            Все системы в норме
           </span>
           <span className="flex items-center gap-1 text-[10.5px] text-faint">
             <CommandIcon className="size-3" />K

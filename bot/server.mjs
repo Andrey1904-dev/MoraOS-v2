@@ -122,11 +122,11 @@ export async function start() {
           try {
             await bot.handleUpdate(update)
           } catch (error) {
-            console.error('[telegram] update handler failed:', error instanceof Error ? error.message : 'unknown error')
+            console.error('[telegram] update handler failed:', error instanceof Error ? error.message : 'неизвестная ошибка')
             const chatId = update.message?.chat?.id ?? update.callback_query?.message?.chat?.id
             if (chatId) {
               try {
-                await bot.sendMessage(chatId, 'The service is temporarily unavailable. Please try again shortly.')
+                await bot.sendMessage(chatId, 'Сервис временно недоступен. Повторите попытку чуть позже.')
               } catch {
                 // Telegram API недоступен — следующий long-poll запрос повторит связь.
               }
@@ -136,7 +136,7 @@ export async function start() {
       } catch (error) {
         if (!polling) break
         pollingStatus = 'degraded'
-        console.error('[telegram] polling failed:', error instanceof Error ? error.message : 'unknown error')
+        console.error('[telegram] polling failed:', error instanceof Error ? error.message : 'неизвестная ошибка')
         await new Promise((resolve) => setTimeout(resolve, 3_000))
       }
     }
@@ -151,16 +151,16 @@ export async function start() {
       const { request, tooLarge } = await toWebRequest(req)
       if (tooLarge) {
         res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8', Connection: 'close' })
-        res.end(JSON.stringify({ error: 'Request body is too large.' }))
+        res.end(JSON.stringify({ error: 'Тело запроса слишком большое.' }))
         return
       }
       await writeWebResponse(res, await api(request))
     } catch (error) {
-      console.error('[api] transport failure:', error instanceof Error ? error.message : 'unknown error')
+      console.error('[api] transport failure:', error instanceof Error ? error.message : 'неизвестная ошибка')
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' })
       }
-      res.end(JSON.stringify({ error: 'Internal server error.' }))
+      res.end(JSON.stringify({ error: 'Внутренняя ошибка сервера.' }))
     }
   })
 
@@ -170,7 +170,7 @@ export async function start() {
   })
 
   console.log(`Mara OS Telegram API listening on 0.0.0.0:${PORT}`)
-  console.log(`Telegram bot @${botInfo.username} is ready.`)
+  console.log(`Telegram-бот @${botInfo.username} готов.`)
   if (!WEB_APP_URL) console.warn('WEB_APP_URL is empty: the bot will not show the website shortcut button.')
   if (!AI_API_KEY) console.warn('AI_API_KEY is empty: AI commands will report "provider not configured" (no fabricated output).')
   void pollingLoop()
@@ -187,7 +187,7 @@ export async function start() {
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
 if (isMain) {
   start().catch((error) => {
-    console.error(error instanceof Error ? error.message : 'Bot startup failed.')
+    console.error(error instanceof Error ? error.message : 'Бот не запустился.')
     process.exitCode = 1
   })
 }

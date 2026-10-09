@@ -21,7 +21,7 @@ import { Field, inputClass, textareaClass } from "@/components/ui/Controls";
 import { useResource } from "@/hooks/useResource";
 import { repositories, story } from "@/repositories";
 import { media } from "@/data/media";
-import { currency, number as fmtNum, shortDate } from "@/lib/format";
+import { currency, number as fmtNum, pluralRu, shortDate } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 const statusColor: Record<string, string> = {
@@ -50,7 +50,7 @@ export default function Episodes() {
 
   async function createEpisode() {
     if (!newTitle.trim()) {
-      push({ title: "Title required", description: "Give the episode a title.", tone: "error" });
+      push({ title: "Нужно название", description: "Дайте эпизоду название.", tone: "error" });
       return;
     }
     setSaving(true);
@@ -62,33 +62,33 @@ export default function Episodes() {
         logline: newLogline.trim(),
         description: newLogline.trim(),
       });
-      push({ title: "Episode created", description: newTitle.trim(), tone: "success" });
+      push({ title: "Эпизод создан", description: newTitle.trim(), tone: "success" });
       setModal(false);
       setNewTitle("");
       setNewLogline("");
       setRefreshKey((k) => k + 1);
     } catch (error) {
-      push({ title: "Create failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      push({ title: "Не удалось создать", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteEpisode(id: string, title: string) {
-    if (!confirm(`Delete episode "${title}"? Content will be detached.`)) return;
+    if (!confirm(`Удалить эпизод «${title}»? Контент будет откреплён.`)) return;
     try {
       await repositories.content.deleteEpisode(id);
-      push({ title: "Episode deleted", description: title, tone: "success" });
+      push({ title: "Эпизод удалён", description: title, tone: "success" });
       setRefreshKey((k) => k + 1);
     } catch (error) {
-      push({ title: "Delete failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      push({ title: "Не удалось удалить", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
     }
   }
 
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Content · Storyline"
+        eyebrow="Контент · Сюжет"
         title={story.title}
         description={story.logline}
         meta={
@@ -100,17 +100,17 @@ export default function Episodes() {
         }
         actions={
           <Button variant="primary" onClick={() => setModal(true)}>
-            <Plus className="size-3.5" /> New episode
+            <Plus className="size-3.5" /> Новый эпизод
           </Button>
         }
       />
 
       <Grid className="lg:grid-cols-4">
         {[
-          { label: "Episodes published", value: published.length },
-          { label: "Storyline views", value: fmtNum(totalViews, true) },
-          { label: "Followers gained", value: `+${fmtNum(totalFollowers, true)}` },
-          { label: "Avg. retention", value: "N/A" },
+          { label: "Опубликовано эпизодов", value: published.length },
+          { label: "Просмотры сюжета", value: fmtNum(totalViews, true) },
+          { label: "Прирост подписчиков", value: `+${fmtNum(totalFollowers, true)}` },
+          { label: "Среднее удержание", value: "N/A" },
         ].map((s) => (
           <Card key={s.label} className="p-4">
             <div className="label">{s.label}</div>
@@ -123,11 +123,11 @@ export default function Episodes() {
         {/* Timeline */}
         <div className="lg:col-span-2">
           <Card>
-            <CardHeader title={story.season} subtitle="Vertical storyline — every episode carries the arc forward" />
+            <CardHeader title={story.season} subtitle="Вертикальный сюжет — каждый эпизод двигает арку дальше" />
             <div className="px-5 pb-6">
               {loading && <SkeletonRows rows={5} />}
               {!loading && (!data || data.length === 0) && (
-                <EmptyState title="No episodes yet" description="Create your first episode to start building the storyline." />
+                <EmptyState title="Эпизодов пока нет" description="Создайте первый эпизод, чтобы начать сюжет." />
               )}
               <div className="relative pl-7">
                 <span className="absolute top-1 bottom-1 left-[7px] w-px bg-line" />
@@ -154,7 +154,7 @@ export default function Episodes() {
                         )}
                       >
                         <div className="flex flex-wrap items-center gap-2.5">
-                          <span className="num text-[11px] text-faint">Episode {String(ep.number).padStart(2, "0")}</span>
+                          <span className="num text-[11px] text-faint">Эпизод {String(ep.number).padStart(2, "0")}</span>
                           <span className="text-[14px] font-medium text-ink">{ep.title}</span>
                           <StatusBadge status={ep.status} className="ml-auto" />
                           <ChevronDown className={cn("size-4 text-faint transition-transform", open && "rotate-180")} />
@@ -163,10 +163,10 @@ export default function Episodes() {
                         <div className="mt-3 flex flex-wrap items-center gap-4 text-[11.5px] text-faint">
                           <span className="flex items-center gap-1.5">
                             <CalendarDays className="size-3" />
-                            {ep.status === "Published" ? shortDate(ep.publishedAt) : ep.publishedAt ? `target ${shortDate(ep.publishedAt)}` : "not scheduled"}
+                            {ep.status === "Published" ? shortDate(ep.publishedAt) : ep.publishedAt ? `план ${shortDate(ep.publishedAt)}` : "не запланировано"}
                           </span>
                           <span className="flex items-center gap-1.5">
-                            <Images className="size-3" /> {relatedContent.length} content
+                            <Images className="size-3" /> {relatedContent.length} мат.
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Eye className="size-3" /> {ep.performance.views ? fmtNum(ep.performance.views, true) : "—"}
@@ -182,10 +182,10 @@ export default function Episodes() {
                           <p className="text-[12.5px] leading-relaxed text-ink-2">{ep.description || ep.logline}</p>
 
                           <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                            <KeyStat label="Beat" value={ep.beat || "—"} />
-                            <KeyStat label="Retention" value={ep.performance.retention ? `${ep.performance.retention}%` : "—"} />
+                            <KeyStat label="Бит" value={ep.beat || "—"} />
+                            <KeyStat label="Удержание" value={ep.performance.retention ? `${ep.performance.retention}%` : "—"} />
                             <KeyStat
-                              label="Revenue"
+                              label="Выручка"
                               value={ep.performance.views ? currency(Math.round(ep.performance.followers * 2), { compact: true }) : "—"}
                             />
                           </div>
@@ -194,7 +194,7 @@ export default function Episodes() {
 
                           <div className="grid gap-4 sm:grid-cols-2">
                             <div>
-                              <div className="label mb-2.5">Related content</div>
+                              <div className="label mb-2.5">Связанный контент</div>
                               <div className="space-y-2">
                                 {relatedContent.map((c) => c && (
                                   <Link
@@ -206,22 +206,22 @@ export default function Episodes() {
                                     <span className="truncate">{c.title}</span>
                                   </Link>
                                 ))}
-                                {relatedContent.length === 0 && <div className="text-[11.5px] text-faint">No content attached yet.</div>}
+                                {relatedContent.length === 0 && <div className="text-[11.5px] text-faint">Контент ещё не прикреплён.</div>}
                               </div>
                             </div>
                             <div>
-                              <div className="label mb-2.5">Assets</div>
+                              <div className="label mb-2.5">Ассеты</div>
                               <div className="flex flex-wrap gap-2">
                                 {ep.assetIds.length > 0 ? ep.assetIds.slice(0, 6).map((id, i) => (
                                   <Link key={id} to="/assets" className="group relative">
                                     <SafeImg
                                       src={[media.portraits[0], media.portraits[2], media.portraits[6], media.portraits[3], media.portraits[8], media.wide[9]][i % 6]}
-                                      alt="asset"
+                                      alt="ассет"
                                       loading="lazy"
                                       className="size-16 rounded-lg border border-line object-cover transition-opacity group-hover:opacity-80"
                                     />
                                   </Link>
-                                )) : <div className="text-[11.5px] text-faint">No assets attached yet.</div>}
+                                )) : <div className="text-[11.5px] text-faint">Ассеты ещё не прикреплены.</div>}
                               </div>
                             </div>
                           </div>
@@ -229,11 +229,11 @@ export default function Episodes() {
                           <div className="mt-4 flex flex-wrap gap-2">
                             <Link to={`/content/new`}>
                               <Button size="sm" variant="primary">
-                                <Plus className="size-3.5" /> Add content
+                                <Plus className="size-3.5" /> Добавить контент
                               </Button>
                             </Link>
                             <Button size="sm" variant="subtle" onClick={() => deleteEpisode(ep.id, ep.title)}>
-                              <Trash2 className="size-3.5" /> Delete
+                              <Trash2 className="size-3.5" /> Удалить
                             </Button>
                           </div>
                         </div>
@@ -249,34 +249,34 @@ export default function Episodes() {
         {/* Side */}
         <div className="space-y-4">
           <Card>
-            <CardHeader title="Story bible" subtitle="Continuity rules enforced by the Character Agent" />
+            <CardHeader title="Библия истории" subtitle="Правила непрерывности, которые следит Агент персонажа" />
             <div className="space-y-3 px-5 pb-5">
               <div className="rounded-lg border border-line bg-canvas-2/50 p-3">
-                <div className="label">Logline</div>
+                <div className="label">Логлайн</div>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{story.logline}</p>
               </div>
             </div>
           </Card>
 
           <AINote
-            title="AI Insight"
+            title="AI-инсайт"
             footer={
               <Link to="/ai" className="text-[11.5px] text-accent-hi hover:underline">
-                Open AI Studio
+                Открыть AI-студию
               </Link>
             }
           >
-            Episodes released on Fridays at 18:00 tend to get 34% higher engagement than mid-week drops.
+            Эпизоды, выходящие по пятницам в 18:00, получают на 34% больше вовлечённости, чем релизы в середине недели.
           </AINote>
 
           <Card className="p-5">
             <div className="flex items-center gap-2 text-faint">
               <Clapperboard className="size-3.5" />
-              <span className="label">Next milestone</span>
+              <span className="label">Ближайшая веха</span>
             </div>
-            <div className="mt-3 text-[13px] text-ink">{(data ?? []).find((e) => e.status !== "Published")?.title ?? "All episodes published"}</div>
+            <div className="mt-3 text-[13px] text-ink">{(data ?? []).find((e) => e.status !== "Published")?.title ?? "Все эпизоды опубликованы"}</div>
             <p className="mt-1 text-[12px] text-muted">
-              {(data ?? []).filter((e) => e.status !== "Published").length} episode(s) in progress.
+              {(() => { const n = (data ?? []).filter((e) => e.status !== "Published").length; return `${n} ${pluralRu(n, ["эпизод", "эпизода", "эпизодов"])} в работе.`; })()}
             </p>
             <div className="mt-3">
               <ProgressBar value={Math.min(100, published.length * 20)} />
@@ -288,24 +288,24 @@ export default function Episodes() {
       <Modal
         open={modal}
         onClose={() => !saving && setModal(false)}
-        title="New episode"
-        subtitle="Create a new story beat."
+        title="Новый эпизод"
+        subtitle="Создайте новый сюжетный бит."
         width="max-w-lg"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setModal(false)} disabled={saving}>Cancel</Button>
+            <Button variant="ghost" onClick={() => setModal(false)} disabled={saving}>Отмена</Button>
             <Button variant="primary" loading={saving} onClick={() => void createEpisode()}>
-              Create episode
+              Создать эпизод
             </Button>
           </>
         }
       >
         <div className="grid gap-4">
-          <Field label="Title">
-            <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Episode title" className={inputClass} />
+          <Field label="Название">
+            <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Название эпизода" className={inputClass} />
           </Field>
-          <Field label="Logline / summary">
-            <textarea value={newLogline} onChange={(e) => setNewLogline(e.target.value)} rows={3} placeholder="One-line description" className={textareaClass} />
+          <Field label="Логлайн / краткое описание">
+            <textarea value={newLogline} onChange={(e) => setNewLogline(e.target.value)} rows={3} placeholder="Описание в одну строку" className={textareaClass} />
           </Field>
         </div>
       </Modal>

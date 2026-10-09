@@ -64,9 +64,9 @@ export class MockAIProvider implements AIProvider {
       case "conversation":
         return this.replyDraft(fan, request.prompt);
       case "content":
-        return "hook: The notebook says I owe myself 41 more mornings.\ncaption: 6am. The gym was empty, the debt counter was not. Episode drops Friday.";
+        return "hook: Блокнот говорит, что я должна себе ещё 41 такое утро.\ncaption: 6 утра. Зал был пуст, счётчик долга — нет. Эпизод выходит в пятницу.";
       case "analytics":
-        return "Fashion reels drive 42% more profile visits than lifestyle reels on the same captions. Shift next week's mix toward fashion.";
+        return "Фэшн-рилсы дают на 42% больше заходов в профиль, чем лайфстайл-рилсы с теми же подписями. На следующей неделе сместите микс в сторону фэшна.";
       default:
         return request.prompt.slice(0, 120);
     }
@@ -77,17 +77,17 @@ export class MockAIProvider implements AIProvider {
     const level = (this.extract(prompt, "Relationship") || "fan").toLowerCase();
     const opener =
       level === "inner_circle" || level === "favorite"
-        ? `${fan.split(" ")[0]}, you know the notebook rules by now`
+        ? `${fan.split(" ")[0]}, ты уже знаешь правила блокнота`
         : level === "visitor" || level === "follower"
-          ? `Welcome in — you found the year of counting`
-          : `Hey — page 43 and the number barely moved`;
-    const reaction = /gym|workout|6am/i.test(last)
-      ? "Yes, the 6am set is real — the barbell is cheaper than therapy, and it does not ask about my debt."
-      : /debt|27k|money|\$/i.test(last)
-        ? "Real number, rounded to keep my pride on life support. The notebook sees everything first."
-        : /episode|friday|story/i.test(last)
-          ? "Friday. The teaser already made me nervous, which usually means it is honest enough."
-          : "The handwriting gets angrier but the number gets smaller — that is the whole plot.";
+          ? `Добро пожаловать — ты нашёл год подсчёта`
+          : `Привет — 43-я страница, а цифра почти не сдвинулась`;
+    const reaction = /gym|workout|6am|зал|тренир/i.test(last)
+      ? "Да, подход в 6 утра настоящий — штанга дешевле психотерапии и не спрашивает про мой долг."
+      : /debt|27k|money|\$|долг/i.test(last)
+        ? "Цифра настоящая, округлённая, чтобы моя гордость ещё держалась. Блокнот видит всё первым."
+        : /episode|friday|story|эпизод|пятниц/i.test(last)
+          ? "В пятницу. Тизер уже заставил меня нервничать, а это обычно значит, что он достаточно честный."
+          : "Почерк становится злее, а цифра — меньше. В этом и есть весь сюжет.";
     return `${opener}. ${reaction}`;
   }
 
@@ -111,7 +111,7 @@ export class MockAIProvider implements AIProvider {
                   : "smalltalk",
           sales_action: buying ? "recommend_offer" : "none",
           memory_candidate: memoryHint
-            ? { memory: `Fan mentioned: ${last.slice(0, 120)}`, category: "personal", importance: 0.6 }
+            ? { memory: `Фан упомянул: ${last.slice(0, 120)}`, category: "personal", importance: 0.6 }
             : null,
           relationship_level: this.extract(request.prompt, "Relationship").toLowerCase().replace(" ", "_") || "fan",
           confidence: 0.91,
@@ -129,7 +129,7 @@ export class MockAIProvider implements AIProvider {
               : /bought|buy/i.test(last)
                 ? "purchase habit"
                 : "lifestyle";
-        return { memory: `Fan mentioned: ${last.slice(0, 120)}`, category, importance: 0.6 };
+        return { memory: `Фан упомянул: ${last.slice(0, 120)}`, category, importance: 0.6 };
       }
       case "sales": {
         const purchases = Number(this.extract(request.prompt, "Purchases"));
@@ -140,8 +140,8 @@ export class MockAIProvider implements AIProvider {
               action: "recommend_offer",
               offer_id: null,
               reason: buying
-                ? "Fan asked about access/price — intent is explicit, recommend the current PPV drop."
-                : `${purchases} previous purchases and an active thread — a warm moment for the weekend bundle.`,
+                ? "Фан спросил про доступ или цену — намерение явное, предложите текущий PPV-дроп."
+                : `${purchases} покупок раньше и активная переписка — тёплый момент для набора выходного дня.`,
               confidence: 0.84,
             }
           : {
@@ -149,24 +149,24 @@ export class MockAIProvider implements AIProvider {
               offer_id: null,
               reason:
                 purchases > 0
-                  ? "Repeat buyer, no active buying signals — keep the storyline warm instead of pushing an offer."
-                  : "No purchase history and no buying signals — nurture through episodes first.",
+                  ? "Повторный покупатель, активных сигналов покупки нет — поддерживайте сюжет вместо давления с оффером."
+                  : "Истории покупок и сигналов покупки нет — сначала прогрейте через эпизоды.",
               confidence: 0.78,
             };
       }
       case "content": {
         return {
           hooks: [
-            "I price every hour of my life now. This one costs $0.",
-            "The notebook says I owe myself 41 more mornings like this.",
-            "$54k salary. $27k debt. One red notebook.",
+            "Теперь я знаю цену каждому часу своей жизни. Этот стоит $0.",
+            "Блокнот говорит, что я должна себе ещё 41 такое утро.",
+            "Зарплата $54k. Долг $27k. Один красный блокнот.",
           ],
           caption:
-            "6am. The gym was empty, the debt counter was not. Page 43 today — the handwriting is getting angrier but the number gets smaller. Episode drops Friday.",
-          cta: "Follow the countdown",
+            "6 утра. Зал был пуст, счётчик долга — нет. Сегодня 43-я страница: почерк становится злее, а цифра — меньше. Эпизод выходит в пятницу.",
+          cta: "Следить за отсчётом",
           variants: [
-            { angle: "vulnerable", hook: "Sometimes the notebook wins. Not this week." },
-            { angle: "confident", hook: "Paid February off in a weekend. The notebook noticed." },
+            { angle: "vulnerable", hook: "Иногда блокнот побеждает. На этой неделе — нет." },
+            { angle: "confident", hook: "Закрыла февраль за выходные. Блокнот заметил." },
           ],
         };
       }
@@ -175,23 +175,23 @@ export class MockAIProvider implements AIProvider {
           insights: [
             {
               kind: "recommendation",
-              title: "Fashion reels outperform lifestyle by 42% in profile visits",
-              body: "Across the current period, fashion-led cuts drove 42% more profile visits per impression than lifestyle cuts with identical captions.",
-              recommendation: "Raise fashion share of short-form from 20% to 35% next week; keep apartment hooks for stories.",
+              title: "Фэшн-рилсы обгоняют лайфстайл на 42% по заходам в профиль",
+              body: "За текущий период фэшн-нарезки дали на 42% больше заходов в профиль на показ, чем лайфстайл-нарезки с идентичными подписями.",
+              recommendation: "На следующей неделе поднимите долю фэшна в коротких форматах с 20% до 35%; хуки про квартиру оставьте для сторис.",
               confidence: 0.86,
             },
             {
               kind: "insight",
-              title: "PPV buyers convert after 3+ exchanges",
-              body: "Fans with three or more message exchanges in a week buy PPV at 2.8× the base rate.",
-              recommendation: "Prioritise reply depth over broadcast volume for new Telegram fans.",
+              title: "Покупатели PPV конвертируются после 3+ обменов сообщениями",
+              body: "Фаны с тремя и более обмена сообщениями за неделю покупают PPV в 2,8 раза чаще базового уровня.",
+              recommendation: "Для новых фанов из Telegram ставьте глубину ответов выше объёма рассылок.",
               confidence: 0.8,
             },
           ],
         };
       }
       default:
-        return { note: "mock provider: unknown agent", agent: request.agent };
+        return { note: "mock-провайдер: неизвестный агент", agent: request.agent };
     }
   }
 }

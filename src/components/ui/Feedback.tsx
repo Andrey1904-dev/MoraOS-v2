@@ -74,7 +74,7 @@ export function EmptyState({
   );
 }
 
-/** Alias kept for parity with the component inventory. */
+/** Псевдоним сохранён для соответствия описи компонентов. */
 export const LoadingState = SkeletonRows;
 
 /* ---------------------------------- Toast -------------------------------- */

@@ -22,6 +22,7 @@ import { getAiOrchestrator } from "@/lib/ai";
 import { isDemoActive } from "@/lib";
 import { media } from "@/data/media";
 import { ago } from "@/lib/format";
+import { label } from "@/lib/labels";
 import type { Agent } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -54,18 +55,18 @@ export default function AIStudio() {
             story: character.story,
             lore: character.logline,
             boundaries: character.boundaries,
-            personality: character.traits.filter((t) => t.label === "Personality").map((t) => t.value),
-            recurringObjects: character.traits.filter((t) => /signature|object|notebook/i.test(t.label)).map((t) => t.value),
+            personality: character.traits.filter((t) => t.label === "Характер").map((t) => t.value),
+            recurringObjects: character.traits.filter((t) => /фирменн|предмет|notebook/i.test(t.label)).map((t) => t.value),
           },
           platform: "tiktok",
           contentType: "reel",
-          theme: "the 6am gym and the red notebook",
-          episodeTitle: "Buying back my time — episode",
+          theme: "тренировка в 6 утра и красный блокнот",
+          episodeTitle: "Выкупаю своё время — эпизод",
         });
         setRunOutput({
           agent: agent.name,
           mock: isDemoActive(),
-          body: [...result.hooks.map((h, i) => `Hook ${i + 1}: ${h}`), `Caption: ${result.caption}`, ...result.variants.slice(0, 1).map((v) => `Variant: ${v.hook}`)],
+          body: [...result.hooks.map((h, i) => `Хук ${i + 1}: ${h}`), `Подпись: ${result.caption}`, ...result.variants.slice(0, 1).map((v) => `Вариант: ${v.hook}`)],
         });
       } else if (agent.id === "analytics") {
         const metrics = await repositories.analytics.metrics("30 days");
@@ -77,18 +78,18 @@ export default function AIStudio() {
         setRunOutput({
           agent: agent.name,
           mock: isDemoActive(),
-          body: result.insights.map((i) => `${i.title} — ${i.body} (confidence ${Math.round(i.confidence * 100)}%)`),
+          body: result.insights.map((i) => `${i.title} — ${i.body} (уверенность ${Math.round(i.confidence * 100)}%)`),
         });
       } else if (agent.id === "conversation" || agent.id === "memory" || agent.id === "sales" || agent.id === "character") {
         push({
-          title: `${agent.name} runs in context`,
-          description: "Conversation, memory and sales agents work per fan — trigger them from Conversations.",
+          title: `${agent.name} работает в контексте`,
+          description: "Агенты диалогов, памяти и продаж работают по конкретному фану — запускайте их из раздела «Диалоги».",
           tone: "default",
         });
         setActive(null);
       }
     } catch (error) {
-      push({ title: "Agent run failed", description: error instanceof Error ? error.message : "AI provider did not answer.", tone: "error" });
+      push({ title: "Запуск агента не удался", description: error instanceof Error ? error.message : "AI-провайдер не ответил.", tone: "error" });
     } finally {
       setRunning(false);
     }
@@ -102,24 +103,24 @@ export default function AIStudio() {
     <PageContainer>
       <PageHeader
         eyebrow="AI"
-        title="AI Studio"
-        description="The brain of Mara OS — six agents that draft, remember, decide and explain. Every output waits for approval."
+        title="AI-студия"
+        description="Мозг Mara OS: шесть агентов, которые пишут черновики, запоминают, решают и объясняют. Каждый результат ждёт одобрения."
         meta={
           <>
             <span className="flex items-center gap-1.5 text-[12px] text-muted">
               <Circle className="size-1.5 fill-pos text-pos" />
-              {online} of {(agents ?? []).length} agents online
+              {online} из {(agents ?? []).length} агентов в сети
             </span>
-            <span className="num text-[12px] text-muted">{totalTasks.toLocaleString("en-US")} tasks completed</span>
-            <span className="num text-[12px] text-muted">{avgSuccess.toFixed(1)}% avg success</span>
+            <span className="num text-[12px] text-muted">{totalTasks.toLocaleString("ru-RU")} задач выполнено</span>
+            <span className="num text-[12px] text-muted">{avgSuccess.toFixed(1).replace(".", ",")}% средний успех</span>
           </>
         }
         actions={
           <Button
             variant="primary"
-            disabled title="Not available yet"
+            disabled title="Пока недоступно"
           >
-            <Play className="size-3.5" /> Run all agents
+            <Play className="size-3.5" /> Запустить всех агентов
           </Button>
         }
       />
@@ -154,9 +155,9 @@ export default function AIStudio() {
               <Divider className="my-4" />
 
               <div className="grid grid-cols-3 gap-3">
-                <KeyStat label="Last run" value={ago(agent.lastRun)} />
-                <KeyStat label="Tasks" value={agent.tasks.toLocaleString("en-US")} />
-                <KeyStat label="Success" value={`${agent.successRate}%`} />
+                <KeyStat label="Последний запуск" value={ago(agent.lastRun)} />
+                <KeyStat label="Задачи" value={agent.tasks.toLocaleString("ru-RU")} />
+                <KeyStat label="Успех" value={`${agent.successRate}%`} />
               </div>
 
               <ProgressBar
@@ -166,7 +167,7 @@ export default function AIStudio() {
               />
 
               <Button variant="subtle" size="sm" className="mt-4" onClick={() => setActive(agent)}>
-                <Settings2 className="size-3.5" /> Open agent
+                <Settings2 className="size-3.5" /> Открыть агента
               </Button>
             </Card>
           ))}
@@ -175,7 +176,7 @@ export default function AIStudio() {
 
       <Grid className="mt-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Agent activity" subtitle="Runs per hour, last 12 hours" action={<Badge><Activity className="size-3" /> live</Badge>} />
+          <CardHeader title="Активность агентов" subtitle="Запусков в час, последние 12 часов" action={<Badge><Activity className="size-3" /> live</Badge>} />
           <div className="px-5 pb-5">
             <div className="flex items-end gap-1" style={{ height: 140 }}>
               {Array.from({ length: 12 }).map((_, i) => {
@@ -193,29 +194,29 @@ export default function AIStudio() {
             </div>
             <Divider className="my-4" />
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
-              <KeyStat label="Runs / hour" value="148" hint="avg" />
-              <KeyStat label="Queue depth" value="9" hint="awaiting approval" />
-              <KeyStat label="Tokens today" value="1.2M" hint="mock estimate" />
-              <KeyStat label="Escalations" value="3" hint="to operator" />
+              <KeyStat label="Запусков / час" value="148" hint="среднее" />
+              <KeyStat label="Глубина очереди" value="9" hint="ждут одобрения" />
+              <KeyStat label="Токенов сегодня" value="1,2 млн" hint="оценка (mock)" />
+              <KeyStat label="Эскалаций" value="3" hint="оператору" />
             </div>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Mara · character state" subtitle="Character Agent snapshot" />
+          <CardHeader title="Мара · состояние персонажа" subtitle="Снимок Агента персонажа" />
           <div className="px-5 pb-5">
             <div className="flex items-center gap-3">
               <Avatar name="Mara Quinn" src={media.mara} size={42} />
               <div>
                 <div className="text-[13.5px] font-medium text-ink">Mara Quinn</div>
-                <div className="text-[11.5px] text-muted">Voice: dry, first-person</div>
+                <div className="text-[11.5px] text-muted">Голос: сухой, от первого лица</div>
               </div>
             </div>
             <div className="mt-4 space-y-3">
               {[
-                { label: "Voice consistency", value: 97 },
-                { label: "Boundary compliance", value: 100 },
-                { label: "Continuity accuracy", value: 94 },
+                { label: "Стабильность голоса", value: 97 },
+                { label: "Соблюдение границ", value: 100 },
+                { label: "Точность непрерывности", value: 94 },
               ].map((r) => (
                 <div key={r.label}>
                   <div className="mb-1.5 flex justify-between text-[12px]">
@@ -226,8 +227,8 @@ export default function AIStudio() {
                 </div>
               ))}
             </div>
-            <AINote title="Character Agent">
-              41 memories were refreshed overnight. No contradictions with published episodes.
+            <AINote title="Агент персонажа">
+              За ночь обновлено 41 воспоминание. Противоречий с опубликованными эпизодами нет.
             </AINote>
           </div>
         </Card>
@@ -238,7 +239,7 @@ export default function AIStudio() {
           <AICard
             key={ins.id}
             compact
-            eyebrow={ins.kind === "risk" ? "AI RISK" : "AI RECOMMENDATION"}
+            eyebrow={ins.kind === "risk" ? "AI-РИСК" : "AI-РЕКОМЕНДАЦИЯ"}
             title={ins.title}
             body={ins.body}
             recommendation={ins.recommendation}
@@ -249,7 +250,7 @@ export default function AIStudio() {
       </Grid>
 
       <Card className="mt-4">
-        <CardHeader title="Recent agent output" subtitle="Drafts, memories and insights produced in the last 24 hours" />
+        <CardHeader title="Последние результаты агентов" subtitle="Черновики, воспоминания и инсайты за последние 24 часа" />
         <div>
           {(tasks ?? []).slice(0, 5).map((t) => (
             <div key={t.id} className="flex flex-wrap items-center gap-3 border-b border-line/60 px-5 py-3 last:border-0">
@@ -265,17 +266,17 @@ export default function AIStudio() {
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label={`Mark “${t.title}” as done`}
-                title="Mark as done"
+                aria-label={`Отметить «${t.title}» выполненной`}
+                title="Отметить выполненной"
                 disabled={t.status === "Done"}
                 onClick={() => {
                   void (async () => {
                     try {
                       await repositories.ai.setTaskStatus(t.id, "Done");
                       refetchTasks();
-                      push({ title: "Task marked done", description: t.title, tone: "success" });
+                      push({ title: "Задача выполнена", description: t.title, tone: "success" });
                     } catch (error) {
-                      push({ title: "Update failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+                      push({ title: "Не удалось обновить", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
                     }
                   })();
                 }}
@@ -304,13 +305,13 @@ export default function AIStudio() {
             <p className="text-[12.5px] leading-relaxed text-muted">{active.description}</p>
 
             <div className="grid grid-cols-3 gap-4 rounded-lg border border-line bg-canvas-2/50 p-4">
-              <KeyStat label="Status" value={active.status} />
-              <KeyStat label="Last run" value={ago(active.lastRun)} />
-              <KeyStat label="Tasks" value={active.tasks.toLocaleString("en-US")} />
+              <KeyStat label="Статус" value={label(active.status)} />
+              <KeyStat label="Последний запуск" value={ago(active.lastRun)} />
+              <KeyStat label="Задачи" value={active.tasks.toLocaleString("ru-RU")} />
             </div>
 
             <div>
-              <div className="label mb-2.5">Capabilities</div>
+              <div className="label mb-2.5">Возможности</div>
               <div className="flex flex-wrap gap-1.5">
                 {active.capabilities.map((c) => (
                   <Badge key={c} tone="accent">
@@ -321,13 +322,13 @@ export default function AIStudio() {
             </div>
 
             <div>
-              <div className="label mb-2.5">Configuration</div>
+              <div className="label mb-2.5">Конфигурация</div>
               <div className="space-y-2.5">
                 {[
-                  { label: "Model", value: "mock-provider" },
-                  { label: "Temperature", value: "0.7" },
-                  { label: "Requires approval", value: active.id === "conversation" ? "Always" : "On publish" },
-                  { label: "Auto-run schedule", value: "Every 5 minutes" },
+                  { label: "Модель", value: "mock-провайдер" },
+                  { label: "Температура", value: "0,7" },
+                  { label: "Требует одобрения", value: active.id === "conversation" ? "Всегда" : "При публикации" },
+                  { label: "Авторасписание", value: "Каждые 5 минут" },
                 ].map((r) => (
                   <div key={r.label} className="flex items-center justify-between text-[12.5px]">
                     <span className="text-muted">{r.label}</span>
@@ -341,15 +342,15 @@ export default function AIStudio() {
               <div className="rounded-lg border border-accent/25 bg-accent/[0.06] p-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="size-3.5 text-accent-hi" />
-                  <span className="text-[11px] font-semibold tracking-[0.1em] text-accent-hi uppercase">{runOutput.agent} output</span>
-                  {runOutput.mock && <Badge tone="warn">mock provider</Badge>}
+                  <span className="text-[11px] font-semibold tracking-[0.1em] text-accent-hi uppercase">результат: {runOutput.agent}</span>
+                  {runOutput.mock && <Badge tone="warn">mock-провайдер</Badge>}
                 </div>
                 <div className="mt-2.5 space-y-1.5">
                   {runOutput.body.map((line, i) => (
                     <p key={i} className="text-[12.5px] leading-relaxed text-ink-2">{line}</p>
                   ))}
                 </div>
-                <p className="mt-2 text-[11px] text-faint">Generated content never publishes itself — it lands as a draft for approval.</p>
+                <p className="mt-2 text-[11px] text-faint">Сгенерированный контент никогда не публикуется сам — он попадает в черновики на одобрение.</p>
               </div>
             )}
 
@@ -360,10 +361,10 @@ export default function AIStudio() {
                 loading={running}
                 onClick={() => void runAgent(active)}
               >
-                <Play className="size-3.5" /> Run now
+                <Play className="size-3.5" /> Запустить
               </Button>
               <Button variant="subtle" onClick={() => { setActive(null); setRunOutput(null); }}>
-                Close
+                Закрыть
               </Button>
             </div>
           </div>

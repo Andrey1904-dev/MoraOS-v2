@@ -26,6 +26,7 @@ import { getAiOrchestrator, runReplyPipeline } from "@/lib/ai";
 import { isDemoActive } from "@/lib";
 import type { RelationshipLevel as Rel } from "@/types";
 import { ago, clock, currency } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { cn } from "@/utils/cn";
 
 const FILTERS = ["All", "Unread", "Awaiting approval", "Inner circle", "Unanswered"] as const;
@@ -121,9 +122,9 @@ export default function Conversations() {
           story: character.story,
           lore: character.logline,
           boundaries: character.boundaries,
-          personality: character.traits.filter((t) => t.label === "Personality").map((t) => t.value),
+          personality: character.traits.filter((t) => t.label === "Характер").map((t) => t.value),
           recurringObjects: character.traits
-            .filter((t) => /signature|object|notebook/i.test(t.label))
+            .filter((t) => /фирменн|предмет|notebook/i.test(t.label))
             .map((t) => t.value),
         },
         fan: {
@@ -153,16 +154,16 @@ export default function Conversations() {
       refetch();
       refetchList();
       push({
-        title: result.mock ? "AI draft ready (mock provider)" : "AI draft ready",
+        title: result.mock ? "AI-черновик готов (mock-провайдер)" : "AI-черновик готов",
         description: result.draft.sales_action !== "none"
-          ? `${activeFan.name} · intent ${result.draft.intent} · sales: ${result.draft.sales_action}. Awaiting your approval.`
-          : `${activeFan.name} · intent ${result.draft.intent}. Awaiting your approval.`,
+          ? `${activeFan.name} · намерение ${result.draft.intent} · продажа: ${result.draft.sales_action}. Ждёт вашего одобрения.`
+          : `${activeFan.name} · намерение ${result.draft.intent}. Ждёт вашего одобрения.`,
         tone: "success",
       });
     } catch (error) {
       push({
-        title: "Generation failed",
-        description: error instanceof Error ? error.message : "AI provider did not answer.",
+        title: "Не удалось сгенерировать",
+        description: error instanceof Error ? error.message : "AI-провайдер не ответил.",
         tone: "error",
       });
     } finally {
@@ -176,15 +177,15 @@ export default function Conversations() {
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3 lg:px-6">
           <div>
-            <div className="label">Audience</div>
-            <h1 className="text-[17px] font-medium tracking-[-0.02em] text-ink">Conversations</h1>
+            <div className="label">Аудитория</div>
+            <h1 className="text-[17px] font-medium tracking-[-0.02em] text-ink">Диалоги</h1>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Badge tone="accent">{totalUnread} unread</Badge>
-            <Badge tone="warn">{totalDrafts} awaiting approval</Badge>
+            <Badge tone="accent">{totalUnread} непрочитанных</Badge>
+            <Badge tone="warn">{totalDrafts} ждут одобрения</Badge>
             {/* Коннекторов (Fanvue, Telegram-инбокс) в приложении пока нет: честно выключено. */}
-            <Button variant="outline" size="sm" disabled title="Connectors are not connected yet" aria-label="Sync inbox (connectors not connected yet)">
-              <RefreshCw className="size-3.5" /> Sync
+            <Button variant="outline" size="sm" disabled title="Коннекторы пока не подключены" aria-label="Синхронизировать инбокс (коннекторы не подключены)">
+              <RefreshCw className="size-3.5" /> Синхронизация
             </Button>
             <Button
               variant="primary"
@@ -193,7 +194,7 @@ export default function Conversations() {
               disabled={!activeId || !activeFan}
               onClick={() => void generateReply()}
             >
-              <Sparkles className="size-3.5" /> Generate reply{isDemoActive() ? " (mock)" : ""}
+              <Sparkles className="size-3.5" /> Сгенерировать ответ{isDemoActive() ? " (mock)" : ""}
             </Button>
           </div>
         </div>
@@ -202,7 +203,7 @@ export default function Conversations() {
           {/* List */}
           <div className={cn("flex min-h-0 flex-col border-r border-line", active && "hidden lg:flex")}>
             <div className="border-b border-line px-3 py-3">
-              <SearchInput value={search} onChange={setSearch} placeholder="Search conversations…" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Поиск по диалогам…" />
               <FilterChips options={FILTERS} value={filter as (typeof FILTERS)[number]} onChange={setFilter} className="mt-3" />
             </div>
             <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -243,7 +244,7 @@ export default function Conversations() {
                         <Badge tone={c.channel === "Fanvue" ? "info" : "neutral"}>{c.channel}</Badge>
                         {c.awaitingApproval > 0 && (
                           <span className="flex items-center gap-1 text-[10.5px] text-warn">
-                            <Sparkles className="size-3" /> {c.awaitingApproval} draft
+                            <Sparkles className="size-3" /> {c.awaitingApproval} черн.
                           </span>
                         )}
                       </div>
@@ -252,7 +253,7 @@ export default function Conversations() {
                 );
               })}
               {!loading && visible.length === 0 && (
-                <EmptyState icon={<Inbox className="size-4" />} title="Inbox clear" description="No conversations match this filter." />
+                <EmptyState icon={<Inbox className="size-4" />} title="Инбокс пуст" description="Под этот фильтр не подходит ни один диалог." />
               )}
             </div>
           </div>
@@ -260,7 +261,7 @@ export default function Conversations() {
           {/* Thread */}
           <div className={cn("flex min-h-0 flex-col", !active && "hidden lg:flex")}>
             {!active ? (
-              <EmptyState icon={<Inbox className="size-4" />} title="Select a conversation" className="m-auto" />
+              <EmptyState icon={<Inbox className="size-4" />} title="Выберите диалог" className="m-auto" />
             ) : (
               <>
                 <div className="flex items-center gap-3 border-b border-line px-4 py-3">
@@ -273,11 +274,11 @@ export default function Conversations() {
                   </div>
                   <div className="ml-auto flex items-center gap-2">
                     <Button variant="ghost" size="sm" className="lg:hidden" onClick={() => setActiveId(null)}>
-                      Back
+                      Назад
                     </Button>
-                    <Badge tone={activeFan?.relationship === "Inner circle" ? "accent" : "neutral"}>{activeFan?.relationship}</Badge>
+                    <Badge tone={activeFan?.relationship === "Inner circle" ? "accent" : "neutral"}>{label(activeFan?.relationship)}</Badge>
                     <Button variant="subtle" size="sm" className="lg:hidden" onClick={() => setInfoOpen(true)}>
-                      Info
+                      Инфо
                     </Button>
                   </div>
                 </div>
@@ -285,7 +286,7 @@ export default function Conversations() {
                 <div ref={scrollRef} className="hide-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5 lg:px-6">
                   <div className="flex justify-center">
                     <span className="rounded-full border border-line bg-canvas-2 px-3 py-1 text-[10.5px] text-faint">
-                      Today · {active.channel}
+                      Сегодня · {active.channel}
                     </span>
                   </div>
 
@@ -298,7 +299,7 @@ export default function Conversations() {
                             <div className="flex items-center gap-1.5">
                               <Sparkles className="size-3 text-accent-hi" strokeWidth={2} />
                               <span className="text-[10px] font-semibold tracking-[0.1em] text-accent-hi uppercase">
-                                AI Draft
+                                AI-черновик
                               </span>
                               <span className="ml-auto num text-[10.5px] text-faint">{clock(m.at)}</span>
                             </div>
@@ -306,9 +307,9 @@ export default function Conversations() {
 
                             <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg border border-line bg-canvas-2/60 p-2.5">
                               {[
-                                { label: "Tone", value: suggestion?.tone ?? "Playful" },
-                                { label: "Intent", value: suggestion?.intent ?? "Conversation" },
-                                { label: "Confidence", value: `${suggestion?.confidence ?? 90}%` },
+                                { label: "Тон", value: suggestion?.tone ?? "Игривый" },
+                                { label: "Намерение", value: suggestion?.intent ?? "Разговор" },
+                                { label: "Уверенность", value: `${suggestion?.confidence ?? 90}%` },
                               ].map((s) => (
                                 <div key={s.label}>
                                   <div className="label">{s.label}</div>
@@ -319,12 +320,12 @@ export default function Conversations() {
 
                             {isApproved ? (
                               <div className="mt-3 flex items-center gap-2 rounded-lg border border-pos/25 bg-pos/10 px-3 py-2 text-[12px] text-pos">
-                                <CheckCheck className="size-3.5" /> Approved — recorded, not delivered to the fan yet
+                                <CheckCheck className="size-3.5" /> Одобрено — записано, фану ещё не доставлено
                               </div>
                             ) : (
                               <div className="mt-3 flex flex-wrap items-center gap-2">
                                 <Button size="sm" variant="subtle" onClick={() => setDraft(m.body)}>
-                                  <Pencil className="size-3.5" /> Edit
+                                  <Pencil className="size-3.5" /> Изменить
                                 </Button>
                                 <Button
                                   size="sm"
@@ -332,7 +333,7 @@ export default function Conversations() {
                                   loading={generating}
                                   onClick={() => void generateReply()}
                                 >
-                                  <RefreshCw className="size-3.5" /> Regenerate
+                                  <RefreshCw className="size-3.5" /> Перегенерировать
                                 </Button>
                                 <Button
                                   size="sm"
@@ -348,27 +349,27 @@ export default function Conversations() {
                                         refetch();
                                         refetchList();
                                         push({
-                                          title: "Draft approved",
-                                          description: "Recorded as approved. Delivery to the fan is not connected yet, so nothing was sent.",
+                                          title: "Черновик одобрен",
+                                          description: "Записано как одобренное. Доставка фану не подключена, поэтому ничего не отправлено.",
                                           tone: "success",
                                         });
                                       } catch (error) {
                                         push({
-                                          title: "Approve failed",
-                                          description: error instanceof Error ? error.message : "Try again.",
+                                          title: "Не удалось одобрить",
+                                          description: error instanceof Error ? error.message : "Попробуйте ещё раз.",
                                           tone: "error",
                                         });
                                       }
                                     })();
                                   }}
                                 >
-                                  <Check className="size-3.5" /> Approve
+                                  <Check className="size-3.5" /> Одобрить
                                 </Button>
                               </div>
                             )}
                           </div>
                           <div className="mt-1.5 text-right text-[10.5px] text-faint">
-                            AI drafts wait for your approval. Delivery to fans is not connected yet.
+                            AI-черновики ждут вашего одобрения. Доставка фанам не подключена.
                           </div>
                         </div>
                       );
@@ -384,7 +385,7 @@ export default function Conversations() {
                               <div className="flex items-center gap-2 px-3 py-2">
                                 <ImageIcon className="size-3.5 text-faint" />
                                 <span className="text-[11.5px] text-muted">{m.media.label}</span>
-                                <Badge className="ml-auto">Preview</Badge>
+                                <Badge className="ml-auto">Превью</Badge>
                               </div>
                             </div>
                           ) : (
@@ -399,7 +400,7 @@ export default function Conversations() {
                           )}
                           <div className="mt-1 flex items-center gap-2 text-[10.5px] text-faint">
                             {mine && <span className="ml-auto">{mine ? "Mara" : activeFan?.name}</span>}
-                            {mine && m.state === "approved" && <span className="text-warn">Approved · not delivered</span>}
+                            {mine && m.state === "approved" && <span className="text-warn">Одобрено · не доставлено</span>}
                             <span className="num">{clock(m.at)}</span>
                           </div>
                         </div>
@@ -413,9 +414,9 @@ export default function Conversations() {
                 <div className="border-t border-line px-4 py-3 lg:px-6">
                   {draft && (
                     <div className="mb-2 flex items-center gap-2 rounded-lg border border-accent/25 bg-accent/[0.06] px-3 py-2 text-[12px] text-accent-hi">
-                      <Sparkles className="size-3.5" /> Editing AI draft
+                      <Sparkles className="size-3.5" /> Правка AI-черновика
                       <button className="ml-auto text-faint hover:text-ink" onClick={() => setDraft("")}>
-                        clear
+                        очистить
                       </button>
                     </div>
                   )}
@@ -424,8 +425,8 @@ export default function Conversations() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={2}
-                      placeholder="Reply as Mara… (saved as approved; not delivered to the fan yet)"
-                      aria-label="Reply as Mara"
+                      placeholder="Ответить как Мара… (сохранится как одобренное; фану пока не доставляется)"
+                      aria-label="Ответить как Мара"
                       className="max-h-32 min-h-[46px] flex-1 resize-none rounded-[10px] border border-line bg-canvas-2 px-3.5 py-2.5 text-[13px] leading-relaxed text-ink transition-colors placeholder:text-faint focus:border-line-2 focus:outline-none"
                     />
                     <Button
@@ -443,17 +444,17 @@ export default function Conversations() {
                             refetch();
                             refetchList();
                             push({
-                              title: "Reply recorded",
-                              description: "Saved as approved. Delivery to the fan is not connected yet, so nothing was sent.",
+                              title: "Ответ записан",
+                              description: "Сохранено как одобренное. Доставка фану не подключена, поэтому ничего не отправлено.",
                               tone: "success",
                             });
                           } catch (error) {
-                            push({ title: "Could not save reply", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+                            push({ title: "Не удалось сохранить ответ", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
                           }
                         })();
                       }}
                     >
-                      <Send className="size-3.5" /> Record reply
+                      <Send className="size-3.5" /> Записать ответ
                     </Button>
                   </div>
                 </div>
@@ -464,7 +465,7 @@ export default function Conversations() {
           {/* Fan profile rail */}
           <div className="hidden min-h-0 flex-col overflow-y-auto border-l border-line px-5 py-5 lg:flex">
             {!activeFan ? (
-              <div className="text-[12.5px] text-muted">Select a conversation</div>
+              <div className="text-[12.5px] text-muted">Выберите диалог</div>
             ) : (
               <>
                 <div className="flex items-center gap-3">
@@ -475,7 +476,7 @@ export default function Conversations() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge tone={activeFan.relationship === "Inner circle" ? "accent" : "neutral"}>{activeFan.relationship}</Badge>
+                  <Badge tone={activeFan.relationship === "Inner circle" ? "accent" : "neutral"}>{label(activeFan.relationship)}</Badge>
                   <StatusBadge status={activeFan.status} />
                 </div>
 
@@ -483,24 +484,24 @@ export default function Conversations() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <KeyStat label="LTV" value={currency(activeFan.ltv)} />
-                  <KeyStat label="Purchases" value={activeFan.purchases} />
-                  <KeyStat label="Subscription" value={activeFan.subscription?.status ?? "None"} />
-                  <KeyStat label="Last seen" value={ago(activeFan.lastActivity)} />
+                  <KeyStat label="Покупки" value={activeFan.purchases} />
+                  <KeyStat label="Подписка" value={activeFan.subscription ? label(activeFan.subscription.status) : label("None")} />
+                  <KeyStat label="Был(а)" value={ago(activeFan.lastActivity)} />
                 </div>
 
                 <Divider className="my-4" />
 
                 <div>
-                  <div className="label mb-2.5">Memories</div>
+                  <div className="label mb-2.5">Воспоминания</div>
                   <div className="space-y-2">
                     {(activeMemories.data ?? []).slice(0, 4).map((m) => (
                       <div key={m.id} className="rounded-lg border border-line bg-canvas-2/50 px-3 py-2">
                         <div className="text-[12px] text-ink-2">{m.statement}</div>
-                        <div className="mt-0.5 text-[10.5px] text-faint">{m.category}</div>
+                        <div className="mt-0.5 text-[10.5px] text-faint">{label(m.category)}</div>
                       </div>
                     ))}
                     {(activeMemories.data ?? []).length === 0 && (
-                      <div className="text-[11.5px] text-faint">No memories yet.</div>
+                      <div className="text-[11.5px] text-faint">Воспоминаний пока нет.</div>
                     )}
                   </div>
                 </div>
@@ -508,10 +509,10 @@ export default function Conversations() {
                 <Divider className="my-4" />
 
                 <AINote
-                  title="AI Recommendation"
+                  title="AI-рекомендация"
                   footer={
                     <Button variant="primary" size="sm" loading={generating} onClick={() => void generateReply()}>
-                      Draft reply
+                      Черновик ответа
                     </Button>
                   }
                 >
@@ -519,22 +520,22 @@ export default function Conversations() {
                 </AINote>
 
                 <div className="mt-5">
-                  <div className="label mb-2.5">Engagement</div>
+                  <div className="label mb-2.5">Вовлечённость</div>
                   <div className="flex items-center gap-3">
                     <ProgressBar value={activeFan.status === "Sleeping" ? 31 : 82} className="flex-1" height={4} />
                     <span className="num text-[11.5px] text-muted">{activeFan.status === "Sleeping" ? 31 : 82}</span>
                   </div>
                   <div className="mt-3 space-y-2 text-[11.5px] text-muted">
                     <div className="flex justify-between">
-                      <span>Reply rate</span>
+                      <span>Доля ответов</span>
                       <span className="num text-ink-2">{activeFan.relationship === "Inner circle" ? "94%" : "61%"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Avg. response time</span>
-                      <span className="num text-ink-2">{activeFan.relationship === "Inner circle" ? "7 min" : "38 min"}</span>
+                      <span>Среднее время ответа</span>
+                      <span className="num text-ink-2">{activeFan.relationship === "Inner circle" ? "7 мин" : "38 мин"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Joined</span>
+                      <span>Локация</span>
                       <span className="num text-ink-2">{activeFan.location.split(",")[0]}</span>
                     </div>
                   </div>
@@ -555,30 +556,30 @@ export default function Conversations() {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={activeFan.relationship === "Inner circle" ? "accent" : "neutral"}>{activeFan.relationship}</Badge>
+                <Badge tone={activeFan.relationship === "Inner circle" ? "accent" : "neutral"}>{label(activeFan.relationship)}</Badge>
                 <StatusBadge status={activeFan.status} />
                 <Badge>{activeFan.source}</Badge>
               </div>
               <Divider />
               <div className="grid grid-cols-2 gap-4">
                 <KeyStat label="LTV" value={currency(activeFan.ltv)} />
-                <KeyStat label="Purchases" value={activeFan.purchases} />
-                <KeyStat label="Subscription" value={activeFan.subscription?.status ?? "None"} />
-                <KeyStat label="Last seen" value={ago(activeFan.lastActivity)} />
+                <KeyStat label="Покупки" value={activeFan.purchases} />
+                <KeyStat label="Подписка" value={activeFan.subscription ? label(activeFan.subscription.status) : label("None")} />
+                <KeyStat label="Был(а)" value={ago(activeFan.lastActivity)} />
               </div>
               <Divider />
               <div>
-                <div className="label mb-2.5">Memories</div>
+                <div className="label mb-2.5">Воспоминания</div>
                 <div className="space-y-2">
                   {(activeMemories.data ?? []).slice(0, 4).map((m) => (
                     <div key={m.id} className="rounded-lg border border-line bg-canvas-2/50 px-3 py-2">
                       <div className="text-[12px] text-ink-2">{m.statement}</div>
-                      <div className="mt-0.5 text-[10.5px] text-faint">{m.category}</div>
+                      <div className="mt-0.5 text-[10.5px] text-faint">{label(m.category)}</div>
                     </div>
                   ))}
                 </div>
               </div>
-              <AINote title="AI Recommendation">{activeFan.spendTierNote}</AINote>
+              <AINote title="AI-рекомендация">{activeFan.spendTierNote}</AINote>
             </div>
           )}
         </Drawer>

@@ -180,15 +180,15 @@ const waitHash = (page, value, timeout = 5000) =>
   page.waitForFunction((v) => window.location.hash === v, value, { timeout }).then(() => true, () => false)
 
 async function enterDemo(page) {
-  await page.getByRole('button', { name: /Explore demo mode/ }).click()
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).click()
   await waitHash(page, '#/')
 }
 
 /** Переход по разделу меню: на узком экране сначала открывается боковая панель. */
 async function nav(page, label) {
-  const opener = page.getByRole('button', { name: 'Open navigation' })
+  const opener = page.getByRole('button', { name: 'Открыть навигацию' })
   if (await opener.isVisible().catch(() => false)) await opener.click()
-  await page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: label, exact: true }).first().click()
+  await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: label, exact: true }).first().click()
 }
 
 /** Отвечает на последний попап Telegram (web_app_open_popup). */
@@ -226,13 +226,13 @@ const cssVar = (page, name) => page.evaluate((n) => getComputedStyle(document.do
 if (run('1')) {
   const { context, page, errors, sdkRequests } = await openPage({ width: 1280, height: 860 })
   await page.goto(SITE)
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   check('браузер: экран входа отрисован', true)
   check('браузер: запроса к telegram.org нет', sdkRequests.length === 0, sdkRequests.join(', '))
   check('браузер: класс tg-mini-app не ставится', !(await page.evaluate(() => document.documentElement.classList.contains('tg-mini-app'))))
-  check('браузер: <html lang="en">', (await page.getAttribute('html', 'lang')) === 'en')
+  check('браузер: <html lang="ru">', (await page.getAttribute('html', 'lang')) === 'ru')
   await enterDemo(page)
-  await nav(page, 'Conversations')
+  await nav(page, 'Диалоги')
   check('браузер: навигация работает', await waitHash(page, '#/conversations'), await hash(page))
   check('браузер: без ошибок JS', errors.length === 0, errors.join(' | '))
   await page.screenshot({ path: path.join(shots, '01-browser.png') })
@@ -244,7 +244,7 @@ if (run('2')) {
   const { context, page, errors } = await openPage({ sdk: 'fail' })
   const started = Date.now()
   await page.goto(launchUrl())
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   const elapsed = Date.now() - started
   check('SDK недоступен: сайт отрисован', true)
   check('SDK недоступен: отрисовка ≤ 5 с', elapsed <= 5000, `${elapsed} мс`)
@@ -258,7 +258,7 @@ if (run('2')) {
 if (run('3')) {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl())
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   const list = (await events(page)).map(([t]) => t)
   check('Mini App: expand()', list.includes('web_app_expand'))
   check('Mini App: ready()', list.includes('web_app_ready'))
@@ -318,10 +318,10 @@ if (run('3')) {
   await page.evaluate(() => (window.location.hash = '#/fans'))
   await waitHash(page, '#/fans')
   // Экспорт пуст, пока данные не загрузились: ждём счётчик фанов в заголовке.
-  await page.getByText(/[1-9]\d* fans in the all view/).waitFor({ timeout: 10000 })
-  await page.getByRole('button', { name: /Export CSV/ }).click()
+  await page.getByText(/[1-9]\d*\s+(фан|фана|фанов) в сегменте/).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Экспорт CSV/ }).click()
   const exportPopup = await answerPopup(page, true)
-  check('экспорт: предложено открыть кабинет в браузере', /browser/i.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
+  check('экспорт: предложено открыть кабинет в браузере', /в браузере/i.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
   check('экспорт: открывается внешний браузер на разделе «Fans»', /#\/fans$/.test((await lastEvent(page, 'web_app_open_link'))?.url ?? ''))
 
   check('Mini App: без ошибок JS и нативных диалогов', errors.length === 0, errors.join(' | '))
@@ -339,9 +339,9 @@ if (run('4')) for (const [name, opts, expected] of [
 ]) {
   const { context, page, errors } = await openPage()
   await page.goto(launchUrl(opts))
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   check(`deep link ${name}: сначала штатный вход`, (await hash(page)) === '#/auth', await hash(page))
-  await page.getByRole('button', { name: /Explore demo mode/ }).click()
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).click()
   const ok = await waitHash(page, expected)
   await page.waitForTimeout(300)
   check(`deep link ${name}: после входа ${expected}`, ok && (await hash(page)) === expected, await hash(page))
@@ -354,7 +354,7 @@ if (run('4')) for (const [name, opts, expected] of [
 if (run('5')) {
   const { context, page, errors } = await openPage()
   await page.goto(launchUrl({ version: '6.0', platform: 'tdesktop' }))
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   await page.evaluate(() => (window.location.hash = '#/fans'))
   await waitHash(page, '#/fans')
@@ -371,7 +371,7 @@ if (run('5')) {
 if (run('6')) for (const mode of ['browser', 'mini-app']) {
   const { context, page, errors } = await openPage({ width: 320, height: 640 })
   await page.goto(mode === 'browser' ? SITE : launchUrl())
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   const overflow = []
   if (!(await noHorizontalScroll(page))) overflow.push('/auth')
   await enterDemo(page)
@@ -393,7 +393,7 @@ if (run('6')) for (const mode of ['browser', 'mini-app']) {
 if (run('7')) {
   const { context, page, errors } = await openPage({ width: 768, height: 900 })
   await page.goto(SITE)
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   const clipped = []
   for (const width of [768, 900, 1024, 1280, 1440]) {
@@ -401,7 +401,7 @@ if (run('7')) {
     await page.waitForTimeout(150)
     const r = await page.evaluate(() => {
       const row = document.querySelector('header > div')
-      const avatar = document.querySelector('header img[alt="Mara Quinn"]')?.getBoundingClientRect()
+      const avatar = document.querySelector('header img[alt="Мара Куинн"]')?.getBoundingClientRect()
       return { overflow: row.scrollWidth > row.clientWidth + 1, right: avatar?.right ?? 0, vw: window.innerWidth }
     })
     if (r.overflow || r.right > r.vw) clipped.push(`${width}px`)
@@ -415,7 +415,7 @@ if (run('7')) {
 if (run('8')) {
   const { context, page, errors } = await openPage({ width: 390, height: 800 })
   await page.goto(launchUrl({ platform: 'ios' }))
-  await page.getByRole('button', { name: /Explore demo mode/ }).waitFor({ timeout: 10000 })
+  await page.getByRole('button', { name: /Открыть демо-режим/ }).waitFor({ timeout: 10000 })
   await enterDemo(page)
   await page.setViewportSize({ width: 800, height: 390 })
   await receive(page, 'viewport_changed', { height: 390, is_state_stable: true, is_expanded: true })

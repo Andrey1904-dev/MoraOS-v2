@@ -11,6 +11,7 @@ import { BarChart } from "@/components/ui/charts";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { currency } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { cn } from "@/utils/cn";
 
 const KIND_TONE: Record<string, "accent" | "info" | "pos" | "neutral"> = {
@@ -36,9 +37,9 @@ export default function Offers() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Business"
-        title="Offers"
-        description="Everything Mara sells — subscriptions, PPV drops, bundles and VIP access, with live conversion."
+        eyebrow="Бизнес"
+        title="Офферы"
+        description="Всё, что продаёт Мара: подписки, PPV-дропы, наборы и VIP-доступ — с реальной конверсией."
         actions={
           <>
             <SegmentedControl
@@ -47,7 +48,7 @@ export default function Offers() {
               onChange={setKind}
             />
             <Button variant="primary" onClick={() => setParams({ new: "1" })}>
-              <Plus className="size-3.5" /> Create offer
+              <Plus className="size-3.5" /> Создать оффер
             </Button>
           </>
         }
@@ -55,9 +56,9 @@ export default function Offers() {
 
       <Grid className="lg:grid-cols-3">
         {[
-          { label: "Recurring revenue", value: currency(mrr), note: "Subscriptions + VIP", tone: "text-accent-hi" },
-          { label: "Active buyers", value: String(totalBuyers), note: "across all offers", tone: "text-ink" },
-          { label: "Best converter", value: "Welcome bundle", note: "18.2% of new fans", tone: "text-ink" },
+          { label: "Регулярная выручка", value: currency(mrr), note: "Подписки + VIP", tone: "text-accent-hi" },
+          { label: "Активные покупатели", value: String(totalBuyers), note: "по всем офферам", tone: "text-ink" },
+          { label: "Лучшая конверсия", value: "Приветственный набор", note: "18,2% новых фанов", tone: "text-ink" },
         ].map((s) => (
           <Card key={s.label} className="p-5">
             <div className="label">{s.label}</div>
@@ -80,13 +81,13 @@ export default function Offers() {
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-[14.5px] font-medium text-ink">{o.name}</div>
-                      <Badge tone={KIND_TONE[o.kind]}>{o.kind}</Badge>
+                      <Badge tone={KIND_TONE[o.kind]}>{label(o.kind)}</Badge>
                     </div>
                     <div className="mt-1.5 flex items-baseline gap-1">
                       <span className="num text-[22px] font-medium tracking-[-0.02em] text-ink">
                         {currency(o.price, { cents: true })}
                       </span>
-                      <span className="text-[12px] text-muted">{o.cadence}</span>
+                      <span className="text-[12px] text-muted">{label(o.cadence)}</span>
                     </div>
                   </div>
                   <StatusBadge status={o.status} />
@@ -98,15 +99,15 @@ export default function Offers() {
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <div className="label">Buyers</div>
+                    <div className="label">Покупатели</div>
                     <div className="num mt-1 text-[13px] text-ink">{o.buyers}</div>
                   </div>
                   <div>
-                    <div className="label">Revenue</div>
+                    <div className="label">Выручка</div>
                     <div className="num mt-1 text-[13px] text-ink">{currency(o.revenue, { compact: true })}</div>
                   </div>
                   <div>
-                    <div className="label">Conv.</div>
+                    <div className="label">Конв.</div>
                     <div className="num mt-1 text-[13px] text-pos">{o.conversion}%</div>
                   </div>
                 </div>
@@ -123,17 +124,17 @@ export default function Offers() {
                     size="sm"
                     variant="subtle"
                     className="flex-1"
-                    onClick={() => push({ title: `${o.name} opened`, description: "Offer editor is part of the commerce layer.", tone: "default" })}
+                    onClick={() => push({ title: `${o.name}: открыт`, description: "Редактор офферов относится к торговому слою.", tone: "default" })}
                   >
-                    Edit
+                    Изменить
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="flex-1"
-                    disabled title="Share links are not available yet"
+                    disabled title="Ссылки для публикации пока недоступны"
                   >
-                    Share
+                    Поделиться
                   </Button>
                 </div>
               </Card>
@@ -142,7 +143,7 @@ export default function Offers() {
 
       <Grid className="mt-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Revenue by offer" subtitle="Last 30 days" action={<Badge tone="accent"><TrendingUp className="size-3" /> +12.4%</Badge>} />
+          <CardHeader title="Выручка по офферам" subtitle="Последние 30 дней" action={<Badge tone="accent"><TrendingUp className="size-3" /> +12.4%</Badge>} />
           <div className="px-5 pb-5">
             <BarChart
               data={(data ?? []).filter((o) => o.revenue > 0).map((o) => ({ label: o.name, value: o.revenue }))}
@@ -153,7 +154,7 @@ export default function Offers() {
         </Card>
 
         <Card>
-          <CardHeader title="Offer performance" subtitle="Conversion rate by offer" />
+          <CardHeader title="Результаты офферов" subtitle="Конверсия по офферам" />
           <div className="px-5 pb-5">
             <div className="space-y-4">
               {(data ?? []).map((o) => (
@@ -171,7 +172,7 @@ export default function Offers() {
             <Divider className="my-4" />
             <div className="flex items-center gap-2 text-[11.5px] text-muted">
               <Tag className="size-3.5" />
-              Welcome bundle converts 2.7× better with TikTok-sourced fans.
+              Приветственный набор конвертирует в 2,7 раза лучше на фанах из TikTok.
             </div>
           </div>
         </Card>
@@ -180,39 +181,39 @@ export default function Offers() {
       <Modal
         open={open}
         onClose={() => setParams({})}
-        title="Create offer"
-        subtitle="Offers stay in Mara OS until a payment provider is connected."
+        title="Создать оффер"
+        subtitle="Офферы остаются в Mara OS, пока не подключён платёжный провайдер."
         width="max-w-xl"
         footer={
           <>
             <Button variant="ghost" onClick={() => setParams({})}>
-              Cancel
+              Отмена
             </Button>
             <Button
               variant="primary"
               disabled
-              title="Offer creation is not available yet"
+              title="Создание офферов пока недоступно"
               onClick={() => setParams({})}
             >
-              Create draft
+              Создать черновик
             </Button>
           </>
         }
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Name" className="sm:col-span-2">
-            <input placeholder="Behind the notebook" className={inputClass} />
+          <Field label="Название" className="sm:col-span-2">
+            <input placeholder="За кадром блокнота" className={inputClass} />
           </Field>
-          <Field label="Kind">
+          <Field label="Тип">
             <Select value="PPV" onChange={() => {}} options={["Subscription", "PPV", "VIP", "Bundle", "Tip"] as const} />
           </Field>
-          <Field label="Price (USD)">
+          <Field label="Цена (USD)">
             <input placeholder="29.99" className={inputClass} />
           </Field>
-          <Field label="Description" className="sm:col-span-2">
-            <textarea rows={3} placeholder="4-minute uncut writing session + the spreadsheet scan." className={textareaClass} />
+          <Field label="Описание" className="sm:col-span-2">
+            <textarea rows={3} placeholder="4 минуты записи без монтажа + скан таблицы." className={textareaClass} />
           </Field>
-          <Field label="Status">
+          <Field label="Статус">
             <Select value="Draft" onChange={() => {}} options={["Draft", "Live", "Paused"] as const} />
           </Field>
         </div>

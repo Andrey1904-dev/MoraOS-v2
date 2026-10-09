@@ -20,10 +20,11 @@ import { ContentEditorPanel } from "@/components/content/ContentEditorPanel";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { currency, number as fmtNum, shortDate } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { cn } from "@/utils/cn";
 
 const FILTERS = ["All", "Idea", "Draft", "Ready", "Scheduled", "Published"] as const;
-const VIEWS = ["Grid", "List", "Calendar"] as const;
+const VIEWS = ["Сетка", "Список", "Календарь"] as const;
 
 const PLATFORM_TONE: Record<string, "accent" | "info" | "neutral" | "pos"> = {
   TikTok: "neutral",
@@ -43,7 +44,7 @@ export default function Content() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [filter, setFilter] = useState<string>("All");
-  const [view, setView] = useState<string>("Grid");
+  const [view, setView] = useState<string>("Сетка");
   const [search, setSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -90,14 +91,14 @@ export default function Content() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Content"
-        title="Content"
-        description="Every post, drop and story beat tied to the storyline — from draft to published performance."
+        eyebrow="Контент"
+        title="Контент"
+        description="Каждый пост, дроп и сюжетный бит, привязанные к истории — от черновика до результатов публикации."
         actions={
           <>
             <SegmentedControl options={VIEWS} value={view as (typeof VIEWS)[number]} onChange={setView} />
             <Button variant="primary" onClick={() => navigate("/content/new")}>
-              <Plus className="size-3.5" /> Create content
+              <Plus className="size-3.5" /> Создать контент
             </Button>
           </>
         }
@@ -105,7 +106,7 @@ export default function Content() {
 
       <Card>
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3.5 lg:flex-row lg:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search content…" className="lg:w-72" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Поиск по контенту…" className="lg:w-72" />
           <FilterChips
             options={FILTERS}
             value={filter as (typeof FILTERS)[number]}
@@ -113,20 +114,20 @@ export default function Content() {
             counts={{ All: data?.length, Idea: counts.Idea, Draft: counts.Draft, Ready: counts.Ready, Scheduled: counts.Scheduled, Published: counts.Published }}
           />
           <div className="num ml-auto text-[11.5px] text-faint">
-            {fmtNum((data ?? []).reduce((s, c) => s + c.views, 0), true)} total views ·{" "}
-            {currency((data ?? []).reduce((s, c) => s + c.revenue, 0))} attributed
+            {fmtNum((data ?? []).reduce((s, c) => s + c.views, 0), true)} просмотров всего ·{" "}
+            {currency((data ?? []).reduce((s, c) => s + c.revenue, 0))} атрибутировано
           </div>
         </div>
 
-        {loading && view === "Grid" && (
+        {loading && view === "Сетка" && (
           <div className="p-5">
             <SkeletonCards count={8} />
           </div>
         )}
-        {loading && view === "List" && <SkeletonRows rows={8} />}
+        {loading && view === "Список" && <SkeletonRows rows={8} />}
 
         {/* Grid */}
-        {!loading && view === "Grid" && (
+        {!loading && view === "Сетка" && (
           <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {rows.map((c) => {
               const ep = episodesById.get(c.episodeId ?? "");
@@ -169,19 +170,19 @@ export default function Content() {
                       <div className="truncate text-[13px] font-medium text-ink">{c.title}</div>
                       {ep && <span className="num shrink-0 text-[10.5px] text-faint">EP {String(ep.number).padStart(2, "0")}</span>}
                     </div>
-                    <div className="mt-1 text-[11.5px] text-muted">{ep ? ep.title : "Standalone"}</div>
+                    <div className="mt-1 text-[11.5px] text-muted">{ep ? ep.title : "Вне сюжета"}</div>
                     <Divider className="my-3" />
                     <div className="grid grid-cols-3 gap-2">
                       <div>
-                        <div className="label">Views</div>
+                        <div className="label">Просмотры</div>
                         <div className="num mt-1 text-[12px] text-ink">{c.views ? fmtNum(c.views, true) : "—"}</div>
                       </div>
                       <div>
-                        <div className="label">Eng.</div>
+                        <div className="label">Вовл.</div>
                         <div className="num mt-1 text-[12px] text-ink">{c.engagement ? `${c.engagement}%` : "—"}</div>
                       </div>
                       <div>
-                        <div className="label">Rev.</div>
+                        <div className="label">Выручка</div>
                         <div className="num mt-1 text-[12px] text-accent-hi">{c.revenue ? currency(c.revenue, { compact: true }) : "—"}</div>
                       </div>
                     </div>
@@ -192,7 +193,7 @@ export default function Content() {
                         </>
                       ) : (
                         <>
-                          <Eye className="size-3" /> {c.publishedAt ? shortDate(c.publishedAt) : "not published"}
+                          <Eye className="size-3" /> {c.publishedAt ? shortDate(c.publishedAt) : "не опубликовано"}
                         </>
                       )}
                     </div>
@@ -202,17 +203,17 @@ export default function Content() {
             })}
             {rows.length === 0 && (
               <div className="col-span-full">
-                <EmptyState icon={<Images className="size-4" />} title="No content in this state" description="Try another filter or create a new piece." />
+                <EmptyState icon={<Images className="size-4" />} title="В этом статусе контента нет" description="Попробуйте другой фильтр или создайте новый материал." />
               </div>
             )}
           </div>
         )}
 
         {/* List */}
-        {!loading && view === "List" && (
+        {!loading && view === "Список" && (
           <div>
             <div className="hidden lg:grid grid-cols-[minmax(0,2.2fr)_110px_130px_100px_100px_110px_110px] gap-4 border-b border-line px-5 py-2.5 text-[10.5px] tracking-[0.09em] text-faint uppercase">
-              <span>Title</span><span>Platform</span><span>Episode</span><span>Status</span><span>Views</span><span>Engagement</span><span>Revenue</span>
+              <span>Название</span><span>Площадка</span><span>Эпизод</span><span>Статус</span><span>Просмотры</span><span>Вовлечённость</span><span>Выручка</span>
             </div>
             {rows.map((c) => {
               const ep = episodesById.get(c.episodeId ?? "");
@@ -259,17 +260,17 @@ export default function Content() {
             </div>
 
             {rows.length === 0 && (
-              <EmptyState icon={<List className="size-4" />} title="Nothing to show" />
+              <EmptyState icon={<List className="size-4" />} title="Показывать нечего" />
             )}
           </div>
         )}
 
         {/* Calendar */}
-        {!loading && view === "Calendar" && (
+        {!loading && view === "Календарь" && (
           <div className="p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-[13px] font-medium text-ink">
-                {new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                {new Date().toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}
               </span>
               <div className="flex items-center gap-3 text-[11px] text-faint">
                 {["Published", "Scheduled", "Draft"].map((s, i) => (
@@ -280,13 +281,13 @@ export default function Content() {
                         i === 0 ? "bg-pos/70" : i === 1 ? "bg-info/70" : "bg-line-2",
                       )}
                     />
-                    {s}
+                    {label(s)}
                   </span>
                 ))}
               </div>
             </div>
             <div className="grid grid-cols-7 gap-1.5">
-              {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
                 <div key={d} className="label pb-1 text-center">{d}</div>
               ))}
               {calendarCells.map((date, i) => {
@@ -335,12 +336,12 @@ export default function Content() {
       <Modal
         open={!!openItem}
         onClose={() => setParams({})}
-        title={openItem ? `Edit · ${openItem.title}` : "Edit content"}
-        subtitle="Changes stay in Mara OS until you publish."
+        title={openItem ? `Правка · ${openItem.title}` : "Правка контента"}
+        subtitle="Изменения остаются в Mara OS, пока вы не опубликуете."
         width="max-w-4xl"
         footer={
           <Button variant="primary" onClick={() => { setRefreshKey((k) => k + 1); setParams({}); }}>
-            Done
+            Готово
           </Button>
         }
       >
@@ -356,10 +357,10 @@ export default function Content() {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-4">
         {[
-          { icon: <Images className="size-3.5" />, label: "Published", value: counts.Published ?? 0 },
-          { icon: <CalendarDays className="size-3.5" />, label: "Scheduled", value: counts.Scheduled ?? 0 },
-          { icon: <MessageSquare className="size-3.5" />, label: "Ready to schedule", value: counts.Ready ?? 0 },
-          { icon: <Wallet className="size-3.5" />, label: "Attributed revenue", value: currency((data ?? []).reduce((s, c) => s + c.revenue, 0), { compact: true }) },
+          { icon: <Images className="size-3.5" />, label: "Опубликовано", value: counts.Published ?? 0 },
+          { icon: <CalendarDays className="size-3.5" />, label: "Запланировано", value: counts.Scheduled ?? 0 },
+          { icon: <MessageSquare className="size-3.5" />, label: "Готово к публикации", value: counts.Ready ?? 0 },
+          { icon: <Wallet className="size-3.5" />, label: "Атрибутированная выручка", value: currency((data ?? []).reduce((s, c) => s + c.revenue, 0), { compact: true }) },
         ].map((s) => (
           <Card key={s.label} className="flex items-center gap-3 p-4">
             <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-canvas-2 text-faint">{s.icon}</span>

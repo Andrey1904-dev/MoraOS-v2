@@ -28,42 +28,42 @@ export interface NavGroup {
 }
 
 export const navGroups: NavGroup[] = [
-  { label: "Command", items: [{ label: "Overview", to: "/", icon: LayoutDashboard }] },
+  { label: "Штаб", items: [{ label: "Обзор", to: "/", icon: LayoutDashboard }] },
   {
-    label: "Audience",
+    label: "Аудитория",
     items: [
-      { label: "Fans", to: "/fans", icon: Users },
-      { label: "Conversations", to: "/conversations", icon: MessageSquare },
+      { label: "Фаны", to: "/fans", icon: Users },
+      { label: "Диалоги", to: "/conversations", icon: MessageSquare },
     ],
   },
   {
-    label: "Content",
+    label: "Контент",
     items: [
-      { label: "Content", to: "/content", icon: Images },
-      { label: "Episodes", to: "/episodes", icon: Clapperboard },
-      { label: "Assets", to: "/assets", icon: FolderOpen },
+      { label: "Контент", to: "/content", icon: Images },
+      { label: "Эпизоды", to: "/episodes", icon: Clapperboard },
+      { label: "Ассеты", to: "/assets", icon: FolderOpen },
     ],
   },
   {
-    label: "Business",
+    label: "Бизнес",
     items: [
-      { label: "Offers", to: "/offers", icon: Tag },
-      { label: "Revenue", to: "/revenue", icon: Wallet },
-      { label: "Analytics", to: "/analytics", icon: BarChart3 },
+      { label: "Офферы", to: "/offers", icon: Tag },
+      { label: "Выручка", to: "/revenue", icon: Wallet },
+      { label: "Аналитика", to: "/analytics", icon: BarChart3 },
     ],
   },
   {
     label: "AI",
     items: [
-      { label: "AI Studio", to: "/ai", icon: Sparkles },
-      { label: "Automations", to: "/automations", icon: Workflow },
+      { label: "AI-студия", to: "/ai", icon: Sparkles },
+      { label: "Автоматизации", to: "/automations", icon: Workflow },
     ],
   },
   {
-    label: "System",
+    label: "Система",
     items: [
-      { label: "Tasks", to: "/tasks", icon: ListChecks },
-      { label: "Settings", to: "/settings", icon: SettingsIcon },
+      { label: "Задачи", to: "/tasks", icon: ListChecks },
+      { label: "Настройки", to: "/settings", icon: SettingsIcon },
     ],
   },
 ];
@@ -71,7 +71,7 @@ export const navGroups: NavGroup[] = [
 export const flatNav = navGroups.flatMap((g) => g.items);
 
 export const pageTitle = (pathname: string) => {
-  if (pathname === "/") return "Overview";
+  if (pathname === "/") return "Обзор";
   const match = flatNav.find((n) => n.to !== "/" && pathname.startsWith(n.to));
   return match?.label ?? "Mara OS";
 };

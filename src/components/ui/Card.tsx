@@ -1,6 +1,7 @@
 import { cn } from "@/utils/cn";
 import { SafeImg } from "./SafeImg";
 import { initials } from "@/lib/format";
+import { label } from "@/lib/labels";
 
 /* ---------------------------------- Card --------------------------------- */
 
@@ -128,7 +129,7 @@ export function StatusBadge({
 }) {
   return (
     <Badge tone={statusTone[status] ?? "neutral"} dot={dot} className={className}>
-      {status}
+      {label(status)}
     </Badge>
   );
 }

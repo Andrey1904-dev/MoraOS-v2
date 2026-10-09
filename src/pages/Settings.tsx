@@ -20,11 +20,11 @@ import { media } from "@/data/media";
 import { TelegramSection } from "./settings/TelegramSection";
 import { cn } from "@/utils/cn";
 
-const SECTIONS = ["Character", "AI", "Platforms", "Notifications", "Team", "Security", "Telegram"] as const;
+const SECTIONS = ["Персонаж", "AI", "Площадки", "Уведомления", "Команда", "Безопасность", "Telegram"] as const;
 
 export default function Settings() {
   const { data: character } = useResource(() => repositories.character.get());
-  const [section, setSection] = useState<(typeof SECTIONS)[number]>("Character");
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>("Персонаж");
 
   const [ai, setAi] = useState({
     conversations: true,
@@ -46,22 +46,22 @@ export default function Settings() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="System"
-        title="Settings"
-        description="Character definition, AI behaviour, platform connections and workspace controls."
+        eyebrow="Система"
+        title="Настройки"
+        description="Карточка персонажа, поведение AI, подключение площадок и параметры рабочей области."
         actions={
-          <Button variant="primary" disabled title="Settings cannot be saved yet" aria-label="Save changes (not available yet)">
-            Save changes
+          <Button variant="primary" disabled title="Сохранение настроек пока недоступно" aria-label="Сохранить изменения (пока недоступно)">
+            Сохранить изменения
           </Button>
         }
       />
 
       <div className="grid gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
         {/* Section nav */}
-        <nav aria-label="Settings sections" className="hide-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:px-0">
+        <nav aria-label="Разделы настроек" className="hide-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:px-0">
           {SECTIONS.map((s) => {
             const Icon =
-              s === "Character" ? Bot : s === "AI" ? Layers : s === "Platforms" ? Plug : s === "Notifications" ? Bell : s === "Team" ? Users : s === "Telegram" ? Send : ShieldCheck;
+              s === "Персонаж" ? Bot : s === "AI" ? Layers : s === "Площадки" ? Plug : s === "Уведомления" ? Bell : s === "Команда" ? Users : s === "Telegram" ? Send : ShieldCheck;
             return (
               <button
                 key={s}
@@ -79,47 +79,47 @@ export default function Settings() {
         </nav>
 
         <div className="min-w-0 space-y-4">
-          {section === "Character" && (
+          {section === "Персонаж" && (
             <>
               <Card>
-                <CardHeader title="Character" subtitle="The single source of truth every agent reads" />
+                <CardHeader title="Персонаж" subtitle="Единый источник правды для всех агентов" />
                 <div className="px-5 pb-5">
                   <div className="flex items-start gap-4">
                     <Avatar name="Mara Quinn" src={media.mara} size={64} />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="text-[17px] font-medium text-ink">{character?.name ?? "Mara Quinn"}</h2>
-                        <Badge tone="accent">Active character</Badge>
+                        <Badge tone="accent">Активный персонаж</Badge>
                       </div>
                       <div className="mt-1 text-[12.5px] text-muted">
                         {character?.age} · {character?.city} · {character?.occupation}
                       </div>
-                      <div className="mt-2 text-[12.5px] text-ink-2">Story: {character?.story}</div>
+                      <div className="mt-2 text-[12.5px] text-ink-2">История: {character?.story}</div>
                     </div>
                   </div>
 
                   <Divider className="my-5" />
 
                   <div className="grid gap-5 lg:grid-cols-2">
-                    <Field label="Name">
+                    <Field label="Имя">
                       <input defaultValue={character?.name} className={inputClass} />
                     </Field>
-                    <Field label="Age">
+                    <Field label="Возраст">
                       <input defaultValue={String(character?.age ?? 23)} className={inputClass} />
                     </Field>
-                    <Field label="City">
+                    <Field label="Город">
                       <input defaultValue={character?.city} className={inputClass} />
                     </Field>
-                    <Field label="Occupation">
+                    <Field label="Род занятий">
                       <input defaultValue={character?.occupation} className={inputClass} />
                     </Field>
-                    <Field label="Story" className="lg:col-span-2" hint="Used by the Content Agent for continuity checks.">
+                    <Field label="История" className="lg:col-span-2" hint="Используется Агентом контента для проверки непрерывности.">
                       <input defaultValue={character?.story} className={inputClass} />
                     </Field>
-                    <Field label="Logline" className="lg:col-span-2">
+                    <Field label="Логлайн" className="lg:col-span-2">
                       <textarea rows={3} defaultValue={character?.logline} className={textareaClass} />
                     </Field>
-                    <Field label="Voice" className="lg:col-span-2" hint="Every generated message is checked against this.">
+                    <Field label="Голос" className="lg:col-span-2" hint="Каждое сгенерированное сообщение проверяется по этому описанию.">
                       <textarea rows={2} defaultValue={character?.voice} className={textareaClass} />
                     </Field>
                   </div>
@@ -127,7 +127,7 @@ export default function Settings() {
               </Card>
 
               <Card>
-                <CardHeader title="Traits" subtitle="Static attributes exposed to prompts" />
+                <CardHeader title="Черты" subtitle="Статические атрибуты, передаваемые в промпты" />
                 <div className="grid gap-px bg-line sm:grid-cols-2">
                   {(character?.traits ?? []).map((t) => (
                     <div key={t.label} className="bg-surface px-5 py-3.5">
@@ -139,7 +139,7 @@ export default function Settings() {
               </Card>
 
               <Card>
-                <CardHeader title="Boundaries" subtitle="Hard rules — never overridden by prompts" />
+                <CardHeader title="Границы" subtitle="Жёсткие правила — промпты их не переопределяют" />
                 <div className="space-y-2 px-5 pb-5">
                   {(character?.boundaries ?? []).map((b) => (
                     <div key={b} className="flex items-start gap-2.5 rounded-lg border border-line bg-canvas-2/50 px-3.5 py-2.5">
@@ -155,56 +155,56 @@ export default function Settings() {
           {section === "AI" && (
             <>
               <Card>
-                <CardHeader title="AI behaviour" subtitle="What the agents are allowed to do" />
+                <CardHeader title="Поведение AI" subtitle="Что разрешено агентам" />
                 <div className="divide-y divide-line px-5 pb-2">
                   <Switch
                     checked={ai.conversations}
                     onChange={(v) => setAi({ ...ai, conversations: v })}
-                    label="AI conversations"
-                    description="Conversation Agent drafts replies for every inbound message."
+                    label="AI-диалоги"
+                    description="Агент диалогов готовит черновик ответа на каждое входящее сообщение."
                   />
                   <Switch
                     checked={ai.autoSend}
                     onChange={(v) => setAi({ ...ai, autoSend: v })}
-                    label="Auto-send"
-                    description="Send approved drafts automatically. Keep off until the AI provider is connected."
+                    label="Автоотправка"
+                    description="Отправлять одобренные черновики автоматически. Держите выключенным, пока не подключён AI-провайдер."
                   />
                   <Switch
                     checked={ai.memory}
                     onChange={(v) => setAi({ ...ai, memory: v })}
-                    label="Memory"
-                    description="Extract facts, preferences and boundaries from conversations."
+                    label="Память"
+                    description="Извлекать факты, предпочтения и границы из диалогов."
                   />
                   <Switch
                     checked={ai.sales}
                     onChange={(v) => setAi({ ...ai, sales: v })}
-                    label="Sales recommendations"
-                    description="Propose offers based on LTV, purchase rhythm and content preference."
+                    label="Рекомендации продаж"
+                    description="Предлагать офферы на основе LTV, ритма покупок и предпочтений в контенте."
                   />
                   <Switch
                     checked={ai.content}
                     onChange={(v) => setAi({ ...ai, content: v })}
-                    label="Content generation"
-                    description="Hooks, captions and shot lists for each episode beat."
+                    label="Генерация контента"
+                    description="Хуки, подписи и раскадровки для каждого бита эпизода."
                   />
                   <Switch
                     checked={ai.escalation}
                     onChange={(v) => setAi({ ...ai, escalation: v })}
-                    label="Escalate edge cases"
-                    description="Anything outside the character card creates a task."
+                    label="Эскалация нестандартных случаев"
+                    description="Всё, что выходит за рамки карточки персонажа, становится задачей."
                   />
                 </div>
               </Card>
 
               <Grid className="lg:grid-cols-2">
                 <Card>
-                  <CardHeader title="Model routing" subtitle="Which provider handles which job" />
+                  <CardHeader title="Маршрутизация моделей" subtitle="Какой провайдер за что отвечает" />
                   <div className="space-y-4 px-5 pb-5">
                     {[
-                      { label: "Conversation Agent", value: "mock-provider" },
-                      { label: "Memory Agent", value: "mock-provider" },
-                      { label: "Content Agent", value: "mock-provider" },
-                      { label: "Image generation", value: "local" },
+                      { label: "Агент диалогов", value: "mock-provider" },
+                      { label: "Агент памяти", value: "mock-provider" },
+                      { label: "Агент контента", value: "mock-provider" },
+                      { label: "Генерация изображений", value: "local" },
                     ].map((r) => (
                       <div key={r.label} className="flex items-center gap-3">
                         <span className="min-w-0 flex-1 text-[12.5px] text-muted">{r.label}</span>
@@ -215,17 +215,17 @@ export default function Settings() {
                 </Card>
 
                 <Card>
-                  <CardHeader title="Safety" subtitle="Guardrails applied to every output" />
+                  <CardHeader title="Безопасность вывода" subtitle="Ограничения, применяемые к каждому результату" />
                   <div className="space-y-3 px-5 pb-5">
                     {[
-                      { label: "Character card enforcement", value: "Strict" },
-                      { label: "Boundary filter", value: "Enabled" },
-                      { label: "Human approval for sends", value: "Required" },
-                      { label: "Prompt injection defence", value: "Enabled" },
+                      { label: "Соблюдение карточки персонажа", value: "Строгое" },
+                      { label: "Фильтр границ", value: "Включён" },
+                      { label: "Одобрение отправки человеком", value: "Обязательно" },
+                      { label: "Защита от prompt-инъекций", value: "Включена" },
                     ].map((r) => (
                       <div key={r.label} className="flex items-center justify-between">
                         <span className="text-[12.5px] text-muted">{r.label}</span>
-                        <Badge tone={r.value === "Required" ? "warn" : "pos"} dot>
+                        <Badge tone={r.value === "Обязательно" ? "warn" : "pos"} dot>
                           {r.value}
                         </Badge>
                       </div>
@@ -236,16 +236,16 @@ export default function Settings() {
             </>
           )}
 
-          {section === "Platforms" && (
+          {section === "Площадки" && (
             <Card>
-              <CardHeader title="Platforms" subtitle="Connectors are UI-only in v1" />
+              <CardHeader title="Площадки" subtitle="В v1 коннекторы существуют только в интерфейсе" />
               <div className="divide-y divide-line px-5 pb-3">
                 {[
-                  { name: "Fanvue", detail: "Subscription, PPV, messaging", status: "Not connected" },
-                  { name: "Telegram", detail: "Assistant bot and Mini App · fan DMs not connected", status: "Bot only" },
-                  { name: "TikTok", detail: "Publishing + analytics", status: "Not connected" },
-                  { name: "Instagram", detail: "Publishing + DM inbox", status: "Not connected" },
-                  { name: "Threads", detail: "Text posts + replies", status: "Not connected" },
+                  { name: "Fanvue", detail: "Подписки, PPV, переписка", status: "Не подключено" },
+                  { name: "Telegram", detail: "Бот-ассистент и Mini App · личные сообщения фанов не подключены", status: "Только бот" },
+                  { name: "TikTok", detail: "Публикация + аналитика", status: "Не подключено" },
+                  { name: "Instagram", detail: "Публикация + инбокс сообщений", status: "Не подключено" },
+                  { name: "Threads", detail: "Текстовые посты + ответы", status: "Не подключено" },
                 ].map((p) => (
                   <div key={p.name} className="flex flex-wrap items-center gap-3 py-3.5">
                     <span className="grid size-8 place-items-center rounded-lg border border-line bg-canvas-2 text-[11px] font-semibold text-ink-2">
@@ -255,11 +255,11 @@ export default function Settings() {
                       <div className="text-[13px] font-medium text-ink">{p.name}</div>
                       <div className="text-[11.5px] text-muted">{p.detail}</div>
                     </div>
-                    <Badge tone={p.status === "Bot only" ? "info" : "neutral"} dot>
+                    <Badge tone={p.status === "Только бот" ? "info" : "neutral"} dot>
                       {p.status}
                     </Badge>
-                    <Button size="sm" variant="subtle" disabled title="Connectors are not available yet" aria-label={`Manage ${p.name} (not available yet)`}>
-                      Manage
+                    <Button size="sm" variant="subtle" disabled title="Коннекторы пока недоступны" aria-label={`Настроить ${p.name} (пока недоступно)`}>
+                      Настроить
                     </Button>
                   </div>
                 ))}
@@ -267,31 +267,31 @@ export default function Settings() {
             </Card>
           )}
 
-          {section === "Notifications" && (
+          {section === "Уведомления" && (
             <Card>
-              <CardHeader title="Notifications" subtitle="What reaches the operator" />
+              <CardHeader title="Уведомления" subtitle="Что доходит до оператора" />
               <div className="divide-y divide-line px-5 pb-2">
-                <Switch checked={notifications.drafts} onChange={(v) => setNotifications({ ...notifications, drafts: v })} label="Drafts waiting too long" description="Notify when a draft waits over 30 minutes." />
-                <Switch checked={notifications.churn} onChange={(v) => setNotifications({ ...notifications, churn: v })} label="Churn signals" description="High-LTV fans crossing the inactivity threshold." />
-                <Switch checked={notifications.revenue} onChange={(v) => setNotifications({ ...notifications, revenue: v })} label="Revenue milestones" description="Daily and weekly revenue summaries." />
-                <Switch checked={notifications.publish} onChange={(v) => setNotifications({ ...notifications, publish: v })} label="Publish confirmations" description="Every successful platform publish." />
-                <Switch checked={notifications.weekly} onChange={(v) => setNotifications({ ...notifications, weekly: v })} label="Weekly business review" description="Monday digest with the Analytics Agent read-out." />
+                <Switch checked={notifications.drafts} onChange={(v) => setNotifications({ ...notifications, drafts: v })} label="Черновики ждут слишком долго" description="Уведомлять, если черновик ждёт больше 30 минут." />
+                <Switch checked={notifications.churn} onChange={(v) => setNotifications({ ...notifications, churn: v })} label="Сигналы оттока" description="Фаны с высоким LTV, превысившие порог неактивности." />
+                <Switch checked={notifications.revenue} onChange={(v) => setNotifications({ ...notifications, revenue: v })} label="Вехи выручки" description="Ежедневные и еженедельные сводки выручки." />
+                <Switch checked={notifications.publish} onChange={(v) => setNotifications({ ...notifications, publish: v })} label="Подтверждения публикаций" description="Каждая успешная публикация на площадке." />
+                <Switch checked={notifications.weekly} onChange={(v) => setNotifications({ ...notifications, weekly: v })} label="Еженедельный разбор бизнеса" description="Дайджест по понедельникам с выводами Агента аналитики." />
               </div>
             </Card>
           )}
 
-          {section === "Team" && (
+          {section === "Команда" && (
             <Card>
               <CardHeader
-                title="Team"
-                subtitle="Roles for the workspace"
-                action={<Button size="sm" variant="subtle" disabled title="Not available yet">Invite</Button>}
+                title="Команда"
+                subtitle="Роли в рабочей области"
+                action={<Button size="sm" variant="subtle" disabled title="Пока недоступно">Пригласить</Button>}
               />
               <div>
                 {[
-                  { name: "Andrey", role: "Owner", email: "andrey@maraos.app", tone: "#8a5a4a" },
-                  { name: "Nika", role: "Operator", email: "nika@maraos.app", tone: "#4a6a8a" },
-                  { name: "Leo", role: "Editor", email: "leo@maraos.app", tone: "#4a8a72" },
+                  { name: "Андрей", role: "Владелец", email: "andrey@maraos.app", tone: "#8a5a4a" },
+                  { name: "Ника", role: "Оператор", email: "nika@maraos.app", tone: "#4a6a8a" },
+                  { name: "Лео", role: "Редактор", email: "leo@maraos.app", tone: "#4a8a72" },
                 ].map((m) => (
                   <div key={m.email} className="flex items-center gap-3 border-b border-line/60 px-5 py-3.5 last:border-0">
                     <Avatar name={m.name} tone={m.tone} size={32} />
@@ -299,33 +299,33 @@ export default function Settings() {
                       <div className="text-[13px] text-ink">{m.name}</div>
                       <div className="text-[11.5px] text-faint">{m.email}</div>
                     </div>
-                    <Badge tone={m.role === "Owner" ? "accent" : "neutral"}>{m.role}</Badge>
+                    <Badge tone={m.role === "Владелец" ? "accent" : "neutral"}>{m.role}</Badge>
                   </div>
                 ))}
               </div>
             </Card>
           )}
 
-          {section === "Security" && (
+          {section === "Безопасность" && (
             <Grid className="lg:grid-cols-2">
               <Card>
-                <CardHeader title="Security" subtitle="Workspace protection" />
+                <CardHeader title="Безопасность" subtitle="Защита рабочей области" />
                 <div className="space-y-3 px-5 pb-5">
                   <div className="flex items-center gap-3 rounded-lg border border-line bg-canvas-2/50 px-4 py-3">
                     <KeyRound className="size-4 text-faint" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-[12.5px] text-ink">Two-factor authentication</div>
-                      <div className="text-[11px] text-faint">Required for all owners</div>
+                      <div className="text-[12.5px] text-ink">Двухфакторная аутентификация</div>
+                      <div className="text-[11px] text-faint">Обязательна для всех владельцев</div>
                     </div>
                     <Badge tone="pos" dot>
-                      On
+                      Вкл.
                     </Badge>
                   </div>
                   {[
-                    { label: "Session length", value: "7 days" },
-                    { label: "Audit log", value: "Enabled" },
-                    { label: "API keys issued", value: "2" },
-                    { label: "Data residency", value: "EU" },
+                    { label: "Длительность сессии", value: "7 дней" },
+                    { label: "Журнал аудита", value: "Включён" },
+                    { label: "Выдано API-ключей", value: "2" },
+                    { label: "Хранение данных", value: "ЕС" },
                   ].map((r) => (
                     <div key={r.label} className="flex items-center justify-between text-[12.5px]">
                       <span className="text-muted">{r.label}</span>
@@ -336,23 +336,23 @@ export default function Settings() {
               </Card>
 
               <Card>
-                <CardHeader title="Architecture" subtitle="What is implemented today" />
+                <CardHeader title="Архитектура" subtitle="Что реализовано сегодня" />
                 <div className="px-5 pb-5">
                   <div className="grid grid-cols-2 gap-5">
-                    <KeyStat label="UI layer" value="Complete" hint="this build" />
-                    <KeyStat label="Repositories" value="Implemented" hint="demo and Supabase share one interface" />
+                    <KeyStat label="Слой интерфейса" value="Готов" hint="эта сборка" />
+                    <KeyStat label="Репозитории" value="Реализованы" hint="демо и Supabase используют один интерфейс" />
                   </div>
                   <Divider className="my-4" />
                   <div className="space-y-2">
                     {[
-                      { name: "FanRepository", status: "Implemented" },
-                      { name: "ContentRepository", status: "Implemented" },
-                      { name: "ConversationRepository", status: "Implemented" },
-                      { name: "CommerceRepository", status: "Implemented" },
-                      { name: "AnalyticsRepository", status: "Implemented" },
-                      { name: "AIProvider", status: "Mock provider until configured" },
-                      { name: "FanvueAdapter", status: "Not started" },
-                      { name: "TelegramAdapter", status: "Bot and Mini App live" },
+                      { name: "FanRepository", status: "Реализован" },
+                      { name: "ContentRepository", status: "Реализован" },
+                      { name: "ConversationRepository", status: "Реализован" },
+                      { name: "CommerceRepository", status: "Реализован" },
+                      { name: "AnalyticsRepository", status: "Реализован" },
+                      { name: "AIProvider", status: "Mock-провайдер, пока не настроен" },
+                      { name: "FanvueAdapter", status: "Не начато" },
+                      { name: "TelegramAdapter", status: "Бот и Mini App работают" },
                     ].map((r) => (
                       <div key={r.name} className="flex items-center justify-between rounded-lg border border-line bg-canvas-2/40 px-3 py-2">
                         <span className="font-mono text-[11.5px] text-ink-2">{r.name}</span>

@@ -38,7 +38,7 @@ export function DataTable<T>({
                 <CheckBox
                   checked={allSelected}
                   onChange={onToggleAll}
-                  ariaLabel="Select all rows"
+                  ariaLabel="Выбрать все строки"
                 />
               </th>
             )}
@@ -60,7 +60,7 @@ export function DataTable<T>({
           {rows.length === 0 && (
             <tr>
               <td colSpan={columns.length + (onToggleAll ? 1 : 0)} className="px-5 py-14 text-center text-[13px] text-muted">
-                {empty ?? "Nothing here yet."}
+                {empty ?? "Здесь пока пусто."}
               </td>
             </tr>
           )}
@@ -79,7 +79,7 @@ export function DataTable<T>({
               >
                 {onToggleSelect && (
                   <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
-                    <CheckBox checked={!!isSelected} onChange={() => onToggleSelect(key)} ariaLabel={`Select ${key}`} />
+                    <CheckBox checked={!!isSelected} onChange={() => onToggleSelect(key)} ariaLabel={`Выбрать ${key}`} />
                   </td>
                 )}
                 {columns.map((c) => (

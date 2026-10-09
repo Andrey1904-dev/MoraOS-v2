@@ -24,7 +24,7 @@ export function useResource<T>(fetcher: () => Promise<T>, deps: unknown[] = []) 
         if (mounted.current) setData(res);
       })
       .catch((err: unknown) => {
-        if (mounted.current) setError(err instanceof Error ? err : new Error("Unknown error"));
+        if (mounted.current) setError(err instanceof Error ? err : new Error("Неизвестная ошибка"));
       })
       .finally(() => {
         if (mounted.current) setLoading(false);

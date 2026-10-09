@@ -30,7 +30,7 @@ import {
   miniAppMenuButton,
   miniAppUrl,
   normalizeLinkCode,
-  plural,
+  pluralRu,
   telegramDisplayName,
   truncateText,
   uuidToB64Uuid,
@@ -59,80 +59,80 @@ export const AI_CALL_LIMIT = Object.freeze({ limit: 30, windowSeconds: 60 * 60 }
  * Display metadata only — execution lives in the console / pipeline.
  */
 export const AI_AGENTS = Object.freeze([
-  { id: 'character', label: 'Character', role: 'persona voice & boundaries' },
-  { id: 'conversation', label: 'Conversation', role: 'reply drafts for the inbox' },
-  { id: 'sales', label: 'Sales', role: 'offer timing & pricing hints' },
-  { id: 'memory', label: 'Memory', role: 'fan fact extraction' },
-  { id: 'content', label: 'Content', role: 'ideas, hooks and scripts' },
-  { id: 'analytics', label: 'Analytics', role: 'metric briefings' },
+  { id: 'character', label: 'Персонаж', role: 'голос персонажа и границы' },
+  { id: 'conversation', label: 'Диалоги', role: 'черновики ответов для инбокса' },
+  { id: 'sales', label: 'Продажи', role: 'тайминг офферов и подсказки по цене' },
+  { id: 'memory', label: 'Память', role: 'извлечение фактов о фанах' },
+  { id: 'content', label: 'Контент', role: 'идеи, хуки и сценарии' },
+  { id: 'analytics', label: 'Аналитика', role: 'сводки по метрикам' },
 ])
 
 /** Notification kinds the owner can toggle in /settings (opt-in, off by default). */
 export const NOTIFICATION_KINDS = Object.freeze([
-  ['notify_tasks', '📋 Tasks'],
-  ['notify_inbox', '💬 Inbox decisions'],
-  ['notify_ai', '🤖 AI run results'],
-  ['notify_automations', '⚙️ Automation errors'],
-  ['notify_metrics', '📈 Metric changes'],
+  ['notify_tasks', '📋 Задачи'],
+  ['notify_inbox', '💬 Решения по инбоксу'],
+  ['notify_ai', '🤖 Результаты запусков AI'],
+  ['notify_automations', '⚙️ Ошибки автоматизаций'],
+  ['notify_metrics', '📈 Изменения метрик'],
 ])
 
 export const RELATIONSHIP_LABELS = {
-  visitor: 'Visitors',
-  follower: 'Followers',
-  subscriber: 'Subscribers',
-  admirer: 'Admirers',
-  supporter: 'Supporters',
-  inner_circle: 'Inner circle',
+  visitor: 'Гости',
+  follower: 'Подписчики',
+  subscriber: 'Сабы',
+  admirer: 'Поклонники',
+  supporter: 'Спонсоры',
+  inner_circle: 'Ближний круг',
 }
 
 const RULE = '━━━━━━━━━━━━━━━━'
 
 export const HELP_TEXT = [
-  '<b>🤖 MARA OS ASSISTANT — HELP</b>',
+  '<b>🤖 MARA OS ASSISTANT — СПРАВКА</b>',
   RULE,
   '',
-  '/menu — dashboard and sections',
-  '/status — service health: Supabase, AI provider, bot, integrations',
-  '/fans — audience by relationship level',
-  '/messages — inbox: unread and drafts awaiting approval',
-  '/content — pipeline: ready, scheduled, published',
-  '/episodes — story episodes state',
-  '/analytics — revenue this month by source (period + source shown)',
-  '/revenue — revenue, purchases and subscriptions',
-  '/tasks — open tasks by priority',
-  '/ai — AI agents, runs, briefings and content ideas',
-  '/automations — automation states and latest runs',
-  '/settings — account link and notification options',
-  '/link — connect this chat to your Mara OS account',
-  '/unlink — disconnect (two-step confirmation)',
+  '/menu — дашборд и разделы',
+  '/status — состояние сервиса: Supabase, AI-провайдер, бот, интеграции',
+  '/fans — аудитория по уровням отношений',
+  '/messages — инбокс: непрочитанные и черновики на одобрении',
+  '/content — конвейер: готово, запланировано, опубликовано',
+  '/episodes — состояние эпизодов сюжета',
+  '/analytics — выручка за месяц по источникам (период и источник показаны)',
+  '/revenue — выручка, покупки и подписки',
+  '/tasks — открытые задачи по приоритету',
+  '/ai — AI-агенты, запуски, сводки и идеи контента',
+  '/automations — состояния автоматизаций и последние запуски',
+  '/settings — привязка аккаунта и настройки уведомлений',
+  '/link — привязать этот чат к аккаунту Mara OS',
+  '/unlink — отключить (двухшаговое подтверждение)',
   '',
-  '<i>The bot reads your account data and can approve/dismiss AI drafts —',
-  'approval means exactly that; nothing is delivered to fans from here.</i>',
+  '<i>Бот читает данные вашего аккаунта и может одобрять/отклонять черновики AI —',
+  'одобрение означает ровно это; фанам отсюда ничего не отправляется.</i>',
 ].join('\n')
 
 export const BOT_DESCRIPTION =
-  'Mara OS Assistant — the Telegram companion of the creator operating system. ' +
-  'Audience stats, inbox triage, content pipeline, revenue and AI runs from your Mara OS account. ' +
-  'A one-time /link code connects this chat to your console. Nothing is sent to fans from the bot.'
-export const BOT_SHORT_DESCRIPTION = 'Mara OS: fans, inbox, content, revenue and AI — in your pocket.'
+  'Mara OS Assistant — Telegram-спутник операционной системы креатора. ' +
+  'Статистика аудитории, разбор инбокса, конвейер контента, выручка и запуски AI из вашего аккаунта Mara OS. ' +
+  'Одноразовый код /link привязывает этот чат к консоли. Фанам от бота ничего не отправляется.'
+export const BOT_SHORT_DESCRIPTION = 'Mara OS: фаны, инбокс, контент, выручка и AI — в кармане.'
 
 export const BOT_COMMANDS = [
-  { command: 'start', description: 'Welcome screen and quick tour' },
-  { command: 'menu', description: 'Dashboard and sections' },
-  { command: 'status', description: 'Service health and integrations' },
-  { command: 'fans', description: 'Audience by relationship level' },
-  { command: 'messages', description: 'Inbox: unread and pending drafts' },
-  { command: 'content', description: 'Content pipeline snapshot' },
-  { command: 'episodes', description: 'Story episodes state' },
-  { command: 'analytics', description: 'Revenue this month by source' },
-  { command: 'revenue', description: 'Revenue, purchases, subscriptions' },
-  { command: 'tasks', description: 'Open tasks' },
-  { command: 'ai', description: 'AI agents, runs and briefings' },
-  { command: 'automations', description: 'Automation states and runs' },
-  { command: 'settings', description: 'Account link and notifications' },
-  { command: 'link', description: 'Connect chat to your account' },
-  { command: 'unlink', description: 'Disconnect account' },
-  { command: 'help', description: 'Command list' },
+  { command: 'start', description: 'Приветственный экран и быстрый тур' },
+  { command: 'menu', description: 'Дашборд и разделы' },
+  { command: 'status', description: 'Состояние сервиса и интеграции' },
+  { command: 'fans', description: 'Аудитория по уровням отношений' },
+  { command: 'messages', description: 'Инбокс: непрочитанные и черновики' },
+  { command: 'content', description: 'Срез конвейера контента' },
+  { command: 'episodes', description: 'Состояние эпизодов сюжета' },
+  { command: 'analytics', description: 'Выручка за месяц по источникам' },
+  { command: 'revenue', description: 'Выручка, покупки, подписки' },
+  { command: 'tasks', description: 'Открытые задачи' },
+  { command: 'ai', description: 'AI-агенты, запуски и сводки' },
+  { command: 'automations', description: 'Состояния автоматизаций и запуски' },
+  { command: 'settings', description: 'Привязка аккаунта и уведомления' },
+  { command: 'link', description: 'Привязать чат к аккаунту' },
+  { command: 'unlink', description: 'Отключить аккаунт' },
+  { command: 'help', description: 'Список команд' },
 ]
 
 export class ApiError extends Error {
@@ -158,13 +158,13 @@ export function readBearerToken(headerValue) {
 
 export function unlinkedMessage() {
   return [
-    '<b>🔌 NOT CONNECTED</b>',
+    '<b>🔌 НЕ ПОДКЛЮЧЕНО</b>',
     RULE,
     '',
-    'This Telegram chat is not linked to a Mara OS account yet.',
+    'Этот чат в Telegram ещё не привязан к аккаунту Mara OS.',
     '',
-    'Tap <b>Connect account</b> below or send /link — you will get a one-time',
-    'code to enter in the web console.',
+    'Нажмите <b>Привязать аккаунт</b> ниже или отправьте /link — вы получите',
+    'одноразовый код для ввода в веб-консоли.',
   ].join('\n')
 }
 
@@ -194,10 +194,10 @@ export function createBot({
   logger = console,
   now = () => Date.now(),
 }) {
-  if (!telegramToken) throw new Error('TELEGRAM_BOT_TOKEN is not set.')
-  if (!supabaseUrl) throw new Error('SUPABASE_URL is not set.')
-  if (!supabaseAnonKey) throw new Error('SUPABASE_ANON_KEY is not set.')
-  if (!supabaseServiceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set.')
+  if (!telegramToken) throw new Error('TELEGRAM_BOT_TOKEN не задан.')
+  if (!supabaseUrl) throw new Error('SUPABASE_URL не задан.')
+  if (!supabaseAnonKey) throw new Error('SUPABASE_ANON_KEY не задан.')
+  if (!supabaseServiceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY не задан.')
 
   const restBase = `${supabaseUrl.replace(/\/+$/, '')}/rest/v1`
   const authBase = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1`
@@ -221,7 +221,7 @@ export function createBot({
         signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (error) {
-      throw new Error(`Telegram API connection failed: ${error instanceof Error ? error.message : 'network error'}`)
+      throw new Error(`Telegram API connection failed: ${error instanceof Error ? error.message : 'ошибка сети'}`)
     }
     const data = await response.json().catch(() => null)
     if (!response.ok || !data?.ok) {
@@ -248,13 +248,13 @@ export function createBot({
       })
     } catch (error) {
       logger.error?.('[supabase] request failed:', error instanceof Error ? error.message : 'network error')
-      throw new ApiError(502, 'Data service is temporarily unavailable. Please try again.')
+      throw new ApiError(502, 'Сервис данных временно недоступен. Повторите попытку.')
     }
 
     const text = await response.text()
     if (!response.ok) {
       logger.error?.(`[supabase] REST returned ${response.status}`)
-      throw new ApiError(502, 'Could not read your account data.')
+      throw new ApiError(502, 'Не удалось прочитать данные вашего аккаунта.')
     }
     if (!text) return null
     try {
@@ -267,7 +267,7 @@ export function createBot({
   /** Verifies the web console access token through Supabase Auth. */
   async function verifySiteSession(accessToken) {
     if (!accessToken) {
-      throw new ApiError(401, 'Sign in to your Mara OS account first, then try again.')
+      throw new ApiError(401, 'Сначала войдите в аккаунт Mara OS, затем повторите.')
     }
     let response
     try {
@@ -279,12 +279,12 @@ export function createBot({
         signal: AbortSignal.timeout(12_000),
       })
     } catch {
-      throw new ApiError(502, 'Could not verify the web session. Please try again.')
+      throw new ApiError(502, 'Не удалось проверить веб-сессию. Повторите попытку.')
     }
-    if (!response.ok) throw new ApiError(401, 'Web session expired. Sign in again.')
+    if (!response.ok) throw new ApiError(401, 'Веб-сессия истекла. Войдите заново.')
     const user = await response.json().catch(() => null)
     if (!user || typeof user.id !== 'string' || !/^[0-9a-f-]{36}$/i.test(user.id)) {
-      throw new ApiError(401, 'Could not confirm the web account.')
+      throw new ApiError(401, 'Не удалось подтвердить веб-аккаунт.')
     }
     return user
   }
@@ -306,14 +306,14 @@ export function createBot({
   async function confirmLinkForUser(userId, rawCode) {
     const code = normalizeLinkCode(rawCode)
     if (!LINK_CODE_PATTERN.test(code)) {
-      throw new ApiError(400, 'Enter the full one-time code from Telegram.')
+      throw new ApiError(400, 'Введите одноразовый код из Telegram целиком.')
     }
     const result = await supabaseRest('rpc/link_telegram_account', {
       method: 'POST',
       body: { p_code_hash: hashLinkCode(code), p_user_id: userId },
     })
     if (result !== true) {
-      throw new ApiError(400, 'Code is invalid or expired. Request a new one with /link.')
+      throw new ApiError(400, 'Код недействителен или истёк. Запросите новый через /link.')
     }
     return { linked: true }
   }
@@ -326,7 +326,7 @@ export function createBot({
   async function previewLinkForUser(rawCode) {
     const code = normalizeLinkCode(rawCode)
     if (!LINK_CODE_PATTERN.test(code)) {
-      throw new ApiError(400, 'Enter the full one-time code from Telegram.')
+      throw new ApiError(400, 'Введите одноразовый код из Telegram целиком.')
     }
     const query = makeSearch({
       select: 'telegram_display,expires_at',
@@ -338,10 +338,10 @@ export function createBot({
     const rows = await supabaseRest(`telegram_link_codes?${query}`)
     const row = Array.isArray(rows) ? rows[0] : null
     if (!row) {
-      throw new ApiError(400, 'Code is invalid or expired. Request a new one with /link.')
+      throw new ApiError(400, 'Код недействителен или истёк. Запросите новый через /link.')
     }
     return {
-      telegramAccount: String(row.telegram_display || 'Telegram account'),
+      telegramAccount: String(row.telegram_display || 'Telegram-аккаунт'),
       expiresAt: row.expires_at,
     }
   }
@@ -357,7 +357,7 @@ export function createBot({
       body: { p_key: key, p_limit: limit, p_window_seconds: windowSeconds },
     })
     if (typeof allowed !== 'boolean') {
-      throw new ApiError(502, 'Could not check the request limit. Please try again.')
+      throw new ApiError(502, 'Не удалось проверить лимит запросов. Повторите попытку.')
     }
     return allowed
   }
@@ -380,42 +380,42 @@ export function createBot({
    * Button that launches the console as a Telegram Mini App (`web_app` type,
    * not `url`). The bot only works in private chats where it is supported.
    */
-  function cabinetRow(screen = '', text = '📱 Open Mara OS') {
+  function cabinetRow(screen = '', text = '📱 Открыть Mara OS') {
     const url = siteCabinetUrl(screen)
     return url ? [[{ text, web_app: { url } }]] : []
   }
 
   /** Keyboard for a chat that is not linked yet: code with one tap. */
   function connectKeyboard() {
-    return { inline_keyboard: [[{ text: '🔗 Connect account', callback_data: 'link' }], ...cabinetRow()] }
+    return { inline_keyboard: [[{ text: '🔗 Привязать аккаунт', callback_data: 'link' }], ...cabinetRow()] }
   }
 
   /** Full section roster: [action key, button label, Mini App screen key]. */
   const SECTIONS = Object.freeze([
-    ['fans', '👥 Fans', 'fans'],
-    ['messages', '💬 Inbox', 'messages'],
-    ['content', '🎬 Content', 'content'],
-    ['episodes', '📺 Episodes', 'episodes'],
-    ['analytics', '📊 Analytics', 'analytics'],
-    ['revenue', '💰 Revenue', 'revenue'],
-    ['tasks', '✅ Tasks', 'tasks'],
+    ['fans', '👥 Фаны', 'fans'],
+    ['messages', '💬 Инбокс', 'messages'],
+    ['content', '🎬 Контент', 'content'],
+    ['episodes', '📺 Эпизоды', 'episodes'],
+    ['analytics', '📊 Аналитика', 'analytics'],
+    ['revenue', '💰 Выручка', 'revenue'],
+    ['tasks', '✅ Задачи', 'tasks'],
     ['ai', '🤖 AI', 'ai'],
-    ['automations', '⚙️ Automations', 'automations'],
-    ['status', '📡 Status', 'settings'],
-    ['settings', '🔧 Settings', 'settings'],
+    ['automations', '⚙️ Автоматизации', 'automations'],
+    ['status', '📡 Статус', 'settings'],
+    ['settings', '🔧 Настройки', 'settings'],
   ])
 
   /** Main menu: all sections + web console. */
   function mainKeyboard(linked = true) {
     const rows = []
-    if (!linked) rows.push([{ text: '🔗 Connect account', callback_data: 'link' }])
+    if (!linked) rows.push([{ text: '🔗 Привязать аккаунт', callback_data: 'link' }])
     const sections = SECTIONS.filter(([key]) => !(key === 'status' || key === 'settings'))
     for (let i = 0; i < sections.length; i += 3) {
       rows.push(sections.slice(i, i + 3).map(([key, label]) => ({ text: label, callback_data: key })))
     }
     rows.push([
-      { text: '📡 Status', callback_data: 'status' },
-      { text: '🔧 Settings', callback_data: 'settings' },
+      { text: '📡 Статус', callback_data: 'status' },
+      { text: '🔧 Настройки', callback_data: 'settings' },
     ])
     rows.push(...cabinetRow())
     return { inline_keyboard: rows }
@@ -433,8 +433,8 @@ export function createBot({
     }
     rows.push(
       [
-        { text: '↻ Refresh', callback_data: current },
-        { text: '🏠 Menu', callback_data: 'menu' },
+        { text: '↻ Обновить', callback_data: current },
+        { text: '🏠 Меню', callback_data: 'menu' },
       ],
       ...cabinetRow(SECTIONS.find(([key]) => key === current)?.[2] ?? ''),
     )
@@ -605,48 +605,48 @@ export function createBot({
 
   function menuScreen(linked) {
     const lines = [
-      '<b>🖤 MARA OS ASSISTANT</b>  <i>· creator operating system</i>',
+      '<b>🖤 MARA OS ASSISTANT</b>  <i>· операционная система креатора</i>',
       RULE,
       '',
     ]
     if (linked) {
       lines.push(
-        '👥 <b>Fans</b> · 💬 <b>Inbox</b> · 🎬 <b>Content</b> · 📺 <b>Episodes</b>',
-        '📊 <b>Analytics</b> · 💰 <b>Revenue</b> · ✅ <b>Tasks</b>',
-        '🤖 <b>AI</b> · ⚙️ <b>Automations</b> · 📡 <b>Status</b>',
+        '👥 <b>Фаны</b> · 💬 <b>Инбокс</b> · 🎬 <b>Контент</b> · 📺 <b>Эпизоды</b>',
+        '📊 <b>Аналитика</b> · 💰 <b>Выручка</b> · ✅ <b>Задачи</b>',
+        '🤖 <b>AI</b> · ⚙️ <b>Автоматизации</b> · 📡 <b>Статус</b>',
         '',
-        '<i>Pick a section — the screen updates in place, no chat spam.</i>',
+        '<i>Выберите раздел — экран обновляется на месте, без спама в чате.</i>',
       )
     } else {
       lines.push(
-        'The console shell is ready. Connect your account with the button',
-        'below — fan, inbox, content and revenue summaries will appear here.',
+        'Оболочка консоли готова. Привяжите аккаунт кнопкой ниже — здесь',
+        'появятся сводки по фана, инбоксу, контенту и выручке.',
         '',
-        '<i>You can peek into sections before linking: the bot will guide you.</i>',
+        '<i>Разделы можно посмотреть и до привязки: бот подскажет, что делать.</i>',
       )
     }
     return { text: lines.join('\n'), markup: mainKeyboard(linked) }
   }
 
   const UNLINK_CONFIRM_TEXT = [
-    '<b>⛓ DISCONNECT ACCOUNT?</b>',
+    '<b>⛓ ОТКЛЮЧИТЬ АККАУНТ?</b>',
     RULE,
     '',
-    'The bot will lose access to your fan, inbox, content and revenue data.',
-    'Nothing is deleted on the web — only this Telegram link goes away.',
+    'Бот потеряет доступ к данным о фанах, инбоксе, контенте и выручке.',
+    'В вебе ничего не удаляется — исчезает только эта привязка Telegram.',
     '',
-    '<i>You can reconnect any time with a fresh code.</i>',
+    '<i>Подключиться заново можно в любой момент — новым кодом.</i>',
   ].join('\n')
 
   const UNLINK_CONFIRM_MARKUP = {
     inline_keyboard: [
-      [{ text: '❌ Yes, disconnect', callback_data: 'unlink_confirm' }],
-      [{ text: '◂ Back to menu', callback_data: 'menu' }],
+      [{ text: '❌ Да, отключить', callback_data: 'unlink_confirm' }],
+      [{ text: '◂ Назад в меню', callback_data: 'menu' }],
     ],
   }
 
   function emptyScreen(lines, section) {
-    return { text: [...lines, '', '<i>Add data in the web console — it shows up here.</i>'].join('\n'), markup: sectionKeyboard(section) }
+    return { text: [...lines, '', '<i>Добавьте данные в веб-консоли — они появятся здесь.</i>'].join('\n'), markup: sectionKeyboard(section) }
   }
 
   async function buildFansScreen(chatId) {
@@ -655,9 +655,9 @@ export function createBot({
     const total = data.fans.length
     if (!total) {
       return emptyScreen([
-        ...screenTitle('👥', 'Fans'),
-        '<b>No fans yet.</b>',
-        'Connect traffic channels in the console — the funnel starts here.',
+        ...screenTitle('👥', 'Фаны'),
+        '<b>Фанов пока нет.</b>',
+        'Подключите каналы трафика в консоли — воронка начинается здесь.',
       ], 'fans')
     }
     const byLevel = new Map()
@@ -666,19 +666,19 @@ export function createBot({
     }
     const fresh = inCurrentMonth(data.fans, 'joined_at', new Date(now())).length
     const lines = [
-      ...screenTitle('👥', 'Fans'),
-      statLine('🌍', 'Total audience', String(total)),
-      statLine('💳', 'Active subscriptions', String(data.subscriptions.length)),
-      statLine('✨', 'New this month', String(fresh)),
+      ...screenTitle('👥', 'Фаны'),
+      statLine('🌍', 'Всего аудитория', String(total)),
+      statLine('💳', 'Активные подписки', String(data.subscriptions.length)),
+      statLine('✨', 'Новых за месяц', String(fresh)),
       '',
-      '<b>Relationship ladder</b>',
+      '<b>Лестница отношений</b>',
     ]
     for (const [level, label] of Object.entries(RELATIONSHIP_LABELS)) {
       const count = byLevel.get(level) ?? 0
       const share = total > 0 ? count / total : 0
       lines.push(`${progressBar(share, 8)} ${escapeHtml(label)} — <b>${count}</b>`)
     }
-    lines.push('', '<i>Details and per-fan profile — in the console.</i>')
+    lines.push('', '<i>Детали и профиль каждого фана — в консоли.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('fans') }
   }
 
@@ -689,15 +689,15 @@ export function createBot({
     const pending = data.conversations.reduce((sum, c) => sum + Number(c.awaiting_approval_count || 0), 0)
     const active = data.conversations.filter((c) => Number(c.unread_count || 0) > 0 || Number(c.awaiting_approval_count || 0) > 0)
     const lines = [
-      ...screenTitle('💬', 'Inbox'),
-      statLine('📨', 'Unread messages', String(unread)),
-      statLine('🕐', 'AI drafts awaiting approval', String(pending)),
-      statLine('🗂', 'Conversations in queue', String(active.length)),
+      ...screenTitle('💬', 'Инбокс'),
+      statLine('📨', 'Непрочитанные сообщения', String(unread)),
+      statLine('🕐', 'Черновики AI на одобрении', String(pending)),
+      statLine('🗂', 'Диалогов в очереди', String(active.length)),
     ]
     if (active.length === 0) {
-      lines.push('', '<b>Inbox zero.</b> The notebook is up to date.', '')
+      lines.push('', '<b>Инбокс пуст.</b> Блокнот в актуальном состоянии.', '')
     }
-    lines.push('', '<i>AI drafts wait for your approval in the web console. Nothing is sent from the bot.</i>')
+    lines.push('', '<i>Черновики AI ждут вашего одобрения в веб-консоли. Бот ничего не отправляет.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('messages') }
   }
 
@@ -706,9 +706,9 @@ export function createBot({
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
     if (!data.content.length) {
       return emptyScreen([
-        ...screenTitle('🎬', 'Content'),
-        '<b>No content in the pipeline yet.</b>',
-        'Draft the first drop in the console — scheduling shows up here.',
+        ...screenTitle('🎬', 'Контент'),
+        '<b>В конвейере пока нет контента.</b>',
+        'Создайте первый дроп в консоли — расписание появится здесь.',
       ], 'content')
     }
     const count = (status) => data.content.filter((c) => c.status === status).length
@@ -722,22 +722,22 @@ export function createBot({
       .map((c) => c.scheduled_at)
       .sort()[0]
     const lines = [
-      ...screenTitle('🎬', 'Content pipeline'),
-      statLine('📥', 'Drafts', String(count('draft') + count('idea'))),
-      statLine('🟢', 'Ready', String(count('ready'))),
-      statLine('🗓', 'Scheduled', String(count('scheduled'))),
-      statLine('📤', `Published in ${formatMonth(new Date(now()))}`, String(publishedThisMonth)),
+      ...screenTitle('🎬', 'Конвейер контента'),
+      statLine('📥', 'Черновики', String(count('draft') + count('idea'))),
+      statLine('🟢', 'Готово', String(count('ready'))),
+      statLine('🗓', 'Запланировано', String(count('scheduled'))),
+      statLine('📤', `Опубликовано в ${formatMonth(new Date(now()))}`, String(publishedThisMonth)),
     ]
     if (nextScheduled) {
       const inDays = daysUntil(nextScheduled, new Date(now()))
       const countdown = inDays === null || inDays < 0
         ? ''
         : inDays === 0
-          ? ' · <b>today</b>'
-          : ` · in <b>${inDays} ${plural(inDays, 'day')}</b>`
-      lines.push(statLine('⏳', 'Next drop', formatDate(nextScheduled)) + countdown)
+          ? ' · <b>сегодня</b>'
+          : ` · через <b>${inDays} ${pluralRu(inDays, ['день', 'дня', 'дней'])}</b>`
+      lines.push(statLine('⏳', 'Следующий дроп', formatDate(nextScheduled)) + countdown)
     }
-    lines.push('', '<i>Asset vault and episodes — in the console.</i>')
+    lines.push('', '<i>Библиотека ассетов и эпизоды — в консоли.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('content') }
   }
 
@@ -754,8 +754,8 @@ export function createBot({
     const monthName = formatMonth(new Date(now())).toUpperCase()
     const emoji = { subscription: '🔁', ppv: '🔓', tip: '💝', custom: '🎁', affiliate: '🤝', other: '📦' }
     const lines = [
-      ...screenTitle('📊', `Revenue · ${monthName}`),
-      `Total: <b>${escapeHtml(formatMoney(total))}</b> · ${month.length} ${plural(month.length, 'event')}`,
+      ...screenTitle('📊', `Выручка · ${monthName}`),
+      `Итого: <b>${escapeHtml(formatMoney(total))}</b> · ${month.length} ${pluralRu(month.length, ['событие', 'события', 'событий'])}`,
       '',
     ]
     if (top.length && total > 0) {
@@ -766,9 +766,9 @@ export function createBot({
         )
       }
     } else {
-      lines.push('No revenue events this month yet.', '')
+      lines.push('Событий выручки за этот месяц пока нет.', '')
     }
-    lines.push('', '<i>Source: revenue_events (this account). Funnel and cohort views live in Analytics in the console.</i>')
+    lines.push('', '<i>Источник: revenue_events (этот аккаунт). Воронка и когорты — в разделе «Аналитика» в консоли.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('analytics') }
   }
 
@@ -777,29 +777,29 @@ export function createBot({
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
     const open = data.tasks
     const lines = [
-      ...screenTitle('✅', 'Tasks'),
-      statLine('📋', 'Open', String(open.length)),
+      ...screenTitle('✅', 'Задачи'),
+      statLine('📋', 'Открыто', String(open.length)),
     ]
     if (!open.length) {
-      lines.push('', '<b>All clear.</b> Nothing waits for your decision.', '')
+      lines.push('', '<b>Всё чисто.</b> Ничего не ждёт вашего решения.', '')
     } else {
       const prio = { urgent: '🔴', high: '🟠', medium: '🟡', low: '⚪️' }
       lines.push('')
       for (const task of open.slice(0, 6)) {
         const inDays = task.due_date ? daysUntil(task.due_date, new Date(now())) : null
         const due = inDays === null
-          ? 'no date'
+          ? 'без даты'
           : inDays < 0
-            ? '⚠️ overdue'
+            ? '⚠️ просрочено'
             : inDays === 0
-              ? 'due today'
-              : `${inDays}d left`
+              ? 'срок сегодня'
+              : `осталось ${inDays} ${pluralRu(inDays, ['день', 'дня', 'дней'])}`
         lines.push(`${prio[task.priority] ?? '⚪️'} ${escapeHtml(task.title)} · <i>${due}</i>`)
       }
-      if (open.length > 6) lines.push(`<i>…and ${open.length - 6} more in the console.</i>`)
+      if (open.length > 6) lines.push(`<i>…и ещё ${open.length - 6} в консоли.</i>`)
       lines.push('')
     }
-    lines.push('<i>Some tasks come from AI agents — approval stays with you.</i>')
+    lines.push('<i>Часть задач приходит от AI-агентов — одобрение остаётся за вами.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('tasks') }
   }
 
@@ -814,13 +814,13 @@ export function createBot({
       byAgent.set(run.agent, (byAgent.get(run.agent) ?? 0) + 1)
     }
     const lines = [
-      ...screenTitle('🤖', 'AI studio · today'),
-      statLine('⚙️', 'Runs today', String(runs.length)),
-      statLine('✅', 'Successful', runs.length ? `${ok} of ${runs.length}` : '0'),
-      failed ? statLine('🔴', 'Failed', String(failed)) : '',
-      statLine('🔌', 'AI provider', aiClient.isConfigured ? escapeHtml(aiClient.providerLabel) : 'not configured'),
+      ...screenTitle('🤖', 'AI-студия · сегодня'),
+      statLine('⚙️', 'Запусков сегодня', String(runs.length)),
+      statLine('✅', 'Успешно', runs.length ? `${ok} из ${runs.length}` : '0'),
+      failed ? statLine('🔴', 'С ошибками', String(failed)) : '',
+      statLine('🔌', 'AI-провайдер', aiClient.isConfigured ? escapeHtml(aiClient.providerLabel) : 'не настроен'),
       '',
-      '<b>Agents</b>',
+      '<b>Агенты</b>',
     ].filter((line) => line !== '')
     for (const agent of AI_AGENTS) {
       const count = byAgent.get(agent.id) ?? 0
@@ -831,12 +831,12 @@ export function createBot({
       lines.push(`▸ <b>${escapeHtml(agent)}</b> — ${byAgent.get(agent)} today`)
     }
     if (!aiClient.isConfigured) {
-      lines.push('', '<i>Provider key is not set: briefings and ideas answer with a setup notice instead of fake output (AI_API_KEY on the bot service).</i>')
+      lines.push('', '<i>Ключ провайдера не задан: сводки и идеи отвечают уведомлением о настройке вместо выдуманного результата (AI_API_KEY в сервисе бота).</i>')
     }
     const markup = sectionKeyboard('ai', [[
-      { text: '💡 Ideas', callback_data: 'ai:ideas' },
-      { text: '📑 Briefings', callback_data: 'ai:brief' },
-      { text: '🕐 Drafts queue', callback_data: 'drafts' },
+      { text: '💡 Идеи', callback_data: 'ai:ideas' },
+      { text: '📑 Сводки', callback_data: 'ai:brief' },
+      { text: '🕐 Очередь черновиков', callback_data: 'drafts' },
     ]])
     return { text: lines.join('\n'), markup }
   }
@@ -844,11 +844,11 @@ export function createBot({
   /* -------------------------------------------------- new Mara sections --- */
 
   const EPISODE_LABELS = {
-    outline: '📝 Outline',
-    in_production: '🎬 In production',
-    scheduled: '🗓 Scheduled',
-    published: '📤 Published',
-    archived: '🗄 Archived',
+    outline: '📝 План',
+    in_production: '🎬 В производстве',
+    scheduled: '🗓 Запланировано',
+    published: '📤 Опубликовано',
+    archived: '🗄 В архиве',
   }
 
   async function buildEpisodesScreen(chatId) {
@@ -857,26 +857,26 @@ export function createBot({
     const episodes = data.episodes
     if (!episodes.length) {
       return emptyScreen([
-        ...screenTitle('📺', 'Episodes'),
-        '<b>No story episodes yet.</b>',
-        'Outline the first arc in the console — progress shows up here.',
+        ...screenTitle('📺', 'Эпизоды'),
+        '<b>Эпизодов сюжета пока нет.</b>',
+        'Распишите первую арку в консоли — прогресс появится здесь.',
       ], 'episodes')
     }
     const byStatus = (status) => episodes.filter((e) => e.status === status)
     const lines = [
-      ...screenTitle('📺', 'Episodes'),
-      statLine('🗂', 'Total', String(episodes.length)),
-      statLine('🎬', 'In production', String(byStatus('in_production').length)),
-      statLine('🗓', 'Scheduled', String(byStatus('scheduled').length)),
-      statLine('📤', 'Published', String(byStatus('published').length)),
+      ...screenTitle('📺', 'Эпизоды'),
+      statLine('🗂', 'Всего', String(episodes.length)),
+      statLine('🎬', 'В производстве', String(byStatus('in_production').length)),
+      statLine('🗓', 'Запланировано', String(byStatus('scheduled').length)),
+      statLine('📤', 'Опубликовано', String(byStatus('published').length)),
       '',
-      '<b>Current board</b>',
+      '<b>Текущая доска</b>',
     ]
     const active = episodes.filter((e) => e.status !== 'archived').slice(-6)
     for (const episode of active) {
       lines.push(`${EPISODE_LABELS[episode.status] ?? '▸'} <b>#${episode.number} ${escapeHtml(episode.title)}</b>`)
     }
-    lines.push('', '<i>Full episode board and key events — in the console.</i>')
+    lines.push('', '<i>Полная доска эпизодов и ключевые события — в консоли.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('episodes') }
   }
 
@@ -889,16 +889,16 @@ export function createBot({
     const paidPurchases = data.purchases.filter((p) => p.status === 'paid')
     const monthPurchases = inCurrentMonth(paidPurchases, 'purchased_at', new Date(now()))
     const lines = [
-      ...screenTitle('💰', `Revenue · ${monthName}`),
-      statLine('🧾', 'Revenue this month', escapeHtml(formatMoney(monthTotal))),
-      statLine('🛍', `Paid purchases in ${monthName}`, String(monthPurchases.length)),
-      statLine('💳', 'Active subscriptions', String(data.subscriptions.length)),
-      statLine('🗃', 'Purchases on record', String(paidPurchases.length)),
+      ...screenTitle('💰', `Выручка · ${monthName}`),
+      statLine('🧾', 'Выручка за месяц', escapeHtml(formatMoney(monthTotal))),
+      statLine('🛍', `Оплаченные покупки за ${monthName}`, String(monthPurchases.length)),
+      statLine('💳', 'Активные подписки', String(data.subscriptions.length)),
+      statLine('🗃', 'Покупок в учёте', String(paidPurchases.length)),
     ]
     if (!data.revenue.length && !paidPurchases.length && !data.subscriptions.length) {
-      lines.push('', '<b>No commerce data yet.</b> Sales and subscriptions appear here once offers go live.')
+      lines.push('', '<b>Коммерческих данных пока нет.</b> Продажи и подписки появятся здесь, когда офферы запустятся.')
     }
-    lines.push('', '<i>Source: revenue_events, purchases, subscriptions. Per-offer and cohort views — in the console.</i>')
+    lines.push('', '<i>Источник: revenue_events, purchases, subscriptions. Разрезы по офферам и когортам — в консоли.</i>')
     return { text: lines.join('\n'), markup: sectionKeyboard('revenue') }
   }
 
@@ -906,31 +906,31 @@ export function createBot({
     const data = await ownerData(chatId, ['automations', 'automation_runs'])
     if (!data) return { text: unlinkedMessage(), markup: connectKeyboard() }
     const automations = data.automations
-    const lines = [...screenTitle('⚙️', 'Automations')]
+    const lines = [...screenTitle('⚙️', 'Автоматизации')]
     if (!automations.length) {
       return emptyScreen([
         ...lines,
-        '<b>No automations configured.</b>',
-        'Build one in the console — state and runs show up here.',
+        '<b>Автоматизации не настроены.</b>',
+        'Соберите её в консоли — состояние и запуски появятся здесь.',
       ], 'automations')
     }
     const enabled = automations.filter((a) => a.enabled)
     lines.push(
-      statLine('🗂', 'Configured', String(automations.length)),
-      statLine('🟢', 'Enabled', String(enabled.length)),
+      statLine('🗂', 'Настроено', String(automations.length)),
+      statLine('🟢', 'Включено', String(enabled.length)),
     )
     const recentRuns = data.automation_runs.slice(0, 20)
     const failures = recentRuns.filter((r) => r.status === 'error').length
-    lines.push(statLine('🔴', `Errors in last ${recentRuns.length || 0} runs`, String(failures)), '')
+    lines.push(statLine('🔴', `Ошибки за последние ${recentRuns.length || 0} ${pluralRu(recentRuns.length || 0, ['запуск', 'запуска', 'запусков'])}`, String(failures)), '')
     for (const a of automations.slice(0, 6)) {
-      const state = a.enabled ? `🟢 ${escapeHtml(a.status)}` : `⚪️ ${escapeHtml(a.status)} (off)`
-      const last = a.last_run_at ? ` · last ${formatDate(a.last_run_at)}` : ' · never run'
+      const state = a.enabled ? `🟢 ${escapeHtml(a.status)}` : `⚪️ ${escapeHtml(a.status)} (выкл.)`
+      const last = a.last_run_at ? ` · последний запуск ${formatDate(a.last_run_at)}` : ' · ни разу не запускалась'
       lines.push(`▸ <b>${escapeHtml(a.name)}</b> — ${state}${last}`)
     }
     lines.push(
       '',
-      '<i>The execution engine is not built yet: runs are manual from the console.',
-      'Failure alerts can arrive here — enable them in /settings.</i>',
+      '<i>Движок исполнения ещё не построен: запуски выполняются вручную из консоли.',
+      'Сюда могут приходить алерты об ошибках — включите их в /settings.</i>',
     )
     return { text: lines.join('\n'), markup: sectionKeyboard('automations') }
   }
@@ -944,22 +944,22 @@ export function createBot({
   async function buildStatusScreen(chatId) {
     const checks = []
 
-    checks.push(['🤖', 'Bot', `online · ${transportMode} mode`])
+    checks.push(['🤖', 'Бот', `онлайн · режим ${transportMode}`])
 
     try {
       const me = await telegramCall('getMe')
-      checks.push(['📮', 'Telegram API', `reachable · @${escapeHtml(String(me?.username ?? 'unknown'))}`])
+      checks.push(['📮', 'Telegram API', `доступен · @${escapeHtml(String(me?.username ?? 'неизвестно'))}`])
     } catch {
-      checks.push(['📮', 'Telegram API', 'unreachable — check TELEGRAM_BOT_TOKEN'])
+      checks.push(['📮', 'Telegram API', 'недоступен — проверьте TELEGRAM_BOT_TOKEN'])
     }
 
     let supabaseOk = true
     try {
       await supabaseRest(`profiles?${makeSearch({ select: 'id', limit: '1' })}`)
-      checks.push(['🗄', 'Supabase', 'reachable (REST + service key)'])
+      checks.push(['🗄', 'Supabase', 'доступен (REST + service key)'])
     } catch {
       supabaseOk = false
-      checks.push(['🗄', 'Supabase', 'unreachable — check SUPABASE_URL and keys'])
+      checks.push(['🗄', 'Supabase', 'недоступен — проверьте SUPABASE_URL и ключи'])
     }
 
     let userId = null
@@ -970,24 +970,24 @@ export function createBot({
         userId = null
       }
     }
-    checks.push(['🔗', 'This chat', supabaseOk
-      ? userId ? 'linked to a Mara OS account' : 'not linked — /link'
-      : 'unknown — Supabase unreachable'])
+    checks.push(['🔗', 'Этот чат', supabaseOk
+      ? userId ? 'привязан к аккаунту Mara OS' : 'не привязан — /link'
+      : 'неизвестно — Supabase недоступен'])
 
-    checks.push(['🔌', 'AI provider', aiClient.isConfigured ? escapeHtml(aiClient.providerLabel) : 'not configured — set AI_API_KEY'])
+    checks.push(['🔌', 'AI-провайдер', aiClient.isConfigured ? escapeHtml(aiClient.providerLabel) : 'не настроен — задайте AI_API_KEY'])
 
     const appUrl = siteCabinetUrl()
-    checks.push(['📱', 'Mini App URL', appUrl ? 'configured (HTTPS)' : 'missing — set WEB_APP_URL'])
+    checks.push(['📱', 'Mini App URL', appUrl ? 'настроен (HTTPS)' : 'не задан — задайте WEB_APP_URL'])
 
-    const lines = [...screenTitle('📡', 'Status')]
+    const lines = [...screenTitle('📡', 'Статус')]
     for (const [icon, label, state] of checks) lines.push(statLine(icon, label, state))
     lines.push(
       '',
-      '<b>External fan-platform integrations</b>',
-      '▸ Fanvue · TikTok · Instagram · Threads — connectors are not implemented;',
-      'inbox sync is done manually in the console. Nothing here pretends otherwise.',
+      '<b>Интеграции с внешними фан-площадками</b>',
+      '▸ Fanvue · TikTok · Instagram · Threads — коннекторы не реализованы;',
+      'синхронизация инбокса выполняется вручную в консоли. Здесь ничего не притворяется обратным.',
       '',
-      `<i>Checked ${formatDate(new Date(now()).toISOString())} · live probes, no cache.</i>`,
+      `<i>Проверено ${formatDate(new Date(now()).toISOString())} · живые запросы, без кэша.</i>`,
     )
     return { text: lines.join('\n'), markup: sectionKeyboard('status') }
   }
@@ -1010,16 +1010,16 @@ export function createBot({
       return { row: await readNotificationSettings(userId), missing: false }
     } catch (error) {
       logger.warn?.('[settings] telegram_notification_settings unreadable (migration 0005 applied?):',
-        error instanceof Error ? error.message : 'unknown error')
+        error instanceof Error ? error.message : 'неизвестная ошибка')
       return { row: null, missing: true }
     }
   }
 
   const MISSING_NOTIFICATIONS_TABLE_TEXT = [
-    ...screenTitle('🔧', 'Settings'),
-    'Notification settings need database migration <b>0005</b>',
+    ...screenTitle('🔧', 'Настройки'),
+    'Настройкам уведомлений нужна миграция базы <b>0005</b>',
     '(supabase/migrations/0005_telegram_notifications.sql).',
-    'Apply it in the Supabase SQL editor, then reopen /settings.',
+    'Примените её в SQL-редакторе Supabase, затем откройте /settings заново.',
   ].join('\n')
 
   /** Creates the settings row if missing, then applies the patch. */
@@ -1057,11 +1057,11 @@ export function createBot({
     if (missing) return { text: MISSING_NOTIFICATIONS_TABLE_TEXT, markup: sectionKeyboard('settings') }
     const settings = stored ? { ...NOTIFICATION_DEFAULTS, ...stored } : NOTIFICATION_DEFAULTS
     const lines = [
-      ...screenTitle('🔧', 'Settings'),
-      statLine('🔗', 'Account link', 'active (this chat)'),
+      ...screenTitle('🔧', 'Настройки'),
+      statLine('🔗', 'Привязка аккаунта', 'активна (этот чат)'),
       '',
-      '<b>Telegram notifications</b>',
-      statLine('🔔', 'Digest', settings.enabled ? 'on (opt-in)' : 'off (default)'),
+      '<b>Уведомления в Telegram</b>',
+      statLine('🔔', 'Дайджест', settings.enabled ? 'включён (по подписке)' : 'выключен (по умолчанию)'),
     ]
     const toggles = []
     for (const [field, label] of NOTIFICATION_KINDS) {
@@ -1071,17 +1071,17 @@ export function createBot({
     }
     lines.push(
       '',
-      '<i>Digest is delivered by the notify job (scripts/telegram-notify.mjs) only when',
-      'something changed since the previous send. Nothing arrives while this is off.</i>',
+      '<i>Дайджест отправляет задача notify (scripts/telegram-notify.mjs) и только',
+      'когда с прошлой отправки что-то изменилось. Пока выключено — ничего не приходит.</i>',
     )
     const markup = {
       inline_keyboard: [
-        [{ text: settings.enabled ? '🔕 Turn digest off' : '🔔 Turn digest on', callback_data: 'ntf:master' }],
+        [{ text: settings.enabled ? '🔕 Выключить дайджест' : '🔔 Включить дайджест', callback_data: 'ntf:master' }],
         toggles.slice(0, 3),
         toggles.slice(3),
         [
-          { text: '⛓ Disconnect…', callback_data: 'unlink' },
-          { text: '🏠 Menu', callback_data: 'menu' },
+          { text: '⛓ Отключить…', callback_data: 'unlink' },
+          { text: '🏠 Меню', callback_data: 'menu' },
         ],
         ...cabinetRow('settings'),
       ],
@@ -1112,8 +1112,8 @@ export function createBot({
       user_id: `eq.${userId}`,
       id: `in.(${convIds.join(',')})`,
     })}`)
-    const titles = new Map((Array.isArray(convs) ? convs : []).map((c) => [c.id, c.subject || 'Conversation']))
-    return rows.map((row) => ({ ...row, conversation: titles.get(row.conversation_id) ?? 'Conversation' }))
+    const titles = new Map((Array.isArray(convs) ? convs : []).map((c) => [c.id, c.subject || 'Диалог']))
+    return rows.map((row) => ({ ...row, conversation: titles.get(row.conversation_id) ?? 'Диалог' }))
   }
 
   async function buildDraftsScreen(chatId, excludeIds = new Set()) {
@@ -1122,8 +1122,8 @@ export function createBot({
     const all = await pendingDrafts(userId)
     const drafts = all.filter((d) => !excludeIds.has(d.id))
     const lines = [
-      ...screenTitle('🕐', 'AI drafts awaiting your decision'),
-      statLine('🗂', 'Pending', String(drafts.length)),
+      ...screenTitle('🕐', 'Черновики AI ждут вашего решения'),
+      statLine('🗂', 'В очереди', String(drafts.length)),
       '',
     ]
     const rows = []
@@ -1135,14 +1135,14 @@ export function createBot({
       )
       const key = `${uuidToB64Uuid(draft.conversation_id)}${uuidToB64Uuid(draft.id)}`
       rows.push([
-        { text: `✅ Approve “${truncateText(draft.conversation, 14)}”`, callback_data: `dra${key}` },
-        { text: '🗑 Dismiss', callback_data: `drx${key}` },
+        { text: `✅ Одобрить «${truncateText(draft.conversation, 14)}»`, callback_data: `dra${key}` },
+        { text: '🗑 Отклонить', callback_data: `drx${key}` },
       ])
     }
-    if (drafts.length > 5) lines.push(`<i>…and ${drafts.length - 5} more — after these five.</i>`, '')
-    if (!drafts.length) lines.push('<b>Queue is empty.</b> New drafts appear after AI runs.', '')
-    lines.push('<i>Approve marks the draft “approved” — like the inbox button in the console. Delivery to fans is a separate console step; the bot never sends.</i>')
-    const markup = { inline_keyboard: [...rows, [{ text: '↻ Refresh', callback_data: 'drafts' }, { text: '🏠 Menu', callback_data: 'menu' }], ...cabinetRow('messages')] }
+    if (drafts.length > 5) lines.push(`<i>…и ещё ${drafts.length - 5} — после этих пяти.</i>`, '')
+    if (!drafts.length) lines.push('<b>Очередь пуста.</b> Новые черновики появятся после запусков AI.', '')
+    lines.push('<i>«Одобрить» помечает черновик как approved — как кнопка в инбоксе консоли. Отправка фанам — отдельный шаг в консоли; бот не отправляет ничего.</i>')
+    const markup = { inline_keyboard: [...rows, [{ text: '↻ Обновить', callback_data: 'drafts' }, { text: '🏠 Меню', callback_data: 'menu' }], ...cabinetRow('messages')] }
     return { text: lines.join('\n'), markup, resolvedIds: drafts.slice(0, 5).map((d) => d.id) }
   }
 
@@ -1239,11 +1239,11 @@ export function createBot({
   function aiUnavailableScreen() {
     return {
       text: [
-        ...screenTitle('🤖', 'AI provider not configured'),
-        'The bot has no AI key, so it will not fabricate an answer.',
+        ...screenTitle('🤖', 'AI-провайдер не настроен'),
+        'У бота нет ключа AI, поэтому он не будет выдумывать ответ.',
         '',
-        'To enable: set <b>AI_API_KEY</b> (and optionally AI_BASE_URL, AI_MODEL)',
-        'in the bot service environment — never as a VITE_* variable.',
+        'Чтобы включить: задайте <b>AI_API_KEY</b> (и опционально AI_BASE_URL, AI_MODEL)',
+        'в окружении сервиса бота — никогда не как переменную VITE_*.',
       ].join('\n'),
       markup: sectionKeyboard('ai'),
     }
@@ -1252,9 +1252,9 @@ export function createBot({
   function aiBudgetScreen() {
     return {
       text: [
-        ...screenTitle('🤖', 'AI budget reached'),
-        `Limit: ${AI_CALL_LIMIT.limit} bot-side AI calls per hour. Try again later;`,
-        'the console AI Studio is unlimited by this counter.',
+        ...screenTitle('🤖', 'Лимит AI исчерпан'),
+        `Лимит: ${AI_CALL_LIMIT.limit} ${pluralRu(AI_CALL_LIMIT.limit, ['вызов', 'вызова', 'вызовов'])} AI в час со стороны бота. Повторите позже;`,
+        'AI-студия в консоли этим счётчиком не ограничена.',
       ].join('\n'),
       markup: sectionKeyboard('ai'),
     }
@@ -1289,12 +1289,12 @@ export function createBot({
       })
       return {
         text: [
-          ...screenTitle('💡', 'Content ideas'),
+          ...screenTitle('💡', 'Идеи контента'),
           escapeHtml(result.text.slice(0, 3200)),
           '',
-          `<i>Generated by ${escapeHtml(result.model)} · logged to AI runs. Refine and schedule in the console.</i>`,
+          `<i>Сгенерировано ${escapeHtml(result.model)} · записано в AI runs. Доработайте и запланируйте в консоли.</i>`,
         ].join('\n'),
-        markup: { inline_keyboard: [[{ text: '🔄 Regenerate', callback_data: 'ai:ideas' }, { text: '🤖 AI', callback_data: 'ai' }], ...cabinetRow('content')] },
+        markup: { inline_keyboard: [[{ text: '🔄 Сгенерировать заново', callback_data: 'ai:ideas' }, { text: '🤖 AI', callback_data: 'ai' }], ...cabinetRow('content')] },
       }
     } catch (error) {
       await logAiRun(userId, {
@@ -1308,38 +1308,38 @@ export function createBot({
       logger.warn?.('[ai] ideas failed:', error instanceof Error ? error.message : 'unknown error')
       return {
         text: [
-          ...screenTitle('💡', 'Content ideas'),
-          'The AI provider could not answer this time. Try again in a minute.',
+          ...screenTitle('💡', 'Идеи контента'),
+          'AI-провайдер не смог ответить в этот раз. Повторите через минуту.',
         ].join('\n'),
-        markup: { inline_keyboard: [[{ text: '🔄 Retry', callback_data: 'ai:ideas' }, { text: '🤖 AI', callback_data: 'ai' }]] },
+        markup: { inline_keyboard: [[{ text: '🔄 Повторить', callback_data: 'ai:ideas' }, { text: '🤖 AI', callback_data: 'ai' }]] },
       }
     }
   }
 
   const BRIEF_KINDS = [
-    ['fans', '👥 Fans briefing'],
-    ['inbox', '💬 Inbox briefing'],
-    ['revenue', '💰 Revenue briefing'],
+    ['fans', '👥 Сводка по фана'],
+    ['inbox', '💬 Сводка по инбоксу'],
+    ['revenue', '💰 Сводка по выручке'],
   ]
 
   async function buildBriefMenuScreen(chatId) {
     const userId = await getLinkedUserId(chatId)
     if (!userId) return { text: unlinkedMessage(), markup: connectKeyboard() }
     const text = [
-      ...screenTitle('📑', 'AI briefings'),
-      'Pick a live snapshot to summarise. Numbers come from your tables;',
-      'the model only narrates them. Each call is logged to AI runs.',
+      ...screenTitle('📑', 'AI-сводки'),
+      'Выберите живой срез для сводки. Цифры берутся из ваших таблиц;',
+      'модель их только комментирует. Каждый вызов пишется в AI runs.',
       aiClient.isConfigured ? '' : '',
       aiClient.isConfigured
-        ? `<i>Provider: ${escapeHtml(aiClient.providerLabel)}</i>`
-        : '<i>Provider is not configured — calls will tell you so instead of faking results.</i>',
+        ? `<i>Провайдер: ${escapeHtml(aiClient.providerLabel)}</i>`
+        : '<i>Провайдер не настроен — вызовы сообщат об этом вместо подделки результата.</i>',
     ].join('\n')
     return {
       text,
       markup: {
         inline_keyboard: [
           BRIEF_KINDS.map(([kind, label]) => ({ text: label, callback_data: `ai:sum:${kind}` })),
-          [{ text: '🤖 AI', callback_data: 'ai' }, { text: '🏠 Menu', callback_data: 'menu' }],
+          [{ text: '🤖 AI', callback_data: 'ai' }, { text: '🏠 Меню', callback_data: 'menu' }],
         ],
       },
     }
@@ -1354,7 +1354,7 @@ export function createBot({
       const byLevel = {}
       for (const fan of data.fans) byLevel[fan.relationship_level] = (byLevel[fan.relationship_level] ?? 0) + 1
       return {
-        period: 'current month',
+        period: 'текущий месяц',
         total_fans: data.fans.length,
         by_relationship_level: byLevel,
         new_this_month: inCurrentMonth(data.fans, 'joined_at', new Date(now())).length,
@@ -1410,9 +1410,9 @@ export function createBot({
           ...screenTitle('📑', label.replace(/^[^\s]+\s/, '')),
           escapeHtml(result.text.slice(0, 3000)),
           '',
-          `<i>Source: live tables · ${escapeHtml(result.model)} · logged to AI runs.</i>`,
+          `<i>Источник: живые таблицы · ${escapeHtml(result.model)} · записано в AI runs.</i>`,
         ].join('\n'),
-        markup: { inline_keyboard: [[{ text: '📑 Briefings', callback_data: 'ai:brief' }, { text: '🤖 AI', callback_data: 'ai' }, { text: '🏠 Menu', callback_data: 'menu' }]] },
+        markup: { inline_keyboard: [[{ text: '📑 Сводки', callback_data: 'ai:brief' }, { text: '🤖 AI', callback_data: 'ai' }, { text: '🏠 Меню', callback_data: 'menu' }]] },
       }
     } catch (error) {
       await logAiRun(userId, {
@@ -1426,10 +1426,10 @@ export function createBot({
       logger.warn?.('[ai] briefing failed:', error instanceof Error ? error.message : 'unknown error')
       return {
         text: [
-          ...screenTitle('📑', 'AI briefing'),
-          'The AI provider could not answer this time. Try again in a minute.',
+          ...screenTitle('📑', 'AI-сводка'),
+          'AI-провайдер не смог ответить в этот раз. Повторите через минуту.',
         ].join('\n'),
-        markup: { inline_keyboard: [[{ text: '📑 Briefings', callback_data: 'ai:brief' }, { text: '🤖 AI', callback_data: 'ai' }]] },
+        markup: { inline_keyboard: [[{ text: '📑 Сводки', callback_data: 'ai:brief' }, { text: '🤖 AI', callback_data: 'ai' }]] },
       }
     }
   }
@@ -1466,7 +1466,7 @@ export function createBot({
       const rows = await readUserRows('tasks', userId, 'title,created_at', { ...since('tasks', 'created_at'), order: 'created_at.asc', limit: '10' })
       const fresh = Array.isArray(rows) ? rows : []
       if (fresh.length) {
-        lines.push(`📋 <b>${fresh.length}</b> new ${plural(fresh.length, 'task')}: ${escapeHtml(truncateText(fresh[0].title, 48))}${fresh.length > 1 ? '…' : ''}`)
+        lines.push(`📋 <b>${fresh.length}</b> ${pluralRu(fresh.length, ['новая задача', 'новые задачи', 'новых задач'])}: ${escapeHtml(truncateText(fresh[0].title, 48))}${fresh.length > 1 ? '…' : ''}`)
       }
       advance('tasks', stamp)
     }
@@ -1478,20 +1478,20 @@ export function createBot({
       const list = Array.isArray(rows) ? rows : []
       const unread = list.reduce((s, c) => s + Number(c.unread_count || 0), 0)
       const pending = list.reduce((s, c) => s + Number(c.awaiting_approval_count || 0), 0)
-      if (unread || pending) lines.push(`💬 Inbox: <b>${unread}</b> unread · <b>${pending}</b> drafts awaiting your decision`)
+      if (unread || pending) lines.push(`💬 Инбокс: <b>${unread}</b> непрочитанных · <b>${pending}</b> ${pluralRu(pending, ['черновик ждёт', 'черновика ждут', 'черновиков ждут'])} вашего решения`)
       advance('inbox', stamp)
     }
     if (settings.notify_ai) {
       const rows = await readUserRows('ai_runs', userId, 'agent,status,created_at', { ...since('ai', 'created_at'), limit: '100' })
       const runs = Array.isArray(rows) ? rows : []
       const failed = runs.filter((r) => r.status === 'error').length
-      if (runs.length) lines.push(`🤖 AI: <b>${runs.length}</b> completed ${plural(runs.length, 'run')}${failed ? ` · <b>${failed}</b> failed` : ''}`)
+      if (runs.length) lines.push(`🤖 AI: завершено <b>${runs.length}</b> ${pluralRu(runs.length, ['запуск', 'запуска', 'запусков'])}${failed ? ` · с ошибками <b>${failed}</b>` : ''}`)
       advance('ai', stamp)
     }
     if (settings.notify_automations) {
       const rows = await readUserRows('automation_runs', userId, 'status,finished_at,started_at', { ...since('automation', 'started_at'), limit: '50' })
       const errors = (Array.isArray(rows) ? rows : []).filter((r) => r.status === 'error')
-      if (errors.length) lines.push(`⚙️ Automations: <b>${errors.length}</b> failed ${plural(errors.length, 'run')} — see the console`)
+      if (errors.length) lines.push(`⚙️ Автоматизации: <b>${errors.length}</b> ${pluralRu(errors.length, ['запуск', 'запуска', 'запусков'])} с ошибкой — смотрите консоль`)
       advance('automation', stamp)
     }
     if (settings.notify_metrics) {
@@ -1499,11 +1499,11 @@ export function createBot({
       const events = Array.isArray(rows) ? rows : []
       if (events.length) {
         const total = events.reduce((s, r) => s + Number(r.amount || 0), 0)
-        lines.push(`📈 Metrics: <b>${escapeHtml(formatMoney(total))}</b> across <b>${events.length}</b> revenue ${plural(events.length, 'event')}`)
+        lines.push(`📈 Метрики: <b>${escapeHtml(formatMoney(total))}</b> по <b>${events.length}</b> ${pluralRu(events.length, ['событию', 'событиям', 'событиям'])} выручки`)
       }
       const fans = await readUserRows('fans', userId, 'joined_at', { ...since('metrics_fans', 'joined_at'), limit: '200' })
       const freshFans = Array.isArray(fans) ? fans.length : 0
-      if (freshFans) lines.push(`👥 Audience: <b>${freshFans}</b> new ${plural(freshFans, 'fan')}`)
+      if (freshFans) lines.push(`👥 Аудитория: <b>${freshFans}</b> ${pluralRu(freshFans, ['новый фан', 'новых фана', 'новых фанов'])}`)
       advance('metrics', stamp)
       advance('metrics_fans', stamp)
     }
@@ -1517,12 +1517,12 @@ export function createBot({
       userId,
       watermark: next,
       text: [
-        '<b>🔔 MARA OS DIGEST</b>',
+        '<b>🔔 ДАЙДЖЕСТ MARA OS</b>',
         RULE,
         '',
         ...lines,
         '',
-        '<i>Opt-in digest · change sections or turn off in /settings.</i>',
+        '<i>Дайджест по подписке · измените разделы или отключите в /settings.</i>',
       ].join('\n'),
     }
   }
@@ -1547,24 +1547,24 @@ export function createBot({
     const name = firstName ? `, ${escapeHtml(firstName)}` : ''
     const intro = userId
       ? [
-          `<b>🖤 Welcome back${name}.</b>`,
-          '<i>Mara OS — the operating system behind the persona — is online.</i>',
+          `<b>🖤 С возвращением${name}.</b>`,
+          '<i>Mara OS — операционная система за персоной — онлайн.</i>',
           RULE,
           '',
-          '👥 audience stats · 💬 inbox triage · 🎬 content pipeline',
-          '📊 revenue · ✅ tasks · 🤖 AI runs',
+          '👥 статистика аудитории · 💬 разбор инбокса · 🎬 конвейер контента',
+          '📊 выручка · ✅ задачи · 🤖 запуски AI',
           '',
-          '<i>Buttons below switch sections in place — no chat clutter.</i>',
+          '<i>Кнопки ниже переключают разделы на месте — без захламления чата.</i>',
         ]
       : [
-          `<b>🖤 Hello${name}.</b>`,
-          '<i>Mara OS Assistant — your creator console in this chat.</i>',
+          `<b>🖤 Привет${name}.</b>`,
+          '<i>Mara OS Assistant — ваша консоль креатора в этом чате.</i>',
           RULE,
           '',
-          'Fans by relationship level, unread inbox, content calendar,',
-          'revenue and AI agent runs — straight from your account.',
+          'Фаны по уровням отношений, непрочитанный инбокс, календарь контента,',
+          'выручка и запуски AI-агентов — прямо из вашего аккаунта.',
           '',
-          '<i>Connect the account with the button below — takes under a minute.</i>',
+          '<i>Привяжите аккаунт кнопкой ниже — это займёт меньше минуты.</i>',
         ]
     const text = intro.join('\n')
     return sendMessage(chatId, text, { reply_markup: mainKeyboard(Boolean(userId)) })
@@ -1573,11 +1573,11 @@ export function createBot({
   async function createLink(chatId, telegramUserId, displayName = '') {
     if (await getLinkedUserId(chatId)) {
       return sendMessage(chatId, [
-        '<b>🔗 ALREADY CONNECTED</b>',
+        '<b>🔗 УЖЕ ПОДКЛЮЧЕНО</b>',
         RULE,
         '',
-        'This Telegram chat is linked to a Mara OS account. To switch',
-        'accounts, disconnect first with /unlink.',
+        'Этот чат в Telegram привязан к аккаунту Mara OS. Чтобы сменить',
+        'аккаунт, сначала отключитесь через /unlink.',
       ].join('\n'), { reply_markup: mainKeyboard(true) })
     }
 
@@ -1602,19 +1602,19 @@ export function createBot({
 
     const formatted = formatLinkCode(code)
     const text = [
-      '<b>🔗 CONNECTION CODE</b>',
+      '<b>🔗 КОД ПРИВЯЗКИ</b>',
       RULE,
       '',
       `<b><code>${formatted}</code></b>`,
       '',
-      '1️⃣ Open the console → Settings → Telegram',
-      '2️⃣ Enter the code from this message',
-      '3️⃣ Stats and summaries appear right here',
+      '1️⃣ Откройте консоль → Настройки → Telegram',
+      '2️⃣ Введите код из этого сообщения',
+      '3️⃣ Статистика и сводки появятся прямо здесь',
       '',
-      '<i>⏱ One-time code · valid for 10 minutes</i>',
-      '<i>Never share this code — it is the key to your account.</i>',
+      '<i>⏱ Одноразовый код · действует 10 минут</i>',
+      '<i>Никому не сообщайте этот код — это ключ к вашему аккаунту.</i>',
     ].join('\n')
-    const openBotSection = cabinetRow('telegram', '📱 Enter code in console')
+    const openBotSection = cabinetRow('telegram', '📱 Ввести код в консоли')
     return sendMessage(chatId, text, { reply_markup: openBotSection.length ? { inline_keyboard: openBotSection } : undefined })
   }
 
@@ -1656,23 +1656,23 @@ export function createBot({
       const screen = outcome.ok
         ? {
             text: [
-              '<b>✅ ACCESS REVOKED</b>',
+              '<b>✅ ДОСТУП ОТОЗВАН</b>',
               RULE,
               '',
-              'Link removed: the bot no longer sees your account data.',
+              'Привязка удалена: бот больше не видит данные вашего аккаунта.',
               '',
-              '<i>Reconnect any time — /link.</i>',
+              '<i>Подключиться заново можно в любой момент — /link.</i>',
             ].join('\n'),
             markup: connectKeyboard(),
           }
         : {
             text: [
-              '<b>⛓ NOT CONNECTED</b>',
+              '<b>⛓ НЕ ПОДКЛЮЧЕНО</b>',
               RULE,
               '',
-              'This Telegram was not linked to an account anyway.',
+              'Этот Telegram и так не был привязан к аккаунту.',
               '',
-              '<i>To connect — /link or the button below.</i>',
+              '<i>Чтобы подключиться — /link или кнопка ниже.</i>',
             ].join('\n'),
             markup: connectKeyboard(),
           }
@@ -1720,15 +1720,15 @@ export function createBot({
       const conversationId = b64UuidToUuid(key.slice(0, 22))
       const messageId = b64UuidToUuid(key.slice(22, 44))
       const decision = action.startsWith('dra') ? 'approve' : 'dismiss'
-      let note = 'That draft was already resolved elsewhere.'
+      let note = 'Этот черновик уже обработан в другом месте.'
       if (conversationId && messageId) {
         try {
           const result = await resolveDraft(chatId, conversationId, messageId, decision)
-          if (result.decision === 'approve') note = 'Draft approved — counter synced. Delivery stays a console step.'
-          else if (result.decision === 'dismiss') note = 'Draft dismissed and removed.'
+          if (result.decision === 'approve') note = 'Черновик одобрен — счётчик синхронизирован. Отправка остаётся шагом в консоли.'
+          else if (result.decision === 'dismiss') note = 'Черновик отклонён и удалён.'
         } catch (error) {
           logger.error?.('[drafts] decision failed:', error instanceof Error ? error.message : 'unknown error')
-          note = 'Could not apply the decision — please retry.'
+          note = 'Не удалось применить решение — повторите попытку.'
         }
       }
       const screen = await buildDraftsScreen(chatId)
@@ -1786,12 +1786,12 @@ export function createBot({
     }
     const userId = await getLinkedUserId(chat.id)
     return sendMessage(chat.id, [
-      '<b>🤖 DID NOT PARSE THAT</b>',
+      '<b>🤖 НЕ РАЗОБРАЛ СООБЩЕНИЕ</b>',
       RULE,
       '',
-      'Use the menu buttons, commands (/help) or words:',
-      '<b>fans</b> · <b>inbox</b> · <b>content</b> · <b>episodes</b> · <b>revenue</b> · <b>tasks</b>',
-      '<b>ai</b> · <b>automations</b> · <b>status</b> · <b>settings</b> · <b>menu</b>.',
+      'Используйте кнопки меню, команды (/help) или слова:',
+      '<b>фан</b> · <b>инбокс</b> · <b>контент</b> · <b>эпизоды</b> · <b>выручка</b> · <b>задачи</b>',
+      '<b>ai</b> · <b>автоматизации</b> · <b>статус</b> · <b>настройки</b> · <b>меню</b>.',
     ].join('\n'), { reply_markup: mainKeyboard(Boolean(userId)) })
   }
 

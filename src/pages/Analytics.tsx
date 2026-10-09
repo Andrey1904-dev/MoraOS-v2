@@ -9,12 +9,13 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { number as fmtNum, currency } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { cn } from "@/utils/cn";
 
-const SECTIONS = ["Content", "Audience", "Revenue", "Conversion", "Retention"] as const;
+const SECTIONS = ["Контент", "Аудитория", "Выручка", "Конверсия", "Удержание"] as const;
 
 export default function Analytics() {
-  const [section, setSection] = useState<(typeof SECTIONS)[number]>("Content");
+  const [section, setSection] = useState<(typeof SECTIONS)[number]>("Контент");
   const [period, setPeriod] = useState("30 days");
 
   const { data: revenue } = useResource(() => repositories.analytics.revenue(period), [period]);
@@ -40,9 +41,9 @@ export default function Analytics() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Business"
-        title="Analytics"
-        description="A decision surface: what is working, what is decaying, and where the next dollar comes from."
+        eyebrow="Бизнес"
+        title="Аналитика"
+        description="Поверхность решений: что работает, что затухает и откуда придёт следующий рубль."
         actions={<DateRangePicker value={period} onChange={setPeriod} />}
       />
 
@@ -65,49 +66,49 @@ export default function Analytics() {
 
       {/* Section KPIs - all real data, N/A where not available */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-        {section === "Content" &&
+        {section === "Контент" &&
           [
-            { label: "Views", value: fmtNum((top ?? []).reduce((s, c) => s + c.views, 0), true), delta: 0 },
-            { label: "Engagement", value: engagement && engagement.length > 0 ? `${(engagement.reduce((s, p) => s + p.value, 0) / engagement.length).toFixed(1)}%` : "N/A", delta: 0 },
-            { label: "New fans (period)", value: fmtNum(newFans), delta: 0 },
-            { label: "Content items", value: String((top ?? []).length), delta: 0 },
-            { label: "Published", value: "N/A", delta: 0 },
+            { label: "Просмотры", value: fmtNum((top ?? []).reduce((s, c) => s + c.views, 0), true), delta: 0 },
+            { label: "Вовлечённость", value: engagement && engagement.length > 0 ? `${(engagement.reduce((s, p) => s + p.value, 0) / engagement.length).toFixed(1)}%` : "N/A", delta: 0 },
+            { label: "Новые фаны (за период)", value: fmtNum(newFans), delta: 0 },
+            { label: "Единиц контента", value: String((top ?? []).length), delta: 0 },
+            { label: "Опубликовано", value: "N/A", delta: 0 },
           ].map((k) => <MetricCard key={k.label} {...k} />)}
 
-        {section === "Audience" &&
+        {section === "Аудитория" &&
           [
-            { label: "Fans in CRM", value: String(totalFans), delta: 0 },
-            { label: "Active fans", value: String(activeFans), delta: 0 },
-            { label: "New fans (period)", value: String(newFans), delta: 0 },
-            { label: "Subscribers", value: String(subscribers), delta: 0 },
-            { label: "Social followers", value: "N/A", delta: 0, hint: "Connect platforms to see" },
+            { label: "Фанов в CRM", value: String(totalFans), delta: 0 },
+            { label: "Активные фаны", value: String(activeFans), delta: 0 },
+            { label: "Новые фаны (за период)", value: String(newFans), delta: 0 },
+            { label: "Подписчики", value: String(subscribers), delta: 0 },
+            { label: "Подписчики в соцсетях", value: "N/A", delta: 0, hint: "Подключите площадки" },
           ].map((k) => <MetricCard key={k.label} {...k} />)}
 
-        {section === "Revenue" &&
+        {section === "Выручка" &&
           [
-            { label: "Revenue", value: currency(totalRev), delta: 0, accent: true },
-            { label: "Purchases", value: String(purchases), delta: 0 },
-            { label: "AOV", value: currency(aov), delta: 0 },
-            { label: "PPV share", value: totalRev > 0 ? `${Math.round(((summary?.byCategory?.ppv ?? 0) / totalRev) * 100)}%` : "N/A", delta: 0 },
-            { label: "Subscriptions", value: String(subscribers), delta: 0 },
+            { label: "Выручка", value: currency(totalRev), delta: 0, accent: true },
+            { label: "Покупки", value: String(purchases), delta: 0 },
+            { label: "Средний чек", value: currency(aov), delta: 0 },
+            { label: "Доля PPV", value: totalRev > 0 ? `${Math.round(((summary?.byCategory?.ppv ?? 0) / totalRev) * 100)}%` : "N/A", delta: 0 },
+            { label: "Подписки", value: String(subscribers), delta: 0 },
           ].map((k) => <MetricCard key={k.label} {...k} />)}
 
-        {section === "Conversion" &&
+        {section === "Конверсия" &&
           [
-            { label: "Fans → buyer", value: conversion > 0 ? `${conversion}%` : "N/A", delta: 0 },
-            { label: "Buyers", value: String(purchases), delta: 0 },
-            { label: "Subscribers", value: String(subscribers), delta: 0 },
-            { label: "Conversion rate", value: conversion > 0 ? `${conversion}%` : "N/A", delta: 0 },
-            { label: "Funnel depth", value: funnel && funnel.length > 0 ? String(funnel.length) : "N/A", delta: 0 },
+            { label: "Фан → покупатель", value: conversion > 0 ? `${conversion}%` : "N/A", delta: 0 },
+            { label: "Покупатели", value: String(purchases), delta: 0 },
+            { label: "Подписчики", value: String(subscribers), delta: 0 },
+            { label: "Конверсия", value: conversion > 0 ? `${conversion}%` : "N/A", delta: 0 },
+            { label: "Глубина воронки", value: funnel && funnel.length > 0 ? String(funnel.length) : "N/A", delta: 0 },
           ].map((k) => <MetricCard key={k.label} {...k} />)}
 
-        {section === "Retention" &&
+        {section === "Удержание" &&
           [
-            { label: "Churn", value: churn ? `${churn}%` : "N/A", delta: 0, hint: "Not enough data" },
-            { label: "Active subs", value: String(subscribers), delta: 0 },
-            { label: "M1 retention", value: "N/A", delta: 0, hint: "Insufficient data" },
-            { label: "Resurrected", value: "N/A", delta: 0 },
-            { label: "Avg. lifetime", value: "N/A", delta: 0, hint: "Insufficient data" },
+            { label: "Отток", value: churn ? `${churn}%` : "N/A", delta: 0, hint: "Мало данных" },
+            { label: "Активные подписки", value: String(subscribers), delta: 0 },
+            { label: "Удержание M1", value: "N/A", delta: 0, hint: "Недостаточно данных" },
+            { label: "Возвращённые", value: "N/A", delta: 0 },
+            { label: "Средний срок жизни", value: "N/A", delta: 0, hint: "Недостаточно данных" },
           ].map((k) => <MetricCard key={k.label} {...k} />)}
       </div>
 
@@ -115,47 +116,47 @@ export default function Analytics() {
         <Card className="lg:col-span-2">
           <CardHeader
             title={
-              section === "Revenue"
-                ? "Revenue"
-                : section === "Audience"
-                  ? "Audience growth (CRM)"
-                  : section === "Conversion"
-                    ? "Conversion trend"
-                    : section === "Retention"
-                      ? "Retention curve"
-                      : "Engagement rate"
+              section === "Выручка"
+                ? "Выручка"
+                : section === "Аудитория"
+                  ? "Рост аудитории (CRM)"
+                  : section === "Конверсия"
+                    ? "Динамика конверсии"
+                    : section === "Удержание"
+                      ? "Кривая удержания"
+                      : "Вовлечённость"
             }
-            subtitle={`${period} · real data`}
+            subtitle={`${label(period)} · реальные данные`}
           />
           <div className="px-5 pb-5">
             <AreaChart
               data={
-                section === "Revenue"
+                section === "Выручка"
                   ? (revenue ?? [])
-                  : section === "Audience"
+                  : section === "Аудитория"
                     ? (audience ?? [])
-                    : section === "Retention"
+                    : section === "Удержание"
                       ? (retention ?? [])
                       : (engagement ?? [])
               }
               height={244}
-              format={section === "Revenue" ? "currency" : "number"}
+              format={section === "Выручка" ? "currency" : "number"}
             />
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="What this means" subtitle="Analytics Agent read-out" />
+          <CardHeader title="Что это значит" subtitle="Выводы Агента аналитики" />
           <div className="space-y-4 px-5 pb-5">
             {(revenue ?? []).length === 0 && (audience ?? []).length === 0 ? (
               <p className="text-[12.5px] text-muted">
-                Collect enough data points and the Analytics Agent will produce specific recommendations here.
+                Накопите достаточно данных — и Агент аналитики даст здесь конкретные рекомендации.
               </p>
             ) : (
               [
-                { tone: "pos" as const, title: "Data is flowing", body: "CRM events and revenue events are being recorded in real time." },
-                { tone: "warn" as const, title: "Social platforms not connected", body: "TikTok/Instagram follower counts are unavailable until platform APIs are wired up via adapters." },
-                { tone: "accent" as const, title: "Start with the funnel", body: "Use the funnel below to identify the largest leak in your visitor → buyer path." },
+                { tone: "pos" as const, title: "Данные поступают", body: "События CRM и выручки записываются в реальном времени." },
+                { tone: "warn" as const, title: "Соцсети не подключены", body: "Счётчики подписчиков TikTok/Instagram недоступны, пока не подключены API площадок через адаптеры." },
+                { tone: "accent" as const, title: "Начните с воронки", body: "Воронка ниже показывает крупнейшую утечку на пути гость → покупатель." },
               ].map((n) => (
                 <div key={n.title} className="rounded-lg border border-line bg-canvas-2/50 p-3.5">
                   <div className="flex items-center gap-2">
@@ -167,7 +168,7 @@ export default function Analytics() {
               ))
             )}
             <Link to="/ai" className="flex items-center gap-1.5 text-[12px] text-accent-hi hover:underline">
-              Open AI Studio <ArrowUpRight className="size-3.5" />
+              Открыть AI-студию <ArrowUpRight className="size-3.5" />
             </Link>
           </div>
         </Card>
@@ -175,34 +176,34 @@ export default function Analytics() {
 
       <Grid className="mt-4 lg:grid-cols-3">
         <Card>
-          <CardHeader title="Conversion funnel" subtitle="CRM stages" />
+          <CardHeader title="Воронка конверсии" subtitle="Этапы CRM" />
           <div className="px-5 pb-5">
             <FunnelBars data={funnel ?? []} />
             <Divider className="my-4" />
             <div className="flex items-center gap-2 text-[11.5px] text-muted">
               <Target className="size-3.5" />
-              Funnel is built from your internal CRM data only.
+              Воронка строится только по внутренним данным CRM.
             </div>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Fans by source" subtitle="CRM acquisition channel" />
+          <CardHeader title="Фаны по источникам" subtitle="Канал привлечения в CRM" />
           <div className="px-5 pb-5">
             {fansByPlatform && fansByPlatform.length > 0 ? (
               <BarChart data={fansByPlatform} horizontal />
             ) : (
-              <p className="text-[12.5px] text-muted">No fans yet.</p>
+              <p className="text-[12.5px] text-muted">Фанов пока нет.</p>
             )}
             <Divider className="my-4" />
             <p className="text-[11.5px] text-muted">
-              Social follower counts (TikTok/Instagram/etc.) are shown as N/A until platform adapters are connected.
+              Счётчики подписчиков в соцсетях (TikTok/Instagram и др.) показываются как N/A, пока не подключены адаптеры площадок.
             </p>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Revenue by category" subtitle="From revenue_events" />
+          <CardHeader title="Выручка по категориям" subtitle="Из таблицы revenue_events" />
           <div className="px-5 pb-5">
             {summary?.byCategory && Object.keys(summary.byCategory).length > 0 ? (
               <StackedBars
@@ -213,7 +214,7 @@ export default function Analytics() {
                 height={150}
               />
             ) : (
-              <p className="text-[12.5px] text-muted">No revenue events.</p>
+              <p className="text-[12.5px] text-muted">Событий выручки нет.</p>
             )}
           </div>
         </Card>
@@ -221,7 +222,7 @@ export default function Analytics() {
 
       <Grid className="mt-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Top content" subtitle="Ranked by follower conversion" />
+          <CardHeader title="Топ контента" subtitle="Ранжирование по приросту подписчиков" />
           <div>
             {(top ?? []).map((t) => (
               <Link
@@ -232,28 +233,28 @@ export default function Analytics() {
                 <span className="num text-[12px] text-faint">{t.rank}</span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] text-ink">"{t.title}"</div>
-                  <div className="num mt-0.5 text-[11px] text-faint">{fmtNum(t.views, true)} views</div>
+                  <div className="num mt-0.5 text-[11px] text-faint">{fmtNum(t.views, true)} просмотров</div>
                 </div>
                 <Sparkline values={[8, 14, 11, 22, 28, 34, 41]} />
                 <Badge tone="pos">+{fmtNum(t.followers)}</Badge>
               </Link>
             ))}
             {(!top || top.length === 0) && (
-              <div className="p-5 text-[12.5px] text-muted">No content performance data yet.</div>
+              <div className="p-5 text-[12.5px] text-muted">Данных о результатах контента пока нет.</div>
             )}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Retention & churn" subtitle="From subscriptions" />
+          <CardHeader title="Удержание и отток" subtitle="По подпискам" />
           <div className="px-5 pb-5">
             <AreaChart data={retention ?? []} height={150} showCompare={false} format="percent" />
             <Divider className="my-4" />
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "Churn", value: "N/A", delta: 0 },
-                { label: "Active subs", value: String(subscribers), delta: 0 },
-                { label: "Resurrect", value: "N/A", delta: 0 },
+                { label: "Отток", value: "N/A", delta: 0 },
+                { label: "Активные подписки", value: String(subscribers), delta: 0 },
+                { label: "Возврат", value: "N/A", delta: 0 },
               ].map((k) => (
                 <div key={k.label}>
                   <div className="label">{k.label}</div>
@@ -264,20 +265,20 @@ export default function Analytics() {
             </div>
             <div className="mt-4 flex items-center gap-2 text-[11.5px] text-muted">
               <TrendingDown className="size-3.5" />
-              Churn metrics require at least one full billing cycle of data.
+              Для метрик оттока нужен хотя бы один полный платёжный цикл данных.
             </div>
           </div>
         </Card>
       </Grid>
 
       <Card className="mt-4">
-        <CardHeader title="Decision log" subtitle="Operator decisions are recorded here (MVP)" />
+        <CardHeader title="Журнал решений" subtitle="Здесь фиксируются решения оператора (MVP)" />
         <div className="grid gap-px bg-line lg:grid-cols-3">
           <div className="bg-surface px-5 py-4">
             <ProgressBar value={0} height={3} />
-            <div className="mt-2.5 text-[13px] font-medium text-ink">No decisions yet</div>
+            <div className="mt-2.5 text-[13px] font-medium text-ink">Решений пока нет</div>
             <p className="mt-1 text-[12px] leading-relaxed text-muted">
-              As you approve AI suggestions and publish content, decisions will appear here.
+              Когда вы будете одобрять предложения AI и публиковать контент, решения появятся здесь.
             </p>
           </div>
         </div>

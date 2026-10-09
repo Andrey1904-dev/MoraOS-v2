@@ -55,13 +55,13 @@ export function TelegramSection() {
       }
       const token = await backend.auth.getAccessToken();
       if (!token) {
-        setStatus({ kind: "error", message: "Sign in to manage the Telegram connection." });
+        setStatus({ kind: "error", message: "Войдите, чтобы управлять привязкой Telegram." });
         return;
       }
       const result = await requestTelegram<TelegramLinkStatus>("/api/telegram/link/status", token);
       setStatus(result.linked ? { kind: "linked", linkedAt: result.linkedAt } : { kind: "unlinked" });
     } catch (e) {
-      setStatus({ kind: "error", message: e instanceof Error ? e.message : "Telegram API unavailable." });
+      setStatus({ kind: "error", message: e instanceof Error ? e.message : "Telegram API недоступен." });
     } finally {
       setBusy(null);
     }
@@ -77,9 +77,9 @@ export function TelegramSection() {
       .then((report) => {
         const ok = report.configured && (report.botPolling === "online" || report.mode === "webhook");
         setHealth(report);
-        setHealthBad(ok ? "" : "The bot is offline (webhook or polling). Run npm run bot:setup.");
+        setHealthBad(ok ? "" : "Бот не в сети (webhook или polling). Выполните npm run bot:setup.");
       })
-      .catch(() => setHealthBad("The bot API did not answer /health."));
+      .catch(() => setHealthBad("API бота не ответил на /health."));
   }, [mode]);
 
   /** Шаг 1: показать, какой Telegram-аккаунт выдал код. Ничего не привязывается. */
@@ -89,12 +89,12 @@ export function TelegramSection() {
     setBusy("preview");
     try {
       const token = await backend.auth.getAccessToken();
-      if (!token) throw new Error("Sign in first.");
+      if (!token) throw new Error("Сначала войдите.");
       const preview = await previewTelegramLink(token, value);
       setPending({ ...preview, code: value });
     } catch (e) {
       setPending(null);
-      push({ title: "Code not accepted", description: e instanceof Error ? e.message : "Request a new code with /link.", tone: "error" });
+      push({ title: "Код не принят", description: e instanceof Error ? e.message : "Запросите новый код командой /link.", tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -106,14 +106,14 @@ export function TelegramSection() {
     setBusy("confirm");
     try {
       const token = await backend.auth.getAccessToken();
-      if (!token) throw new Error("Sign in first.");
+      if (!token) throw new Error("Сначала войдите.");
       await requestTelegram("/api/telegram/link/confirm", token, { method: "POST", body: { code: pending.code } });
       setPending(null);
       setCode("");
-      push({ title: "Telegram connected", description: `Linked to ${pending.telegramAccount}.`, tone: "success" });
+      push({ title: "Telegram подключён", description: `Привязано к ${pending.telegramAccount}.`, tone: "success" });
       await refresh();
     } catch (e) {
-      push({ title: "Link failed", description: e instanceof Error ? e.message : "Request a new code with /link.", tone: "error" });
+      push({ title: "Не удалось привязать", description: e instanceof Error ? e.message : "Запросите новый код командой /link.", tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -123,12 +123,12 @@ export function TelegramSection() {
     setBusy("unlink");
     try {
       const token = await backend.auth.getAccessToken();
-      if (!token) throw new Error("Sign in first.");
+      if (!token) throw new Error("Сначала войдите.");
       await requestTelegram("/api/telegram/link", token, { method: "DELETE" });
-      push({ title: "Telegram disconnected", description: "The bot no longer sees your account.", tone: "default" });
+      push({ title: "Telegram отключён", description: "Бот больше не видит ваш аккаунт.", tone: "default" });
       await refresh();
     } catch (e) {
-      push({ title: "Disconnect failed", description: e instanceof Error ? e.message : "Try again.", tone: "error" });
+      push({ title: "Не удалось отключить", description: e instanceof Error ? e.message : "Попробуйте ещё раз.", tone: "error" });
     } finally {
       setBusy(null);
     }
@@ -137,23 +137,23 @@ export function TelegramSection() {
   if (mode === "demo") {
     return (
       <Card>
-        <CardHeader title="Telegram" subtitle="Mara OS Assistant bot and Mini App" action={<Badge tone="warn">Demo mode</Badge>} />
+        <CardHeader title="Telegram" subtitle="Бот Mara OS Assistant и Mini App" action={<Badge tone="warn">Демо-режим</Badge>} />
         <div className="space-y-3 px-5 pb-5">
           <p className="text-[13px] leading-6 text-muted">
-            In demo mode the Telegram link is not used — account binding happens against your Supabase
-            project. The bot itself is live: send /link to it, then sign in with cloud credentials here
-            and paste the code below to bind the accounts.
+            В демо-режиме привязка Telegram не используется — аккаунт привязывается к вашему проекту
+            Supabase. Сам бот работает: отправьте ему /link, затем войдите здесь с облачными учётными
+            данными и вставьте код ниже, чтобы связать аккаунты.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {TELEGRAM_BOT_URL && (
               <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer">
                 <Button variant="secondary"><i className="mr-1.5 inline-flex"><Bot className="size-4" /></i>
-                  Open Mara OS Assistant
+                  Открыть Mara OS Assistant
                 </Button>
               </a>
             )}
             <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-[12px] text-faint hover:text-muted">
-              Bot token is managed in @BotFather
+              Токен бота настраивается в @BotFather
             </a>
           </div>
         </div>
@@ -165,11 +165,11 @@ export function TelegramSection() {
     <div className="space-y-4">
       <Card>
         <CardHeader
-          title="Telegram link"
-          subtitle="Step 1: check the code's account. Step 2: connect it."
+          title="Привязка Telegram"
+          subtitle="Шаг 1: проверьте, чей это код. Шаг 2: подключите."
           action={
             <Button variant="ghost" size="sm" loading={busy === "refresh"} onClick={() => void refresh()}><i className="mr-1.5 inline-flex"><RefreshCw className="size-3.5" /></i>
-              Refresh
+              Обновить
             </Button>
           }
         />
@@ -181,13 +181,13 @@ export function TelegramSection() {
           )}
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {status.kind === "loading" && <Badge tone="neutral">Checking…</Badge>}
+            {status.kind === "loading" && <Badge tone="neutral">Проверка…</Badge>}
             {status.kind === "linked" && (
               <Badge tone="pos">
-                Connected{status.linkedAt ? ` since ${new Date(status.linkedAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })}` : ""}
+                Подключено{status.linkedAt ? ` с ${new Date(status.linkedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}` : ""}
               </Badge>
             )}
-            {status.kind === "unlinked" && <Badge tone="neutral">Not connected</Badge>}
+            {status.kind === "unlinked" && <Badge tone="neutral">Не подключено</Badge>}
             {status.kind === "error" && <Badge tone="neg">{status.message}</Badge>}
             {TELEGRAM_BOT_URL && (
               <a href={TELEGRAM_BOT_URL} target="_blank" rel="noreferrer">
@@ -201,20 +201,20 @@ export function TelegramSection() {
           <Divider />
 
           <div className="grid gap-3 text-[12.5px] text-muted sm:grid-cols-3">
-            <KeyStat label="1" value="Send /link to the bot" />
-            <KeyStat label="2" value="Check the account shown here" />
-            <KeyStat label="3" value="Connect it — then use /menu in chat" />
+            <KeyStat label="1" value="Отправьте боту /link" />
+            <KeyStat label="2" value="Проверьте показанный здесь аккаунт" />
+            <KeyStat label="3" value="Подключите — и пользуйтесь /menu в чате" />
           </div>
 
           <div className="flex flex-wrap items-end gap-2">
-            <Field label="One-time code" hint="10 letters or digits, valid 10 minutes. Never share it.">
+            <Field label="Одноразовый код" hint="10 букв или цифр, действует 10 минут. Никому его не показывайте.">
               <input
                 value={code}
                 onChange={(e) => {
                   setCode(e.target.value);
                   setPending(null);
                 }}
-                placeholder="e.g. 4K9PQ-72QX8"
+                placeholder="например, 4K9PQ-72QX8"
                 autoComplete="off"
                 spellCheck={false}
                 className={inputClass}
@@ -226,21 +226,21 @@ export function TelegramSection() {
               onClick={() => void checkCode()}
               disabled={!code.trim() || !isTelegramConfigured || busy !== null}
             >
-              Check code
+              Проверить код
             </Button>
             {status.kind === "linked" && (
               <Button variant="danger" loading={busy === "unlink"} onClick={() => void unlink()}><i className="mr-1.5 inline-flex"><Link2Off className="size-4" /></i>
-                Disconnect
+                Отключить
               </Button>
             )}
           </div>
 
           {pending && (
-            <div role="group" aria-label="Confirm Telegram account" className="space-y-3 rounded-lg border border-line-2 bg-canvas-2 p-4">
+            <div role="group" aria-label="Подтверждение Telegram-аккаунта" className="space-y-3 rounded-lg border border-line-2 bg-canvas-2 p-4">
               <p className="text-[13px] leading-6 text-ink-2">
-                This code was requested from the Telegram account{" "}
+                Этот код запрошен из Telegram-аккаунта{" "}
                 <strong className="font-semibold text-ink">{pending.telegramAccount}</strong>.
-                Connect it only if that is your own account.
+                Подключайте только если это ваш собственный аккаунт.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -249,10 +249,10 @@ export function TelegramSection() {
                   onClick={() => void confirmPending()}
                   disabled={busy !== null}
                 ><i className="mr-1.5 inline-flex"><Link2 className="size-4" /></i>
-                  Connect this account
+                  Подключить этот аккаунт
                 </Button>
                 <Button variant="ghost" onClick={() => setPending(null)} disabled={busy !== null}>
-                  Cancel
+                  Отмена
                 </Button>
               </div>
             </div>
@@ -262,37 +262,37 @@ export function TelegramSection() {
 
       {(health || healthBad) && (
         <Card>
-          <CardHeader title="Bot service health" subtitle="telegram-api /health" />
+          <CardHeader title="Состояние сервиса бота" subtitle="telegram-api /health" />
           <div className="space-y-2 px-5 pb-5 text-[12.5px]">
             {health && (
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={healthBad ? "warn" : "pos"}>{health.mode === "webhook" ? "Webhook mode" : `Polling: ${health.botPolling}`}</Badge>
+                <Badge tone={healthBad ? "warn" : "pos"}>{health.mode === "webhook" ? "Режим webhook" : `Polling: ${health.botPolling}`}</Badge>
                 {health.lastSuccessfulPollAt && (
-                  <span className="text-muted">last poll {new Date(health.lastSuccessfulPollAt).toLocaleTimeString("en-US")}</span>
+                  <span className="text-muted">последний опрос {new Date(health.lastSuccessfulPollAt).toLocaleTimeString("ru-RU")}</span>
                 )}
               </div>
             )}
             <div className="flex items-start gap-2 text-muted">
               {healthBad ? <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warn" /> : <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-pos" />}
-              <span>{healthBad || "The bot transport is online."}</span>
+              <span>{healthBad || "Транспорт бота в сети."}</span>
             </div>
           </div>
         </Card>
       )}
 
       <Card>
-        <CardHeader title="What the bot can do" subtitle="Read-only companion — actions stay behind your approval" />
+        <CardHeader title="Что умеет бот" subtitle="Компаньон только для чтения — действия остаются за вашим одобрением" />
         <div className="px-5 pb-5 text-[12.5px] leading-6 text-muted">
           <ul className="space-y-1.5">
-            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /fans — audience by relationship level</li>
-            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /messages — unread inbox and AI drafts awaiting approval</li>
-            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /content — pipeline snapshot and next scheduled drop</li>
-            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /analytics — revenue this month by source</li>
-            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /tasks /ai — decisions waiting on you and today’s agent runs</li>
+            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /fans — аудитория по уровням отношений</li>
+            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /messages — непрочитанный инбокс и AI-черновики на одобрении</li>
+            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /content — срез конвейера и ближайший запланированный дроп</li>
+            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /analytics — выручка за месяц по источникам</li>
+            <li className="flex gap-2"><Copy className="mt-1 size-3.5 shrink-0 text-faint" /> /tasks /ai — решения, которые ждут вас, и запуски агентов за сегодня</li>
           </ul>
           <p className="mt-3 text-[12px] text-faint">
-            The Mini App button in the bot opens this console inside Telegram; deep links
-            (startapp=fans, ?screen=messages, …) land on the matching section.
+            Кнопка Mini App в боте открывает эту консоль внутри Telegram; deep links
+            (startapp=fans, ?screen=messages, …) ведут сразу в нужный раздел.
           </p>
         </div>
       </Card>

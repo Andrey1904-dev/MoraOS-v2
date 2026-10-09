@@ -253,12 +253,12 @@ const avatarTone = (seed: string): string => {
 
 const shortDate = (iso: string | null | undefined): string =>
   iso
-    ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "2-digit" })
+    ? new Date(iso).toLocaleDateString("ru-RU", { month: "short", day: "2-digit" })
     : "—";
 
 async function requireUserId(): Promise<string> {
   const { data, error } = await db().auth.getUser();
-  if (error || !data.user) throw new Error("Not authenticated");
+  if (error || !data.user) throw new Error("Не авторизован");
   return data.user.id;
 }
 
@@ -1094,9 +1094,9 @@ const DAY = 86_400_000;
 
 function periodWindow(period: string): { from: Date; buckets: number; bucketMs: number; label: (d: Date) => string } {
   const now = Date.now();
-  const day = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short" });
-  const dayNum = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const month = (d: Date) => d.toLocaleDateString("en-US", { month: "short" });
+  const day = (d: Date) => d.toLocaleDateString("ru-RU", { weekday: "short" });
+  const dayNum = (d: Date) => d.toLocaleDateString("ru-RU", { month: "short", day: "numeric" });
+  const month = (d: Date) => d.toLocaleDateString("ru-RU", { month: "short" });
   if (period === "7 days") return { from: new Date(now - 7 * DAY), buckets: 7, bucketMs: DAY, label: day };
   if (period === "90 days") return { from: new Date(now - 90 * DAY), buckets: 13, bucketMs: 7 * DAY, label: dayNum };
   if (period === "All time") return { from: new Date(now - 365 * DAY), buckets: 12, bucketMs: 30 * DAY, label: month };
@@ -1150,14 +1150,14 @@ class SupabaseAnalyticsRepository implements AnalyticsRepository {
     const churnRate = (activeSubs ?? 0) + churned ? Math.round((churned / ((activeSubs ?? 0) + churned)) * 1000) / 10 : 0;
     const delta = cur && prev ? Math.round(((cur - prev) / prev) * 1000) / 10 : 0;
 
-    const money = (v: number) => `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+    const money = (v: number) => `$${v.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}`;
     return [
-      { key: "revenue", label: "Revenue", value: money(cur), raw: cur, delta, hint: "vs previous period", accent: true },
-      { key: "subs", label: "Subscribers", value: String(activeSubs ?? 0), raw: activeSubs ?? 0, delta: 0, hint: "active subscriptions" },
-      { key: "fans", label: "New Fans", value: String(newFans), raw: newFans, delta: 0, hint: "first contact created" },
-      { key: "ppv", label: "PPV Sales", value: money(ppvCur), raw: ppvCur, delta: 0, hint: "one-time unlocks" },
-      { key: "ltv", label: "Average LTV", value: money(ltv), raw: ltv, delta: 0, hint: "per buyer, period" },
-      { key: "churn", label: "Churn", value: `${churnRate}%`, raw: churnRate, delta: 0, hint: "subscription churn" },
+      { key: "revenue", label: "Выручка", value: money(cur), raw: cur, delta, hint: "к прошлому периоду", accent: true },
+      { key: "subs", label: "Подписчики", value: String(activeSubs ?? 0), raw: activeSubs ?? 0, delta: 0, hint: "активные подписки" },
+      { key: "fans", label: "Новые фаны", value: String(newFans), raw: newFans, delta: 0, hint: "первый контакт установлен" },
+      { key: "ppv", label: "Продажи PPV", value: money(ppvCur), raw: ppvCur, delta: 0, hint: "разовые доступы" },
+      { key: "ltv", label: "Средний LTV", value: money(ltv), raw: ltv, delta: 0, hint: "на покупателя за период" },
+      { key: "churn", label: "Отток", value: `${churnRate}%`, raw: churnRate, delta: 0, hint: "отток подписок" },
     ];
   }
 
@@ -1221,7 +1221,7 @@ class SupabaseAnalyticsRepository implements AnalyticsRepository {
         (s) => s.status === "active" || (s.cancelled_at && new Date(s.cancelled_at).getTime() > cohortEnd.getTime()),
       ).length;
       points.push({
-        label: cohortEnd.toLocaleDateString("en-US", { month: "short" }),
+        label: cohortEnd.toLocaleDateString("ru-RU", { month: "short" }),
         value: cohort.length ? Math.round((alive / cohort.length) * 100) : 100,
       });
     }
@@ -1324,46 +1324,46 @@ class SupabaseAnalyticsRepository implements AnalyticsRepository {
 const AGENT_CATALOG: Omit<Agent, "status" | "lastRun" | "tasks" | "successRate">[] = [
   {
     id: "character",
-    name: "Character Agent",
-    role: "Voice & lore guardian",
+    name: "Агент персонажа",
+    role: "Хранитель голоса и лора",
     description:
-      "Owns Mara's voice, boundaries and storyline continuity. Reviews every outbound message and caption against the character card.",
-    capabilities: ["voice check", "lore consistency", "boundary enforcement"],
+      "Отвечает за голос Мары, границы и непрерывность сюжета. Проверяет каждое исходящее сообщение и подпись по карточке персонажа.",
+    capabilities: ["проверка голоса", "целостность лора", "контроль границ"],
   },
   {
     id: "conversation",
-    name: "Conversation Agent",
-    role: "Reply drafting",
-    description: "Drafts replies in Mara's voice from conversation context, fan memories and relationship level.",
-    capabilities: ["reply drafts", "intent detection", "escalation hints"],
+    name: "Агент диалогов",
+    role: "Черновики ответов",
+    description: "Пишет черновики ответов голосом Мары по контексту диалога, воспоминаниям о фана и уровню отношений.",
+    capabilities: ["черновики ответов", "определение намерений", "подсказки эскалации"],
   },
   {
     id: "memory",
-    name: "Memory Agent",
-    role: "Long-term fan facts",
-    description: "Decides which facts from conversations deserve long-term storage in fan_memories.",
-    capabilities: ["memory extraction", "dedup", "importance scoring"],
+    name: "Агент памяти",
+    role: "Долгосрочные факты о фанах",
+    description: "Решает, какие факты из диалогов достойны долгосрочного хранения в fan_memories.",
+    capabilities: ["извлечение памяти", "дедупликация", "оценка важности"],
   },
   {
     id: "sales",
-    name: "Sales Agent",
-    role: "Monetization timing",
-    description: "Recommends sell / wait / nurture and suggests the right offer at the right moment.",
-    capabilities: ["offer matching", "timing", "churn win-back"],
+    name: "Агент продаж",
+    role: "Тайминг монетизации",
+    description: "Рекомендует продавать / ждать / прогревать и предлагает подходящий оффер в нужный момент.",
+    capabilities: ["подбор оффера", "тайминг", "возврат оттока"],
   },
   {
     id: "content",
-    name: "Content Agent",
-    role: "Hooks, captions, scripts",
-    description: "Generates hooks, captions, episode ideas and A/B variants inside the current story arc.",
-    capabilities: ["hooks", "captions", "episode arcs", "PPV ideas"],
+    name: "Агент контента",
+    role: "Хуки, подписи, сценарии",
+    description: "Генерирует хуки, подписи, идеи эпизодов и A/B-варианты внутри текущей сюжетной арки.",
+    capabilities: ["хуки", "подписи", "сюжетные арки", "идеи PPV"],
   },
   {
     id: "analytics",
-    name: "Analytics Agent",
-    role: "Numbers → decisions",
-    description: "Turns content performance, funnel and revenue into specific, actionable recommendations.",
-    capabilities: ["funnel analysis", "revenue insights", "churn watch"],
+    name: "Агент аналитики",
+    role: "Цифры → решения",
+    description: "Превращает результаты контента, воронку и выручку в конкретные рекомендации к действию.",
+    capabilities: ["анализ воронки", "инсайты по выручке", "контроль оттока"],
   },
 ];
 
@@ -1382,7 +1382,7 @@ class SupabaseAIRepository implements AIRepository {
       return {
         ...a,
         status: age < 3_600_000 ? ("Online" as const) : ("Idle" as const),
-        lastRun: last ? new Date(last).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "never",
+        lastRun: last ? new Date(last).toLocaleString("ru-RU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "никогда",
         tasks: countByAgent.get(a.id) ?? 0,
         successRate: 0,
       };
@@ -1399,7 +1399,7 @@ class SupabaseAIRepository implements AIRepository {
       body: i.body,
       recommendation: i.recommendation,
       confidence: Number(i.confidence ?? 0.8),
-      cta: { label: "Open AI Studio", to: "/ai" },
+      cta: { label: "Открыть AI-студию", to: "/ai" },
     }));
   }
 
@@ -1420,8 +1420,8 @@ class SupabaseAIRepository implements AIRepository {
       runs: runCount.get(a.id) ?? 0,
       status: AUTOMATION_STATUS_TO_UI[a.status],
       lastRun: a.last_run_at
-        ? new Date(a.last_run_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-        : "never",
+        ? new Date(a.last_run_at).toLocaleString("ru-RU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+        : "никогда",
     }));
   }
 
@@ -1438,9 +1438,9 @@ class SupabaseAIRepository implements AIRepository {
       detail: t.detail,
       status: TSTATUS_TO_UI[t.status],
       priority: TPRIORITY_TO_UI[t.priority],
-      group: t.due_date && new Date(t.due_date).getTime() - Date.now() < DAY ? "Today" : "This week",
+      group: t.due_date && new Date(t.due_date).getTime() - Date.now() < DAY ? "Сегодня" : "На этой неделе",
       due: t.due_date ? shortDate(t.due_date) : "—",
-      source: t.source ? capitalize(t.source.replaceAll("_", " ")) : "Manual",
+      source: t.source ? capitalize(t.source.replaceAll("_", " ")) : "Вручную",
     }));
   }
 
@@ -1568,8 +1568,8 @@ class SupabaseCharacterRepository implements CharacterRepository {
       voice: traits ? [traits.tone, traits.speech_style].filter(Boolean).join(" ") : "",
       boundaries: list(traits?.boundaries),
       traits: [
-        { label: "Tone", value: traits?.tone ?? "" },
-        { label: "Style", value: traits?.speech_style ?? "" },
+        { label: "Тон", value: traits?.tone ?? "" },
+        { label: "Стиль", value: traits?.speech_style ?? "" },
         { label: "Signature object", value: list(traits?.recurring_objects).join(", ") },
         { label: "Personality", value: list(traits?.personality).join(", ") },
       ].filter((t) => t.value),

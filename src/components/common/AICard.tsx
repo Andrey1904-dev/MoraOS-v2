@@ -9,7 +9,7 @@ import { cn } from "@/utils/cn";
  * everything requires an explicit operator action.
  */
 export function AICard({
-  eyebrow = "AI INSIGHT",
+  eyebrow = "AI-АНАЛИТИКА",
   title,
   body,
   recommendation,
@@ -49,7 +49,7 @@ export function AICard({
 
         {recommendation && (
           <div className="mt-4 rounded-lg border border-line bg-canvas-2/60 p-3">
-            <div className="label">Recommended</div>
+            <div className="label">Рекомендация</div>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{recommendation}</p>
           </div>
         )}
@@ -57,7 +57,7 @@ export function AICard({
         <div className={cn("flex flex-wrap items-center gap-3", compact ? "mt-4" : "mt-auto pt-5")}>
           {confidence !== undefined && (
             <div className="flex items-center gap-2">
-              <span className="label">Confidence</span>
+              <span className="label">Уверенность</span>
               <span className={cn("num text-[12.5px] font-medium", confidenceTone)}>{confidence}%</span>
             </div>
           )}

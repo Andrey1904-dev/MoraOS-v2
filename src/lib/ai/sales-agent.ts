@@ -66,7 +66,7 @@ function sanitizeSalesResult(raw: unknown, input: SalesAgentInput): SalesAgentRe
   return {
     action,
     offer_id: offerId,
-    reason: typeof obj.reason === "string" && obj.reason.trim() ? obj.reason.trim() : "No reason provided.",
+    reason: typeof obj.reason === "string" && obj.reason.trim() ? obj.reason.trim() : "Причина не указана.",
     confidence: typeof obj.confidence === "number" ? Math.min(1, Math.max(0, obj.confidence)) : 0.5,
   };
 }
@@ -78,11 +78,11 @@ function sanitizeSalesResult(raw: unknown, input: SalesAgentInput): SalesAgentRe
 function applyBusinessRules(result: SalesAgentResult, input: SalesAgentInput): SalesAgentResult {
   // Нет офферов — продавать нечего.
   if (!input.offers.length && (result.action === "sell_now" || result.action === "recommend_offer")) {
-    return { ...result, action: "no_sales", reason: "No live offers available." };
+    return { ...result, action: "no_sales", reason: "Активных офферов нет." };
   }
   // Холодный фан без покупок: прямые продажи запрещены, только nurture.
   if (input.fan.purchases === 0 && !input.fan.hasActiveSubscription && result.action === "sell_now") {
-    return { ...result, action: "nurture", reason: "First purchase never comes from a cold push — nurture first." };
+    return { ...result, action: "nurture", reason: "Первая покупка не приходит от холодного давления — сначала прогрев." };
   }
   // Рекомендация оффера без конкретного offer_id: подставляем дефолтный PPV.
   if (result.action === "recommend_offer" && !result.offer_id) {

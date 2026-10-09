@@ -164,7 +164,7 @@ try {
   await good.requestTelegram('/api/telegram/link/status', 'expired-token')
   check('401 подсказывает войти заново', false, 'исключение не выброшено')
 } catch (error) {
-  check('401 подсказывает войти заново', /Sign in again/.test(String(error.message)), String(error.message))
+  check('401 подсказывает войти заново', /Войдите заново/.test(String(error.message)), String(error.message))
 }
 
 console.log(failed === 0 ? '\nTelegram config smoke: все проверки пройдены.' : `\nTelegram config smoke: провалено проверок — ${failed}.`)

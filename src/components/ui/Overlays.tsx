@@ -53,7 +53,7 @@ export function Modal({
           <button
             onClick={onClose}
             className="-mr-1 -mt-1 grid size-8 place-items-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label="Close"
+            aria-label="Закрыть"
           >
             <X className="size-4" />
           </button>
@@ -110,7 +110,7 @@ export function Drawer({
           <button
             onClick={onClose}
             className="grid size-8 place-items-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-ink"
-            aria-label="Close"
+            aria-label="Закрыть"
           >
             <X className="size-4" />
           </button>

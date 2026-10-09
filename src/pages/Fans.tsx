@@ -10,7 +10,8 @@ import { SkeletonRows, EmptyState } from "@/components/ui/Feedback";
 import { useToast } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
-import { ago, currency } from "@/lib/format";
+import { ago, currency, pluralRu } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { exportFileName, fansToCsv } from "@/lib/export";
 import { downloadTextFile } from "@/lib/download";
 import { cn } from "@/utils/cn";
@@ -20,9 +21,9 @@ type SortKey = "name" | "ltv" | "lastActivity" | "relationship";
 
 const SORT_KEYS = {
   "LTV": "ltv",
-  "Name": "name",
-  "Last activity": "lastActivity",
-  "Relationship": "relationship",
+  "Имя": "name",
+  "Последняя активность": "lastActivity",
+  "Уровень отношений": "relationship",
 } as const;
 const SORT_LABELS = Object.fromEntries(
   Object.entries(SORT_KEYS).map(([label, key]) => [key, label]),
@@ -76,32 +77,32 @@ export default function Fans() {
   /** Выгрузка того, что видно сейчас: поиск, сегмент и сортировка учитываются. */
   const exportCsv = async () => {
     if (rows.length === 0) {
-      push({ title: "Nothing to export", description: "This view has no fans.", tone: "default" });
+      push({ title: "Нечего выгружать", description: "В этом представлении нет фанов.", tone: "default" });
       return;
     }
     const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
     const outcome = await downloadTextFile(`${exportFileName("fans", stamp)}.csv`, fansToCsv(rows), "text/csv;charset=utf-8");
     if (outcome === "downloaded" || outcome === "shared") {
-      push({ title: "Export ready", description: `${rows.length} fans exported as CSV.`, tone: "success" });
+      push({ title: "Экспорт готов", description: `${rows.length} ${pluralRu(rows.length, ["фан", "фана", "фанов"])} выгружено в CSV.`, tone: "success" });
     } else if (outcome === "dismissed" || outcome === "cancelled") {
-      push({ title: "Export cancelled", description: "The file was not saved.", tone: "default" });
+      push({ title: "Экспорт отменён", description: "Файл не сохранён.", tone: "default" });
     }
   };
 
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Audience"
-        title="Fans"
-        description={`${totalCount} ${totalCount === 1 ? "fan" : "fans"} in the ${segment.toLowerCase()} view`}
+        eyebrow="Аудитория"
+        title="Фаны"
+        description={`${totalCount} ${pluralRu(totalCount, ["фан", "фана", "фанов"])} в сегменте «${label(segment)}»`}
         actions={
           <>
             <Button variant="outline" onClick={() => void exportCsv()}>
-              <Download className="size-3.5" /> Export CSV
+              <Download className="size-3.5" /> Экспорт CSV
             </Button>
             {/* Ручное создание фанов ещё не реализовано: кнопка неактивна, а не имитирует действие. */}
-            <Button variant="primary" disabled title="Manual fan creation is not available yet" aria-label="Add fan (not available yet)">
-              <Plus className="size-3.5" /> Add fan
+            <Button variant="primary" disabled title="Ручное создание фанов пока недоступно" aria-label="Добавить фана (пока недоступно)">
+              <Plus className="size-3.5" /> Добавить фана
             </Button>
           </>
         }
@@ -115,7 +116,7 @@ export default function Fans() {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search fans, handles or sources…"
+            placeholder="Поиск по имени, нику или источнику…"
             className="lg:w-80"
           />
           <FilterChips
@@ -128,37 +129,37 @@ export default function Fans() {
           />
           <div className="flex items-center gap-2 lg:ml-auto">
             <Select
-              ariaLabel="Sort by"
+              ariaLabel="Сортировка"
               value={SORT_LABELS[sort]}
               onChange={(v) => setSort(SORT_KEYS[v as keyof typeof SORT_KEYS] as SortKey)}
               options={Object.keys(SORT_KEYS) as (keyof typeof SORT_KEYS)[]}
               className="w-40"
             />
             <Button variant="outline" size="md" onClick={() => setDir((d) => (d === "asc" ? "desc" : "asc"))}>
-              <ArrowUpDown className="size-3.5" /> {dir === "asc" ? "Asc" : "Desc"}
+              <ArrowUpDown className="size-3.5" /> {dir === "asc" ? "По возрастанию" : "По убыванию"}
             </Button>
           </div>
         </div>
 
         {selected.size > 0 && (
           <div className="anim-fade flex flex-wrap items-center gap-2 border-b border-line bg-accent/[0.06] px-4 py-2.5">
-            <span className="num text-[12px] text-ink">{selected.size} selected</span>
+            <span className="num text-[12px] text-ink">Выбрано: {selected.size}</span>
             <span className="text-[12px] text-faint">·</span>
             <span className="num text-[12px] text-muted">
               LTV {currency([...selected].reduce((s, id) => s + (data?.find((f) => f.id === id)?.ltv ?? 0), 0))}
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="subtle" disabled title="Not available yet">
-                Tag
+              <Button size="sm" variant="subtle" disabled title="Пока недоступно">
+                Тег
               </Button>
-              <Button size="sm" variant="subtle" disabled title="Not available yet">
-                Draft message
+              <Button size="sm" variant="subtle" disabled title="Пока недоступно">
+                Черновик сообщения
               </Button>
-              <Button size="sm" variant="subtle" disabled title="Not available yet">
-                Assign offer
+              <Button size="sm" variant="subtle" disabled title="Пока недоступно">
+                Назначить оффер
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-                Clear
+                Сбросить
               </Button>
             </div>
           </div>
@@ -177,11 +178,11 @@ export default function Fans() {
                 selected={selected}
                 onToggleSelect={toggle}
                 onToggleAll={toggleAll}
-                empty={<EmptyState icon={<Users className="size-4" />} title="No fans match this filter" description="Try a different segment or clear the search." />}
+                empty={<EmptyState icon={<Users className="size-4" />} title="Под фильтр не подошёл ни один фан" description="Попробуйте другой сегмент или очистите поиск." />}
                 columns={[
                   {
                     key: "fan",
-                    header: "Fan",
+                    header: "Фан",
                     cell: (f) => (
                       <div className="flex items-center gap-3">
                         <Avatar name={f.name} tone={f.avatarTone} size={30} />
@@ -192,13 +193,13 @@ export default function Fans() {
                       </div>
                     ),
                   },
-                  { key: "source", header: "Source", cell: (f) => <Badge>{f.source}</Badge> },
+                  { key: "source", header: "Источник", cell: (f) => <Badge>{f.source}</Badge> },
                   {
                     key: "relationship",
-                    header: "Relationship",
+                    header: "Отношения",
                     cell: (f) => (
                       <Badge tone={f.relationship === "Inner circle" ? "accent" : f.relationship === "Fan" ? "info" : "neutral"}>
-                        {f.relationship}
+                        {label(f.relationship)}
                       </Badge>
                     ),
                   },
@@ -208,8 +209,8 @@ export default function Fans() {
                     align: "right",
                     cell: (f) => <span className="num font-medium text-ink">{currency(f.ltv, { cents: f.ltv % 1 !== 0 })}</span>,
                   },
-                  { key: "last", header: "Last activity", cell: (f) => <span className="num text-muted">{ago(f.lastActivity)}</span> },
-                  { key: "status", header: "Status", cell: (f) => <StatusBadge status={f.status} /> },
+                  { key: "last", header: "Последняя активность", cell: (f) => <span className="num text-muted">{ago(f.lastActivity)}</span> },
+                  { key: "status", header: "Статус", cell: (f) => <StatusBadge status={f.status} /> },
                 ]}
               />
             </div>
@@ -230,7 +231,7 @@ export default function Fans() {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Badge>{f.source}</Badge>
-                    <Badge tone={f.relationship === "Inner circle" ? "accent" : "neutral"}>{f.relationship}</Badge>
+                    <Badge tone={f.relationship === "Inner circle" ? "accent" : "neutral"}>{label(f.relationship)}</Badge>
                     <StatusBadge status={f.status} />
                     <span className="num ml-auto text-[11.5px] text-faint">{ago(f.lastActivity)}</span>
                   </div>
@@ -245,9 +246,9 @@ export default function Fans() {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         {[
-          { label: "At risk", value: "2 fans", tone: "text-neg", note: "Ben Adler · Andre Silva" },
-          { label: "Inner circle", value: "27 fans", tone: "text-accent-hi", note: "$1,323 MRR" },
-          { label: "Avg. LTV", value: "$74", tone: "text-ink", note: "+4.3% vs last period" },
+          { label: "В зоне риска", value: "2 фана", tone: "text-neg", note: "Бен Адлер · Андре Силва" },
+          { label: "Ближний круг", value: "27 фанов", tone: "text-accent-hi", note: "$1 323 MRR" },
+          { label: "Средний LTV", value: "$74", tone: "text-ink", note: "+4,3% к прошлому периоду" },
         ].map((s) => (
           <Card key={s.label} className="p-4">
             <div className="label">{s.label}</div>

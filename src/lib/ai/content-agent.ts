@@ -62,9 +62,9 @@ function sanitizeContentResult(raw: unknown): ContentAgentResult {
         .slice(0, 4)
     : [];
   return {
-    hooks: hooks.length ? hooks : ["Untitled hook"],
+    hooks: hooks.length ? hooks : ["Хук без названия"],
     caption: typeof obj.caption === "string" ? obj.caption.trim() : "",
-    cta: typeof obj.cta === "string" ? obj.cta.trim() : "Follow the storyline",
+    cta: typeof obj.cta === "string" ? obj.cta.trim() : "Следить за сюжетом",
     variants,
   };
 }

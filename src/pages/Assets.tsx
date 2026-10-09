@@ -10,8 +10,15 @@ import { EmptyState, SkeletonCards, useToast } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { number as fmtNum, shortDate } from "@/lib/format";
+import { label } from "@/lib/labels";
 import type { Asset } from "@/types";
 import { cn } from "@/utils/cn";
+
+const MODEL_LABELS: Record<string, string> = {
+  local: "локальная",
+  "cloud-pro": "cloud-pro",
+  "cloud-turbo": "cloud-turbo",
+};
 
 const KINDS = ["All", "Photos", "Videos", "References", "Outfits", "Locations", "Expressions"] as const;
 
@@ -44,29 +51,29 @@ export default function Assets() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Content · Library"
-        title="Assets"
-        description="Visual library of everything Mara can appear in — generations, references, outfits, locations and expressions."
+        eyebrow="Контент · Библиотека"
+        title="Ассеты"
+        description="Визуальная библиотека всего, в чём может появиться Мара: генерации, референсы, образы, локации и эмоции."
         actions={
-          <Button variant="primary" disabled title="Not available yet">
-            <ImagePlus className="size-3.5" /> Generate assets
+          <Button variant="primary" disabled title="Пока недоступно">
+            <ImagePlus className="size-3.5" /> Генерировать ассеты
           </Button>
         }
       />
 
       <Card>
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3.5 xl:flex-row xl:items-center">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search by outfit, location or prompt…" className="xl:w-72" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Поиск по образу, локации или промпту…" className="xl:w-72" />
           <FilterChips options={KINDS} value={kind as (typeof KINDS)[number]} onChange={setKind} />
           <div className="flex items-center gap-2 xl:ml-auto">
             <Select
-              ariaLabel="Quality filter"
+              ariaLabel="Фильтр по качеству"
               value={quality}
               onChange={(v) => setQuality(v as "Any" | "90+" | "80+")}
               options={["Any", "90+", "80+"] as const}
               className="w-28"
             />
-            <span className="num text-[11.5px] text-faint">{rows.length} assets</span>
+            <span className="num text-[11.5px] text-faint">{rows.length} ассетов</span>
           </div>
         </div>
 
@@ -94,7 +101,7 @@ export default function Assets() {
                     <span className="ml-auto rounded bg-black/45 px-1.5 py-0.5 text-[10px] text-white/80">{a.model}</span>
                   </div>
                   <div className="absolute top-2.5 left-2.5">
-                    <Badge className="backdrop-blur-sm">{a.kind}</Badge>
+                    <Badge className="backdrop-blur-sm">{label(a.kind)}</Badge>
                   </div>
                   <div className="absolute top-2.5 right-2.5">
                     <StatusBadge status={a.approval} className="backdrop-blur-sm" />
@@ -105,14 +112,14 @@ export default function Assets() {
                   <div className="mt-0.5 truncate text-[11px] text-muted">{a.location}</div>
                   <div className="mt-2 flex items-center gap-2 text-[10.5px] text-faint">
                     <span className="num">{a.lighting}</span>
-                    <span className="ml-auto num">{a.usedIn} used</span>
+                    <span className="ml-auto num">использован {a.usedIn} раз</span>
                   </div>
                 </div>
               </button>
             ))}
             {rows.length === 0 && (
               <div className="col-span-full">
-                <EmptyState icon={<Info className="size-4" />} title="No assets match" description="Adjust the filters or generate new assets." />
+                <EmptyState icon={<Info className="size-4" />} title="Ассеты не найдены" description="Измените фильтры или сгенерируйте новые ассеты." />
               </div>
             )}
           </div>
@@ -124,14 +131,14 @@ export default function Assets() {
           <div className="space-y-5">
             <SafeImg src={active.thumb} alt={active.title} className="w-full rounded-xl border border-line object-cover" />
             <div className="flex flex-wrap items-center gap-2">
-              <Badge>{active.kind}</Badge>
+              <Badge>{label(active.kind)}</Badge>
               <StatusBadge status={active.approval} />
-              <Badge tone={active.quality >= 90 ? "pos" : "warn"}>Quality {active.quality}</Badge>
+              <Badge tone={active.quality >= 90 ? "pos" : "warn"}>Качество {active.quality}</Badge>
               <Badge>Model: {active.model}</Badge>
             </div>
 
             <div>
-              <div className="label mb-2">Prompt</div>
+              <div className="label mb-2">Промпт</div>
               <div className="rounded-lg border border-line bg-canvas-2/60 p-3 font-mono text-[11.5px] leading-relaxed text-ink-2">
                 {active.prompt}
               </div>
@@ -141,12 +148,12 @@ export default function Assets() {
 
             <div className="grid grid-cols-2 gap-4">
               {[
-                { label: "Model", value: active.model },
-                { label: "Outfit", value: active.outfit },
-                { label: "Location", value: active.location },
-                { label: "Lighting", value: active.lighting },
-                { label: "Quality score", value: String(active.quality) },
-                { label: "Created", value: shortDate(active.createdAt) },
+                { label: "Модель", value: MODEL_LABELS[active.model] ?? active.model },
+                { label: "Образ", value: active.outfit },
+                { label: "Локация", value: active.location },
+                { label: "Свет", value: active.lighting },
+                { label: "Оценка качества", value: String(active.quality) },
+                { label: "Создан", value: shortDate(active.createdAt) },
               ].map((r) => (
                 <div key={r.label}>
                   <div className="label">{r.label}</div>
@@ -158,27 +165,27 @@ export default function Assets() {
             <Divider />
 
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-muted">Used in {active.usedIn} content items</span>
+              <span className="text-[12px] text-muted">Использован в {active.usedIn} материалах</span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="subtle"
                   onClick={() => {
                     setActive({ ...active, approval: "Rejected" });
-                    push({ title: "Asset rejected here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "warn" });
+                    push({ title: "Ассет отклонён локально", description: "Привязка к контенту не подключена, поэтому библиотека не изменилась.", tone: "warn" });
                   }}
                 >
-                  <X className="size-3.5" /> Reject
+                  <X className="size-3.5" /> Отклонить
                 </Button>
                 <Button
                   size="sm"
                   variant="primary"
                   onClick={() => {
                     setActive({ ...active, approval: "Approved" });
-                    push({ title: "Asset approved here", description: "Matching to content is not connected yet, so the library is unchanged.", tone: "success" });
+                    push({ title: "Ассет одобрен локально", description: "Привязка к контенту не подключена, поэтому библиотека не изменилась.", tone: "success" });
                   }}
                 >
-                  <Check className="size-3.5" /> Approve
+                  <Check className="size-3.5" /> Одобрить
                 </Button>
               </div>
             </div>
@@ -188,10 +195,10 @@ export default function Assets() {
 
       <div className="mt-4 grid gap-4 sm:grid-cols-4">
         {[
-          { label: "Total assets", value: fmtNum((data ?? []).length) },
-          { label: "Approved", value: (data ?? []).filter((a) => a.approval === "Approved").length },
-          { label: "Pending review", value: (data ?? []).filter((a) => a.approval === "Pending").length },
-          { label: "Avg. quality", value: Math.round((data ?? []).reduce((s, a) => s + a.quality, 0) / Math.max(1, (data ?? []).length)) },
+          { label: "Всего ассетов", value: fmtNum((data ?? []).length) },
+          { label: "Одобрено", value: (data ?? []).filter((a) => a.approval === "Approved").length },
+          { label: "Ждут проверки", value: (data ?? []).filter((a) => a.approval === "Pending").length },
+          { label: "Среднее качество", value: Math.round((data ?? []).reduce((s, a) => s + a.quality, 0) / Math.max(1, (data ?? []).length)) },
         ].map((s) => (
           <Card key={s.label} className={cn("p-4")}>
             <div className="label">{s.label}</div>

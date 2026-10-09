@@ -148,17 +148,17 @@ export function AreaChart({
           <div className="text-faint">{data[hover].label}</div>
           <div className="num mt-0.5 font-medium text-ink">{fmt(data[hover].value)}</div>
           {showCompare && data[hover].compare !== undefined && (
-            <div className="num mt-0.5 text-faint">prev {fmt(data[hover].compare!)}</div>
+            <div className="num mt-0.5 text-faint">пред. {fmt(data[hover].compare!)}</div>
           )}
         </div>
       )}
 
       <div className="num mt-1 flex items-center gap-4 text-[10.5px] text-faint">
-        <span>peak {fmt(max)}</span>
-        <span>floor {fmt(min)}</span>
+        <span>пик {fmt(max)}</span>
+        <span>минимум {fmt(min)}</span>
         {showCompare && (
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-[2px] w-4 border-t border-dashed border-line-2" /> previous period
+            <span className="inline-block h-[2px] w-4 border-t border-dashed border-line-2" /> прошлый период
           </span>
         )}
       </div>
