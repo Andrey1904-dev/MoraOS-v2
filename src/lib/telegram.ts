@@ -37,14 +37,14 @@ const isDev = Boolean(import.meta.env.DEV)
 
 const CONFIG_MESSAGES: Record<Exclude<TelegramConfigIssue, ''>, string> = {
   'missing-username':
-    'Set the bot username (without @) in the build variable VITE_TELEGRAM_BOT_USERNAME.',
+    'Задайте имя бота (без @) в переменной сборки VITE_TELEGRAM_BOT_USERNAME.',
   'missing-url':
-    'Set the HTTPS address of the bot API in VITE_TELEGRAM_API_URL — for example, the Supabase Edge Function URL …/functions/v1/telegram-api.',
+    'Задайте HTTPS-адрес API бота в VITE_TELEGRAM_API_URL — например, адрес Supabase Edge Function …/functions/v1/telegram-api.',
   'relative-in-prod':
-    'VITE_TELEGRAM_API_URL is a relative path. It only works in development through the Vite proxy. For a deployed site, use the full HTTPS address of the bot API.',
+    'VITE_TELEGRAM_API_URL — относительный путь. Он работает только в разработке через прокси Vite. Для опубликованного сайта укажите полный HTTPS-адрес API бота.',
   'not-https':
-    'VITE_TELEGRAM_API_URL must be an HTTPS address: browsers do not send credentials to plain HTTP.',
-  'invalid-url': 'VITE_TELEGRAM_API_URL is not a valid URL. Use an address such as https://example.com.',
+    'VITE_TELEGRAM_API_URL должен быть HTTPS-адресом: браузеры не отправляют учётные данные по обычному HTTP.',
+  'invalid-url': 'VITE_TELEGRAM_API_URL не является корректным URL. Используйте адрес вида https://example.com.',
 }
 
 type ApiUrlResult = { url: string; issue: TelegramConfigIssue }
@@ -114,10 +114,10 @@ export function describeTelegramHttpError(status: number): string {
     return `${hostLabel()} does not accept API requests (405). That is how a static host such as GitHub Pages responds. Check VITE_TELEGRAM_API_URL: it must point to the running bot service.`
   }
   if (status === 401 || status === 403) {
-    return 'The bot service rejected the website session. Sign in again and retry.'
+    return 'Сервис бота отклонил сессию сайта. Войдите заново и повторите.'
   }
   if (status === 429) {
-    return 'Too many attempts. Wait a few minutes and try again.'
+    return 'Слишком много попыток. Подождите несколько минут и повторите.'
   }
   if (status >= 500) {
     return `The bot service is temporarily unavailable (${status}). Try again in a minute.`

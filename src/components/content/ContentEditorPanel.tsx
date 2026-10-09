@@ -11,6 +11,7 @@ import { repositories } from "@/repositories";
 import { useResource } from "@/hooks/useResource";
 import { media } from "@/data/media";
 import { currency, number as fmtNum } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { trackEvent } from "@/lib/events";
 
 const PLATFORMS: Platform[] = ["TikTok", "Instagram", "Threads", "Fanvue", "Telegram"];
@@ -67,9 +68,9 @@ export function ContentEditorPanel({
   }, [item?.id]);
 
   const episodeOptions = useMemo(() => {
-    const opts: { id: string; label: string }[] = [{ id: "none", label: "None (standalone)" }];
+    const opts: { id: string; label: string }[] = [{ id: "none", label: "Без эпизода (самостоятельно)" }];
     for (const e of episodes ?? []) {
-      opts.push({ id: e.id, label: `Episode ${String(e.number).padStart(2, "0")} · ${e.title}` });
+      opts.push({ id: e.id, label: `Эпизод ${String(e.number).padStart(2, "0")} · ${e.title}` });
     }
     return opts;
   }, [episodes]);
@@ -85,7 +86,7 @@ export function ContentEditorPanel({
 
   async function handleSave(publishAfter = false) {
     if (!title.trim()) {
-      setError("Title is required.");
+      setError("Название обязательно.");
       return;
     }
     setError(null);
@@ -116,15 +117,15 @@ export function ContentEditorPanel({
         void trackEvent({ type: "content_published", entityType: "content", entityId: saved.id });
       }
       push({
-        title: publishAfter ? "Content published" : "Content saved",
-        description: `${saved.title} · ${saved.status}`,
+        title: publishAfter ? "Контент опубликован" : "Контент сохранён",
+        description: `${saved.title} · ${label(saved.status)}`,
         tone: "success",
       });
       onSaved?.(saved);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Save failed.";
+      const msg = e instanceof Error ? e.message : "Не удалось сохранить.";
       setError(msg);
-      push({ title: "Save failed", description: msg, tone: "error" });
+      push({ title: "Не удалось сохранить", description: msg, tone: "error" });
     } finally {
       setSaving(false);
     }
@@ -132,17 +133,17 @@ export function ContentEditorPanel({
 
   async function handleDelete() {
     if (!item?.id) return;
-    if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
+    if (!confirm(`Удалить «${item.title}»? Это действие необратимо.`)) return;
     setDeleting(true);
     setError(null);
     try {
       await repositories.content.delete(item.id);
-      push({ title: "Content deleted", description: item.title, tone: "success" });
+      push({ title: "Контент удалён", description: item.title, tone: "success" });
       onDeleted?.();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Delete failed.";
+      const msg = e instanceof Error ? e.message : "Не удалось удалить.";
       setError(msg);
-      push({ title: "Delete failed", description: msg, tone: "error" });
+      push({ title: "Не удалось удалить", description: msg, tone: "error" });
     } finally {
       setDeleting(false);
     }
@@ -155,34 +156,34 @@ export function ContentEditorPanel({
           <div className="rounded-lg border border-neg/45 bg-neg/10 p-3 text-[12.5px] text-neg">{error}</div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Title" className="sm:col-span-2">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="The red notebook" className={inputClass} />
+          <Field label="Название" className="sm:col-span-2">
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Красный блокнот" className={inputClass} />
           </Field>
-          <Field label="Description" className="sm:col-span-2" hint="Internal notes / synopsis (not shown to audience).">
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Short synopsis for internal reference…" className={textareaClass} />
+          <Field label="Описание" className="sm:col-span-2" hint="Внутренние заметки / синопсис (аудитория их не видит).">
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Краткий синопсис для себя…" className={textareaClass} />
           </Field>
-          <Field label="Hook" className="sm:col-span-2" hint="First 3 seconds. Shown before the fold.">
-            <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="I bought a notebook for $4…" className={inputClass} />
+          <Field label="Хук" className="sm:col-span-2" hint="Первые 3 секунды. Видно до разворачивания.">
+            <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Я купила блокнот за 4 доллара…" className={inputClass} />
           </Field>
-          <Field label="Caption" className="sm:col-span-2">
-            <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={4} placeholder="Page one: 3,240 hours…" className={textareaClass} />
+          <Field label="Подпись" className="sm:col-span-2">
+            <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={4} placeholder="Страница первая: 3240 часов…" className={textareaClass} />
           </Field>
-          <Field label="Script" className="sm:col-span-2" hint="Voiceover / spoken text for video content.">
-            <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4} placeholder="Open on notebook close-up. Slow pan to the window. VO reads page one…" className={textareaClass} />
+          <Field label="Сценарий" className="sm:col-span-2" hint="Закадровый текст для видео.">
+            <textarea value={script} onChange={(e) => setScript(e.target.value)} rows={4} placeholder="Начинаем с крупного плана блокнота. Медленный пан к окну. Голос читает первую страницу…" className={textareaClass} />
           </Field>
-          <Field label="CTA">
-            <input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Full story on Fanvue" className={inputClass} />
+          <Field label="Призыв (CTA)">
+            <input value={cta} onChange={(e) => setCta(e.target.value)} placeholder="Полная история на Fanvue" className={inputClass} />
           </Field>
-          <Field label="Status">
+          <Field label="Статус">
             <Select value={status} onChange={(v) => setStatus(v as ContentStatus)} options={STATUSES} />
           </Field>
-          <Field label="Platform">
+          <Field label="Площадка">
             <Select value={platform} onChange={(v) => setPlatform(v as Platform)} options={PLATFORMS} />
           </Field>
-          <Field label="Content type">
+          <Field label="Тип контента">
             <Select value={type} onChange={(v) => setType(v as ContentType)} options={TYPES} />
           </Field>
-          <Field label="Episode">
+          <Field label="Эпизод">
             <select
               value={episodeId}
               onChange={(e) => setEpisodeId(e.target.value)}
@@ -193,7 +194,7 @@ export function ContentEditorPanel({
               ))}
             </select>
           </Field>
-          <Field label="Scheduled for">
+          <Field label="Запланировано на">
             <input
               type="datetime-local"
               value={scheduledFor}
@@ -208,32 +209,32 @@ export function ContentEditorPanel({
         <div className="rounded-lg border border-accent/25 bg-accent/[0.05] p-4">
           <div className="flex items-center gap-2">
             <Wand2 className="size-3.5 text-accent-hi" strokeWidth={1.9} />
-            <span className="text-[10.5px] font-semibold tracking-[0.1em] text-accent-hi uppercase">Content Agent</span>
+            <span className="text-[10.5px] font-semibold tracking-[0.1em] text-accent-hi uppercase">Агент контента</span>
             <span className="ml-auto text-[10px] text-faint">MOCK</span>
           </div>
           <p className="mt-2 text-[12.5px] leading-relaxed text-ink-2">
-            Generate 3 hook variants in Mara's voice, matched to the selected episode beat.
+            Сгенерировать 3 варианта хука в голосе Мары под бит выбранного эпизода.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
               variant="primary"
               onClick={() => {
-                setHook("Page 41 is the first page I almost didn't write.");
-                push({ title: "Sample hook applied", description: "Mock Content Agent — no real API call.", tone: "default" });
+                setHook("Страница 41 — первая, которую я почти не написала.");
+                push({ title: "Пример хука подставлен", description: "Mock-агент контента — реального API-вызова не было.", tone: "default" });
               }}
             >
-              <Sparkles className="size-3.5" /> Generate hooks
+              <Sparkles className="size-3.5" /> Сгенерировать хуки
             </Button>
             <Button
               size="sm"
               variant="subtle"
               onClick={() => {
-                setCaption("Week five. The number went the wrong way, and I'm showing you anyway.");
-                push({ title: "Sample caption applied", description: "Mock Content Agent — no real API call.", tone: "default" });
+                setCaption("Пятая неделя. Цифра пошла не туда — и я всё равно это показываю.");
+                push({ title: "Пример подписи подставлен", description: "Mock-агент контента — реального API-вызова не было.", tone: "default" });
               }}
             >
-              Draft caption
+              Черновик подписи
             </Button>
           </div>
         </div>
@@ -245,7 +246,7 @@ export function ContentEditorPanel({
             disabled={!canSave}
             onClick={() => void handleSave(false)}
           >
-            Save
+            Сохранить
           </Button>
           <Button
             variant="subtle"
@@ -253,11 +254,11 @@ export function ContentEditorPanel({
             disabled={!canSave}
             onClick={() => void handleSave(true)}
           >
-            Save &amp; publish
+            Сохранить и опубликовать
           </Button>
           {onCancel && (
             <Button variant="ghost" onClick={onCancel} disabled={saving}>
-              Cancel
+              Отмена
             </Button>
           )}
           {item?.id && (
@@ -268,11 +269,11 @@ export function ContentEditorPanel({
               disabled={saving}
               className="text-neg hover:bg-neg/10"
             >
-              <Trash2 className="size-3.5" /> Delete
+              <Trash2 className="size-3.5" /> Удалить
             </Button>
           )}
           <span className="num ml-auto text-[11px] text-faint">
-            {item ? `Editing ${item.id}` : "New content item"}
+            {item ? `Правка ${item.id}` : "Новая единица контента"}
           </span>
         </div>
       </div>
@@ -280,7 +281,7 @@ export function ContentEditorPanel({
       {/* Preview */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="label">Preview</span>
+          <span className="label">Предпросмотр</span>
           <SegmentedControl options={["9:16", "4:5", "1:1"] as const} value={device} onChange={setDevice} />
         </div>
 
@@ -296,31 +297,31 @@ export function ContentEditorPanel({
 
           {type === "Text" ? (
             <div className="flex aspect-4/5 items-center bg-canvas-2 p-5">
-              <p className="text-[13px] leading-relaxed text-ink-2">{hook || "Hook appears here…"}</p>
+              <p className="text-[13px] leading-relaxed text-ink-2">{hook || "Здесь появится хук…"}</p>
             </div>
           ) : (
             <div className={device === "9:16" ? "aspect-9/16" : device === "4:5" ? "aspect-4/5" : "aspect-square"}>
               <div className="relative size-full bg-canvas-2">
                 {type === "Story" || type === "Image" || type === "Video" ? (
-                  <SafeImg src={thumb} alt="Content preview" className="size-full object-cover opacity-90" loading="lazy" />
+                  <SafeImg src={thumb} alt="Предпросмотр контента" className="size-full object-cover opacity-90" loading="lazy" />
                 ) : (
                   <div className="grid size-full place-items-center text-faint">
                     <ImageIcon className="size-6" />
                   </div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-3.5">
-                  <p className="text-[12px] leading-snug font-medium text-white">{hook || "Hook appears here…"}</p>
+                  <p className="text-[12px] leading-snug font-medium text-white">{hook || "Здесь появится хук…"}</p>
                 </div>
               </div>
             </div>
           )}
 
           <div className="space-y-2 px-3 py-3">
-            <p className="text-[12px] leading-relaxed text-ink-2">{caption || "Caption appears here…"}</p>
+            <p className="text-[12px] leading-relaxed text-ink-2">{caption || "Здесь появится подпись…"}</p>
             {cta && <span className="text-[11.5px] font-medium text-accent-hi">{cta}</span>}
             <div className="flex items-center gap-2 pt-1">
               <Badge>{selectedEpisodeLabel}</Badge>
-              <Badge>{type}</Badge>
+              <Badge>{label(type)}</Badge>
             </div>
           </div>
         </Card>
@@ -328,9 +329,9 @@ export function ContentEditorPanel({
         {item && (
           <div className="grid grid-cols-3 gap-2 rounded-lg border border-line bg-canvas-2/50 p-3">
             {[
-              { label: "Views", value: fmtNum(item.views, true) },
-              { label: "Engagement", value: `${item.engagement}%` },
-              { label: "Revenue", value: currency(item.revenue, { compact: true }) },
+              { label: "Просмотры", value: fmtNum(item.views, true) },
+              { label: "Вовлечённость", value: `${item.engagement}%` },
+              { label: "Выручка", value: currency(item.revenue, { compact: true }) },
             ].map((s) => (
               <div key={s.label}>
                 <div className="label">{s.label}</div>

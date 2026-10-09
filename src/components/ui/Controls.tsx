@@ -1,12 +1,13 @@
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { cn } from "@/utils/cn";
+import { label } from "@/lib/labels";
 
 /* ------------------------------- SearchInput ------------------------------ */
 
 export function SearchInput({
   value,
   onChange,
-  placeholder = "Search…",
+  placeholder = "Поиск…",
   className,
   onKeyDown,
   autoFocus,
@@ -63,7 +64,7 @@ export function FilterChips<T extends string>({
                 : "border-line text-muted hover:border-line-2 hover:bg-surface-2 hover:text-ink-2",
             )}
           >
-            {opt}
+            {label(opt)}
             {counts?.[opt] !== undefined && (
               <span className={cn("num text-[11px]", active ? "text-accent-hi" : "text-faint")}>
                 {counts[opt]}
@@ -100,7 +101,7 @@ export function SegmentedControl<T extends string>({
             value === opt ? "bg-surface-3 text-ink shadow-[var(--shadow-soft)]" : "text-muted hover:text-ink-2",
           )}
         >
-          {opt}
+          {label(opt)}
         </button>
       ))}
     </div>
@@ -213,7 +214,7 @@ export function Select<T extends string>({
       >
         {options.map((o) => (
           <option key={o} value={o} className="bg-surface text-ink">
-            {o}
+            {label(o)}
           </option>
         ))}
       </select>
@@ -252,7 +253,7 @@ export function DateRangePicker({
             value === opt ? "bg-surface-3 text-ink" : "text-muted hover:text-ink-2",
           )}
         >
-          {opt}
+          {label(opt)}
         </button>
       ))}
     </div>
@@ -279,15 +280,15 @@ export function Pagination({
   return (
     <div className="flex items-center justify-between gap-4 border-t border-line px-5 py-3">
       <span className="num text-[12px] text-faint">
-        Page {page} of {Math.max(1, pageCount)}
-        {total !== undefined && ` · ${total} results`}
+        Стр. {page} из {Math.max(1, pageCount)}
+        {total !== undefined && ` · ${total} записей`}
       </span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPage(Math.max(1, page - 1))}
           disabled={page === 1}
           className="grid size-8 place-items-center rounded-md border border-line text-muted transition-colors hover:border-line-2 hover:text-ink disabled:opacity-35"
-          aria-label="Previous page"
+          aria-label="Предыдущая страница"
         >
           <ChevronLeft className="size-3.5" />
         </button>
@@ -311,7 +312,7 @@ export function Pagination({
           onClick={() => onPage(Math.min(pageCount, page + 1))}
           disabled={page === pageCount}
           className="grid size-8 place-items-center rounded-md border border-line text-muted transition-colors hover:border-line-2 hover:text-ink disabled:opacity-35"
-          aria-label="Next page"
+          aria-label="Следующая страница"
         >
           <ChevronRight className="size-3.5" />
         </button>

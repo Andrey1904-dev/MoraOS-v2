@@ -64,7 +64,7 @@ export default function AuthPage() {
   const submit = async () => {
     reset()
     if (!check.ok) {
-      setProblem(new AuthProblem('email_invalid', check.error ?? 'Enter a valid email'))
+      setProblem(new AuthProblem('email_invalid', check.error ?? 'Введите корректный email'))
       return
     }
     // Минимальная длина — только при регистрации: старые аккаунты с короче паролем должны входить.
@@ -81,8 +81,8 @@ export default function AuthPage() {
         setCooldown(mailCooldownLeft())
         if (!result.session) {
           setNotice(
-            `Account created. A confirmation link was sent to ${check.email}. ` +
-              'Open it (check Spam too), then sign in.',
+            `Аккаунт создан. Ссылка подтверждения отправлена на ${check.email}. ` +
+              'Откройте её (проверьте и папку «Спам»), затем войдите.',
           )
           setIsRegister(false)
           setPassword('')
@@ -127,7 +127,7 @@ export default function AuthPage() {
     try {
       await resendConfirmation(pendingEmail || check.email)
       setCooldown(mailCooldownLeft())
-      setNotice(`Confirmation email resent to ${pendingEmail || check.email}. Check inbox and Spam.`)
+      setNotice(`Письмо подтверждения отправлено повторно на ${pendingEmail || check.email}. Проверьте входящие и «Спам».`)
     } catch (e) {
       fail(e)
     } finally {
@@ -150,15 +150,15 @@ export default function AuthPage() {
               <span className="num ml-auto rounded border border-line px-1.5 py-0.5 text-[10px] text-faint">v2</span>
             </div>
             <div className="relative px-7 pt-5 pb-7">
-              <p className="label">Virtual creator · operating system</p>
+              <p className="label">Виртуальный креатор · операционная система</p>
               <h1 className="mt-3 max-w-[520px] text-[34px] leading-[1.08] font-semibold tracking-tight text-ink">
-                365 days to buy back my time.
+                365 дней, чтобы выкупить своё время.
               </h1>
               <p className="mt-3 max-w-[480px] text-[14px] leading-relaxed text-muted">
-                One character, one brain: fans, conversations, content pipeline, offers, revenue and AI agents — wired into a single system.
+                Один персонаж, один мозг: фаны, диалоги, контент-конвейер, офферы, выручка и AI-агенты — в одной системе.
               </p>
               <div className="mt-5 flex flex-wrap gap-2 text-[11.5px] text-ink-2">
-                {['$54k salary', '$27k debt', 'One red notebook', 'One year'].map((chip) => (
+                {['зарплата $54k', 'долг $27k', 'один красный блокнот', 'один год'].map((chip) => (
                   <span key={chip} className="rounded-full border border-line bg-canvas-2 px-2.5 py-1">{chip}</span>
                 ))}
               </div>
@@ -167,9 +167,9 @@ export default function AuthPage() {
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: <Sparkles className="size-4 text-accent-hi" />, title: 'AI agents on draft', body: 'Replies, sales and memory — always through human approval.' },
-              { icon: <Bell className="size-4 text-info" />, title: 'Telegram wired in', body: 'Existing bot and Mini App open this same workspace.' },
-              { icon: <ShieldCheck className="size-4 text-pos" />, title: 'Private by default', body: 'Supabase Auth, RLS everywhere, secrets stay server-side.' },
+              { icon: <Sparkles className="size-4 text-accent-hi" />, title: 'AI-агенты в черновиках', body: 'Ответы, продажи и память — всегда через одобрение человека.' },
+              { icon: <Bell className="size-4 text-info" />, title: 'Telegram подключён', body: 'Бот и Mini App открывают эту же рабочую область.' },
+              { icon: <ShieldCheck className="size-4 text-pos" />, title: 'Приватность по умолчанию', body: 'Supabase Auth, RLS повсюду, секреты остаются на сервере.' },
             ].map((f) => (
               <div key={f.title} className="rounded-xl border border-line bg-surface p-4">
                 {f.icon}
@@ -186,7 +186,7 @@ export default function AuthPage() {
             <span className="grid size-7 place-items-center rounded-[7px] bg-accent text-[13px] font-bold text-white">M</span>
             <div>
               <div className="text-[13px] font-semibold tracking-[0.16em]">MARA OS</div>
-              <div className="text-[11px] text-muted">365 days to buy back my time</div>
+              <div className="text-[11px] text-muted">365 дней, чтобы выкупить своё время</div>
             </div>
           </div>
 
@@ -194,17 +194,17 @@ export default function AuthPage() {
             {demoOnly ? (
               <div className="flex flex-col gap-4">
                 <div className="border-b border-line pb-4">
-                  <span className="text-[11px] font-semibold tracking-wider text-accent-hi uppercase">Standalone build</span>
-                  <h2 className="mt-1 text-[20px] font-semibold tracking-tight">Demo workspace</h2>
+                  <span className="text-[11px] font-semibold tracking-wider text-accent-hi uppercase">Автономная сборка</span>
+                  <h2 className="mt-1 text-[20px] font-semibold tracking-tight">Демо-область</h2>
                   <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
-                    This build runs without Supabase keys, so cloud sign-in is off. The
-                    <strong className="text-ink-2"> demo mode </strong>
-                    is fully playable — a fictional Mara dataset stored in your browser.
+                    Эта сборка работает без ключей Supabase, поэтому облачный вход выключен.
+                    <strong className="text-ink-2"> Демо-режим </strong>
+                    полностью рабочий: вымышленный датасет Мары хранится в вашем браузере.
                   </p>
                 </div>
 
                 <Button variant="primary" size="lg" loading={busy} onClick={() => void enterDemoMode()} className="w-full">
-                  {busy ? 'Opening demo…' : 'Explore demo mode'}
+                  {busy ? 'Открываем демо…' : 'Открыть демо-режим'}
                   <ArrowUpRight className="size-4" />
                 </Button>
 
@@ -215,23 +215,23 @@ export default function AuthPage() {
                 )}
 
                 <div className="rounded-lg border border-line bg-canvas-2 p-3.5 text-[11.5px] leading-relaxed text-muted">
-                  <strong className="text-ink-2">Connect Supabase:</strong> copy{' '}
-                  <code className="rounded bg-surface-3 px-1 py-0.5 font-mono text-[10.5px] text-ink">.env.example</code> to{' '}
-                  <code className="rounded bg-surface-3 px-1 py-0.5 font-mono text-[10.5px] text-ink">.env</code> and set{' '}
+                  <strong className="text-ink-2">Подключите Supabase:</strong> скопируйте{' '}
+                  <code className="rounded bg-surface-3 px-1 py-0.5 font-mono text-[10.5px] text-ink">.env.example</code> в{' '}
+                  <code className="rounded bg-surface-3 px-1 py-0.5 font-mono text-[10.5px] text-ink">.env</code> и задайте{' '}
                   <code className="font-mono text-[10.5px] text-ink">VITE_SUPABASE_URL</code> +{' '}
-                  <code className="font-mono text-[10.5px] text-ink">VITE_SUPABASE_ANON_KEY</code>; on GitHub Pages add them under
+                  <code className="font-mono text-[10.5px] text-ink">VITE_SUPABASE_ANON_KEY</code>; для GitHub Pages добавьте их в
                   Settings → Secrets and variables → Actions.
                 </div>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
                 <SegmentedControl
-                  value={isRegister ? 'Create account' : 'Sign in'}
+                  value={isRegister ? 'Создать аккаунт' : 'Вход'}
                   onChange={(v) => {
                     reset()
-                    setIsRegister(v === 'Create account')
+                    setIsRegister(v === 'Создать аккаунт')
                   }}
-                  options={['Sign in', 'Create account'] as const}
+                  options={['Вход', 'Создать аккаунт'] as const}
                   className="w-full justify-center"
                 />
 
@@ -256,13 +256,13 @@ export default function AuthPage() {
                 </label>
 
                 <label className="flex flex-col gap-1.5">
-                  <span className="label">Password</span>
+                  <span className="label">Пароль</span>
                   <div className="relative">
                     <input
                       ref={passwordRef}
                       type={showPassword ? 'text' : 'password'}
                       autoComplete={isRegister ? 'new-password' : 'current-password'}
-                      placeholder={isRegister ? 'At least 8 characters' : 'Your password'}
+                      placeholder={isRegister ? 'Не короче 8 символов' : 'Ваш пароль'}
                       value={password}
                       onChange={(e) => {
                         setPassword(e.target.value)
@@ -276,7 +276,7 @@ export default function AuthPage() {
                       onClick={() => setShowPassword((v) => !v)}
                       className="absolute inset-y-0 right-2.5 my-auto text-[11px] font-medium text-muted transition-colors hover:text-ink"
                     >
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? 'Скрыть' : 'Показать'}
                     </button>
                   </div>
                 </label>
@@ -300,7 +300,7 @@ export default function AuthPage() {
                         rel="noreferrer"
                         className="mt-2 inline-flex items-center gap-1 text-[12px] font-medium text-accent-hi hover:underline"
                       >
-                        Open mail <ArrowUpRight className="size-3" />
+                        Открыть почту <ArrowUpRight className="size-3" />
                       </a>
                     )}
                     {(pendingEmail || check.email) && needsConfirmation && (
@@ -309,7 +309,7 @@ export default function AuthPage() {
                         disabled={busy || cooldown > 0}
                         className="mt-1.5 block text-[12px] text-muted transition-colors hover:text-ink disabled:opacity-50"
                       >
-                        {cooldown > 0 ? `Resend available in ${cooldown}s` : 'Resend confirmation email'}
+                        {cooldown > 0 ? `Повторная отправка через ${cooldown} с` : 'Отправить письмо подтверждения ещё раз'}
                       </button>
                     )}
                   </div>
@@ -323,32 +323,32 @@ export default function AuthPage() {
                   disabled={signupBlocked && isRegister}
                   className="w-full"
                 >
-                  {isRegister ? 'Create account' : 'Sign in'}
+                  {isRegister ? 'Создать аккаунт' : 'Войти'}
                 </Button>
 
                 {signupBlocked && isRegister && (
-                  <p className="text-[11.5px] text-warn">Registration is disabled in this Supabase project.</p>
+                  <p className="text-[11.5px] text-warn">Регистрация в этом проекте Supabase отключена.</p>
                 )}
 
                 {problem?.kind === 'invalid_credentials' && (
                   <Button variant="outline" size="sm" loading={busy} onClick={() => void tryLogin()}>
-                    Try again
+                    Попробовать снова
                   </Button>
                 )}
 
                 <div className="flex items-center gap-3 text-[11px] text-faint">
                   <span className="h-px flex-1 bg-line" />
-                  or
+                  или
                   <span className="h-px flex-1 bg-line" />
                 </div>
 
                 <Button variant="secondary" size="md" loading={busy} onClick={() => void enterDemoMode()} className="w-full">
-                  Explore demo mode
-                  <span className="num rounded border border-line px-1 py-0.5 text-[9.5px] text-faint">fictional data</span>
+                  Открыть демо-режим
+                  <span className="num rounded border border-line px-1 py-0.5 text-[9.5px] text-faint">вымышленные данные</span>
                 </Button>
 
                 <p className="text-center text-[10.5px] leading-relaxed text-faint">
-                  Demo opens a fictional Mara workspace stored only in this browser — no account needed.
+                  Демо открывает вымышленную рабочую область Мары только в этом браузере — аккаунт не нужен.
                 </p>
               </div>
             )}

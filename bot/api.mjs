@@ -93,18 +93,18 @@ export function routeOf(pathname, basePaths = []) {
 async function readJson(request) {
   const contentType = String(request.headers.get('content-type') ?? '').toLowerCase()
   if (!contentType.includes('application/json')) {
-    throw new ApiError(415, 'Expected a JSON request body.')
+    throw new ApiError(415, 'Ожидалось JSON-тело запроса.')
   }
   const declared = Number(request.headers.get('content-length') ?? 0)
-  if (declared > MAX_BODY_BYTES) throw new ApiError(413, 'Request body is too large.')
+  if (declared > MAX_BODY_BYTES) throw new ApiError(413, 'Тело запроса слишком большое.')
   const text = await request.text()
   if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
-    throw new ApiError(413, 'Request body is too large.')
+    throw new ApiError(413, 'Тело запроса слишком большое.')
   }
   try {
     return JSON.parse(text)
   } catch {
-    throw new ApiError(400, 'Malformed JSON.')
+    throw new ApiError(400, 'Некорректный JSON.')
   }
 }
 
@@ -119,7 +119,7 @@ export async function enforceLinkAttemptLimit(bot, userId) {
     LINK_ATTEMPT_LIMIT.windowSeconds,
   )
   if (!allowed) {
-    throw new ApiError(429, 'Too many attempts. Wait 10 minutes and try again.')
+    throw new ApiError(429, 'Слишком много попыток. Подождите 10 минут и повторите.')
   }
 }
 
@@ -137,7 +137,7 @@ export function createWebhookHealth({ bot, configured, now = () => Date.now(), l
       cache = { at: now(), info }
       return info
     } catch (error) {
-      logger.warn?.('[health] getWebhookInfo failed:', error instanceof Error ? error.message : 'unknown error')
+      logger.warn?.('[health] getWebhookInfo failed:', error instanceof Error ? error.message : 'неизвестная ошибка')
       return null
     }
   }
@@ -153,7 +153,7 @@ export function createWebhookHealth({ bot, configured, now = () => Date.now(), l
           configured: false,
           botPolling: 'stopped',
           lastSuccessfulPollAt: null,
-          hint: 'TELEGRAM_BOT_TOKEN is not set for the telegram-api function.',
+          hint: 'Для функции telegram-api не задан TELEGRAM_BOT_TOKEN.',
         },
       }
     }
@@ -174,7 +174,7 @@ export function createWebhookHealth({ bot, configured, now = () => Date.now(), l
         configured: true,
         botPolling: !url ? 'stopped' : degraded ? 'degraded' : 'online',
         lastSuccessfulPollAt: null,
-        ...(url ? {} : { hint: 'Webhook is not set. Run scripts/telegram-bot-setup.mjs.' }),
+        ...(url ? {} : { hint: 'Webhook не настроен. Запустите scripts/telegram-bot-setup.mjs.' }),
       },
     }
   }
@@ -205,16 +205,16 @@ export function createTelegramApi({
     try {
       update = await request.json()
     } catch {
-      return jsonResponse(400, { error: 'Malformed update.' })
+      return jsonResponse(400, { error: 'Некорректный update.' })
     }
     try {
       await bot.handleUpdate(update)
     } catch (error) {
-      logger.error?.('[telegram] update handler failed:', error instanceof Error ? error.message : 'unknown error')
+      logger.error?.('[telegram] update handler failed:', error instanceof Error ? error.message : 'неизвестная ошибка')
       const chatId = update?.message?.chat?.id ?? update?.callback_query?.message?.chat?.id
       if (chatId) {
         try {
-          await bot.sendMessage(chatId, 'The service is temporarily unavailable. Please try again shortly.')
+          await bot.sendMessage(chatId, 'Сервис временно недоступен. Повторите попытку чуть позже.')
         } catch {
           // Telegram недоступен — апдейт будет повторён вебхуком.
         }
@@ -245,7 +245,7 @@ export function createTelegramApi({
         return { status: 200, body: result }
       }
       default:
-        throw new ApiError(404, 'Route not found.')
+        throw new ApiError(404, 'Маршрут не найден.')
     }
   }
 
@@ -255,22 +255,22 @@ export function createTelegramApi({
     const origin = request.headers.get('origin')
 
     if (origin && !allowedOrigins.has(origin)) {
-      return jsonResponse(403, { error: 'Origin is not allowed.' })
+      return jsonResponse(403, { error: 'Origin не разрешён.' })
     }
     const cors = { Vary: 'Origin', ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}) }
 
     if (webhook.enabled && WEBHOOK_ROUTES.includes(route)) {
       if (request.method !== 'POST') {
-        return jsonResponse(405, { error: 'Method not allowed.' }, { Allow: 'POST' })
+        return jsonResponse(405, { error: 'Метод не разрешён.' }, { Allow: 'POST' })
       }
       return handleWebhook(request)
     }
 
     const methods = API_ROUTES[route]
-    if (!methods) return jsonResponse(404, { error: 'Route not found.' }, cors)
+    if (!methods) return jsonResponse(404, { error: 'Маршрут не найден.' }, cors)
 
     if (request.method === 'OPTIONS') {
-      if (!origin) return jsonResponse(404, { error: 'Route not found.' }, cors)
+      if (!origin) return jsonResponse(404, { error: 'Маршрут не найден.' }, cors)
       return new Response(null, {
         status: 204,
         headers: {
@@ -284,7 +284,7 @@ export function createTelegramApi({
     }
 
     if (!methods.includes(request.method)) {
-      return jsonResponse(405, { error: 'Method not allowed.' }, { ...cors, Allow: methods.join(', ') })
+      return jsonResponse(405, { error: 'Метод не разрешён.' }, { ...cors, Allow: methods.join(', ') })
     }
 
     try {
@@ -297,8 +297,8 @@ export function createTelegramApi({
         return jsonResponse(error.status, { error: error.message }, cors)
       }
       // Всё остальное — общий текст; детали остаются в логе сервера.
-      logger.error?.('[api] unexpected error:', error instanceof Error ? error.message : 'unknown error')
-      return jsonResponse(500, { error: 'Internal server error.' }, cors)
+      logger.error?.('[api] unexpected error:', error instanceof Error ? error.message : 'неизвестная ошибка')
+      return jsonResponse(500, { error: 'Внутренняя ошибка сервера.' }, cors)
     }
   }
 }

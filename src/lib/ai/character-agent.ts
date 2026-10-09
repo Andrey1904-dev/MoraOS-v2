@@ -17,10 +17,10 @@ export class CharacterAgent {
     traits: { label: string; value: string }[];
   }): CharacterContext {
     const personality =
-      profile.traits.find((t) => t.label === "Personality")?.value.split(",").map((s) => s.trim()).filter(Boolean) ??
+      profile.traits.find((t) => t.label === "Характер")?.value.split(",").map((s) => s.trim()).filter(Boolean) ??
       ["dry", "confident", "playful", "intelligent"];
     const recurring = profile.traits
-      .find((t) => t.label === "Signature object")
+      .find((t) => t.label === "Фирменный предмет")
       ?.value.split(",")
       .map((s) => s.trim())
       .filter(Boolean) ?? ["red notebook"];
@@ -46,7 +46,7 @@ export class CharacterAgent {
       `Recurring objects: ${character.recurringObjects.join(", ")}.`,
       "Boundaries (never cross):",
       ...character.boundaries.map((b) => `- ${b}`),
-      "Never sound like an AI assistant. Never be corporate. Stay in the first-person diary frame.",
+      "Никогда не звучи как AI-ассистент. Никогда не будь корпоративной. Оставайся в формате дневника от первого лица. Отвечай по-русски.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -64,7 +64,7 @@ export class CharacterAgent {
       if (lower.includes(tell)) issues.push(`AI assistant phrasing: "${tell}"`);
     }
     if (/\b(corporate|synergy|empower|leverage)\b/i.test(text)) {
-      issues.push("Corporate tone detected");
+      issues.push("Обнаружен корпоративный тон");
     }
     if (character.recurringObjects.length && text.length > 400 && !lower.includes("notebook")) {
       // мягкий сигнал, не блокирующий — длинные confession-тексты обычно про notebook

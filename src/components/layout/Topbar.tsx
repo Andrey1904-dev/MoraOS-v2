@@ -24,11 +24,34 @@ import { cn } from "@/utils/cn";
  * режиме уведомлений пока нет: показываем пустое состояние, а не выдуманные события.
  */
 const demoNotifications = [
-  { id: 1, title: "12 conversations awaiting approval", meta: "Sample data · Conversation Agent", tone: "warn" },
-  { id: 2, title: "Episode 05 ready to publish", meta: "Sample data · Scheduled Friday 18:00", tone: "info" },
-  { id: 3, title: "Ben Adler cancelled subscription", meta: "Sample data · Churn risk", tone: "neg" },
-  { id: 4, title: "Asset approved: Mara · late night", meta: "Sample data · Quality 97", tone: "pos" },
+  { id: 1, title: "12 диалогов ждут одобрения", meta: "Демо-данные · Агент диалогов", tone: "warn" },
+  { id: 2, title: "Эпизод 05 готов к публикации", meta: "Демо-данные · Запланировано на пятницу, 18:00", tone: "info" },
+  { id: 3, title: "Бен Адлер отменил подписку", meta: "Демо-данные · Риск оттока", tone: "neg" },
+  { id: 4, title: "Ассет одобрен: Мара · поздний вечер", meta: "Демо-данные · Качество 97", tone: "pos" },
 ];
+
+/** Человекочитаемые названия сегментов адреса для «хлебных крошек». */
+const crumbLabels: Record<string, string> = {
+  fans: "Фаны",
+  conversations: "Диалоги",
+  content: "Контент",
+  episodes: "Эпизоды",
+  assets: "Ассеты",
+  offers: "Офферы",
+  revenue: "Выручка",
+  analytics: "Аналитика",
+  ai: "AI-студия",
+  automations: "Автоматизации",
+  tasks: "Задачи",
+  settings: "Настройки",
+  new: "Создание",
+};
+
+const crumbLabel = (segment: string) => {
+  if (segment.startsWith("fan_")) return "Профиль";
+  if (crumbLabels[segment]) return crumbLabels[segment];
+  return segment.replace(/-/g, " ");
+};
 
 export function Topbar({
   onOpenSidebar,
@@ -54,22 +77,22 @@ export function Topbar({
       <button
         onClick={onOpenSidebar}
         className="grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink lg:hidden"
-        aria-label="Open navigation"
+        aria-label="Открыть навигацию"
       >
         <Menu className="size-4" />
       </button>
 
       <div className="hidden min-w-0 items-center gap-2 lg:flex">
         <PanelLeft className="size-3.5 text-faint" />
-        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
+        <nav aria-label="Хлебные крошки" className="flex min-w-0 items-center gap-1.5 text-[12.5px]">
           <Link to="/" className="text-muted transition-colors hover:text-ink-2">
             Mara OS
           </Link>
           {crumbs.map((c, i) => (
             <span key={`${c}-${i}`} className="flex items-center gap-1.5">
               <span className="text-faint">/</span>
-              <span className={cn("truncate capitalize", i === crumbs.length - 1 ? "text-ink" : "text-muted")}>
-                {c.startsWith("fan_") ? "Profile" : c === "new" ? "Create" : c.replace(/-/g, " ")}
+              <span className={cn("truncate", i === crumbs.length - 1 ? "text-ink" : "text-muted")}>
+                {crumbLabel(c)}
               </span>
             </span>
           ))}
@@ -81,7 +104,7 @@ export function Topbar({
         className="ml-auto flex h-8 w-full max-w-[320px] items-center gap-2 rounded-lg border border-line bg-canvas-2 px-3 text-[12.5px] text-faint transition-colors hover:border-line-2 hover:text-muted lg:ml-6"
       >
         <Search className="size-3.5" />
-        <span className="flex-1 text-left">Search or jump to…</span>
+        <span className="flex-1 text-left">Поиск или переход…</span>
         <kbd className="hidden rounded border border-line px-1.5 py-0.5 text-[10px] sm:block">⌘K</kbd>
       </button>
 
@@ -89,13 +112,13 @@ export function Topbar({
         {mode === "demo" && (
           <div className="hidden items-center gap-1.5 rounded-lg border border-warn/40 bg-warn/10 px-2.5 py-1.5 sm:flex">
             <Circle className="size-1.5 fill-warn text-warn" />
-            <span className="text-[11.5px] font-medium text-warn">Demo mode</span>
+            <span className="text-[11.5px] font-medium text-warn">Демо-режим</span>
           </div>
         )}
         {mode === "demo" && (
           <div className="hidden items-center gap-1.5 rounded-lg border border-line bg-canvas-2 px-2.5 py-1.5 xl:flex">
             <Circle className="size-1.5 fill-warn text-warn" />
-            <span className="text-[11.5px] text-muted">Sample agents</span>
+            <span className="text-[11.5px] text-muted">Демо-агенты</span>
           </div>
         )}
 
@@ -104,7 +127,7 @@ export function Topbar({
           trigger={
             <button
               className="relative grid size-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink"
-              aria-label="Notifications"
+              aria-label="Уведомления"
             >
               <Bell className="size-4" strokeWidth={1.75} />
               {!read && notifications.length > 0 && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />}
@@ -114,7 +137,7 @@ export function Topbar({
           {(close) => (
             <div className="w-80">
               <div className="flex items-center justify-between px-2.5 py-2">
-                <span className="text-[12.5px] font-medium text-ink">Notifications</span>
+                <span className="text-[12.5px] font-medium text-ink">Уведомления</span>
                 {notifications.length > 0 && (
                   <button
                     onClick={() => {
@@ -123,13 +146,13 @@ export function Topbar({
                     }}
                     className="text-[11px] text-muted transition-colors hover:text-ink"
                   >
-                    Mark all read
+                    Отметить всё прочитанным
                   </button>
                 )}
               </div>
               <MenuSeparator />
               {notifications.length === 0 && (
-                <div className="px-2.5 py-3 text-[12px] text-muted">No notifications yet.</div>
+                <div className="px-2.5 py-3 text-[12px] text-muted">Уведомлений пока нет.</div>
               )}
               {notifications.map((n) => (
                 <div key={n.id} className="flex gap-2.5 rounded-md px-2.5 py-2 hover:bg-surface-3">
@@ -156,27 +179,27 @@ export function Topbar({
           align="end"
           trigger={
             <button className="flex items-center gap-2 rounded-lg py-1 pr-2 pl-1 transition-colors hover:bg-surface-2">
-              <SafeImg src={media.mara} alt="Mara Quinn" className="size-6 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
+              <SafeImg src={media.mara} alt="Мара Куинн" className="size-6 rounded-full object-cover" referrerPolicy="no-referrer" loading="lazy" />
               <ChevronDown className="size-3.5 text-faint" />
             </button>
           }
         >
           <MenuLabel>{user?.email ?? "Mara OS"}</MenuLabel>
           <MenuItem icon={<UserRound className="size-3.5" />} onClick={() => navigate("/settings")}>
-            Mara Quinn · profile
+            Мара Куинн · профиль
           </MenuItem>
           <MenuItem icon={<Sparkles className="size-3.5" />} onClick={() => navigate("/ai")}>
-            AI Studio
+            AI-студия
           </MenuItem>
           <MenuSeparator />
           <MenuItem icon={<SettingsIcon className="size-3.5" />} onClick={() => navigate("/settings")}>
-            Settings
+            Настройки
           </MenuItem>
           {!demoOnly && (
             <>
               <MenuSeparator />
               <MenuItem icon={<LogOut className="size-3.5" />} onClick={() => void onSignOut()}>
-                {mode === "demo" ? "Exit demo mode" : "Sign out"}
+                {mode === "demo" ? "Выйти из демо-режима" : "Выйти"}
               </MenuItem>
             </>
           )}

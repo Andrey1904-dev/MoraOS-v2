@@ -10,18 +10,18 @@ function secureRandomBytes(size) {
   return bytes
 }
 
-const moneyFormat = new Intl.NumberFormat('en-US', {
+const moneyFormat = new Intl.NumberFormat('ru-RU', {
   style: 'currency',
   currency: 'USD',
   maximumFractionDigits: 0,
 })
-const dateFormat = new Intl.DateTimeFormat('en-US', {
+const dateFormat = new Intl.DateTimeFormat('ru-RU', {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
   timeZone: 'America/Chicago',
 })
-const monthFormat = new Intl.DateTimeFormat('en-US', {
+const monthFormat = new Intl.DateTimeFormat('ru-RU', {
   month: 'long',
   timeZone: 'America/Chicago',
 })
@@ -145,6 +145,19 @@ export function escapeHtml(value) {
 /** English plural: plural(2, 'task') → 'tasks' with irregulars supported. */
 export function plural(value, one, many = `${one}s`) {
   return Math.abs(Number(value)) === 1 ? one : many
+}
+
+/**
+ * Русское склонение: pluralRu(2, ['задача', 'задачи', 'задач']) → 'задачи'.
+ * Используется в текстах бота вместо английской формы plural().
+ */
+export function pluralRu(value, forms) {
+  const abs = Math.abs(Math.round(Number(value)))
+  const mod10 = abs % 10
+  const mod100 = abs % 100
+  if (mod10 === 1 && mod100 !== 11) return forms[0]
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1]
+  return forms[2]
 }
 
 /** One-line preview of a longer text (draft excerpts in bot screens). */

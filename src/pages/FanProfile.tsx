@@ -21,19 +21,29 @@ import { AINote } from "@/components/common/AICard";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { ago, currency, longDate, number as fmtNum } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { exportFileName, fanDossierToJson } from "@/lib/export";
 import { downloadTextFile } from "@/lib/download";
 import { trackEvent } from "@/lib/events";
 import { confirmAction } from "@/lib/telegram-mini-app";
 import { cn } from "@/utils/cn";
 
-const TABS = ["Overview", "Conversations", "Purchases", "Memories", "Events"] as const;
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  purchase: "покупка",
+  message: "сообщение",
+  subscription: "подписка",
+  tip: "чаевые",
+  content: "контент",
+  system: "система",
+};
+
+const TABS = ["Обзор", "Диалоги", "Покупки", "Воспоминания", "События"] as const;
 
 export default function FanProfile() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { push } = useToast();
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("Обзор");
 
   const { data: fan, loading } = useResource(() => repositories.fans.get(id), [id]);
   const { data: memories } = useResource(() => repositories.fans.memories(id), [id]);
@@ -45,7 +55,7 @@ export default function FanProfile() {
   const exportFan = async () => {
     const dossier = await repositories.fans.exportData(id);
     if (!dossier) {
-      push({ title: "Not found", description: "This fan no longer exists.", tone: "error" });
+      push({ title: "Не найдено", description: "Такого фана больше нет.", tone: "error" });
       return;
     }
     const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
@@ -56,27 +66,27 @@ export default function FanProfile() {
     );
     void trackEvent({ type: "fan_exported", entityType: "fan", entityId: id });
     if (outcome === "downloaded" || outcome === "shared") {
-      push({ title: "Export ready", description: "The data file for this fan is ready.", tone: "success" });
+      push({ title: "Экспорт готов", description: "Файл с данными этого фана готов.", tone: "success" });
     }
   };
 
   /** Удаление данных фана: профиль, переписки, воспоминания, покупки и подписки. Необратимо. */
   const eraseFan = async () => {
     const ok = await confirmAction(
-      `Delete ${fan?.name ?? "this fan"} and all related messages, memories, purchases and subscriptions? This cannot be undone.`,
+      `Удалить ${fan?.name ?? "этого фана"} и все связанные сообщения, воспоминания, покупки и подписки? Это действие необратимо.`,
     );
     if (!ok) return;
     try {
       const removed = await repositories.fans.erase(id);
       if (!removed) {
-        push({ title: "Not found", description: "This fan no longer exists.", tone: "error" });
+        push({ title: "Не найдено", description: "Такого фана больше нет.", tone: "error" });
         return;
       }
       void trackEvent({ type: "fan_erased", entityType: "fan", entityId: id });
-      push({ title: "Fan data deleted", description: "The profile and related records were removed.", tone: "success" });
+      push({ title: "Данные фана удалены", description: "Профиль и связанные записи удалены.", tone: "success" });
       navigate("/fans");
     } catch (error) {
-      push({ title: "Delete failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      push({ title: "Не удалось удалить", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
     }
   };
 
@@ -89,23 +99,23 @@ export default function FanProfile() {
     if (!fan) return null;
     if (fan.status === "Churn risk")
       return {
-        title: "Win-back before day 10",
-        body: `${fan.name} cancelled ${fan.subscription?.status === "Cancelled" ? "recently" : ""} and has not opened a message in 6 days. Their memory shows they respond to value-first messaging, not discounts.`,
-        action: "Send an honest win-back message referencing episode 03 — the last one they engaged with.",
+        title: "Вернуть до 10-го дня",
+        body: `${fan.name} отменил${fan.subscription?.status === "Cancelled" ? " подписку недавно" : ""} и не открывает сообщения уже 6 дней. В воспоминаниях видно: работает честная польза, а не скидки.`,
+        action: "Отправьте честное сообщение о возвращении со ссылкой на эпизод 03 — последний, на который был отклик.",
         confidence: 74,
       };
     if (fan.relationship === "Visitor")
       return {
-        title: "First contact not made",
-        body: `${fan.name} arrived from ${fan.source} but has never been contacted. New visitors convert 3.4× better when the first message arrives within an hour.`,
-        action: "Send an onboarding message pointing at episode 01.",
+        title: "Первый контакт не установлен",
+        body: `${fan.name} пришёл из ${fan.source}, но с ним ни разу не связывались. Новые гости конвертируются в 3,4 раза лучше, если первое сообщение приходит в течение часа.`,
+        action: "Отправьте приветственное сообщение со ссылкой на эпизод 01.",
         confidence: 88,
       };
     const days = Math.round((Date.now() - new Date(fan.lastActivity).getTime()) / 86_400_000);
     return {
-      title: "Purchase rhythm gap",
-      body: `${fan.name} has not purchased anything in the last ${Math.max(days, 2)} days. Their purchase history and memories point at fitness content.`,
-      action: `Send a personalized PPV related to ${memories?.[2]?.statement.toLowerCase() ?? "their favourite content"}.`,
+      title: "Сбился ритм покупок",
+      body: `${fan.name} ничего не покупал последние ${Math.max(days, 2)} дн. История покупок и воспоминания указывают на фитнес-контент.`,
+      action: `Отправьте персональный PPV, связанный с «${memories?.[2]?.statement ?? "любимым контентом"}".`,
       confidence: 87,
     };
   }, [fan, memories]);
@@ -124,9 +134,9 @@ export default function FanProfile() {
         <Card>
           <EmptyState
             icon={<Brain className="size-4" />}
-            title="Fan not found"
-            description="This fan may have been removed from the CRM."
-            action={<Button onClick={() => navigate("/fans")}>Back to fans</Button>}
+            title="Фан не найден"
+            description="Возможно, этот фан удалён из CRM."
+            action={<Button onClick={() => navigate("/fans")}>К списку фанов</Button>}
           />
         </Card>
       </PageContainer>
@@ -139,7 +149,7 @@ export default function FanProfile() {
         onClick={() => navigate("/fans")}
         className="mb-4 flex items-center gap-1.5 text-[12.5px] text-muted transition-colors hover:text-ink"
       >
-        <ArrowLeft className="size-3.5" /> Back to Fans
+        <ArrowLeft className="size-3.5" /> К списку фанов
       </button>
 
       {/* Header */}
@@ -153,7 +163,7 @@ export default function FanProfile() {
                 <span className="text-[13px] text-muted">{fan.handle}</span>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge tone={fan.relationship === "Inner circle" ? "accent" : "neutral"}>{fan.relationship}</Badge>
+                <Badge tone={fan.relationship === "Inner circle" ? "accent" : "neutral"}>{label(fan.relationship)}</Badge>
                 <StatusBadge status={fan.status} />
                 <Badge>{fan.source}</Badge>
                 <span className="text-[12px] text-faint">{fan.location}</span>
@@ -162,18 +172,18 @@ export default function FanProfile() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {/* Ручное редактирование фанов ещё не реализовано: неактивно, без имитации. */}
-            <Button variant="outline" disabled title="Editing fans is not available yet" aria-label="Edit fan (not available yet)">
-              <Pencil className="size-3.5" /> Edit
+            <Button variant="outline" disabled title="Редактирование фанов пока недоступно" aria-label="Редактировать фана (пока недоступно)">
+              <Pencil className="size-3.5" /> Изменить
             </Button>
             <Button variant="outline" onClick={() => void exportFan()}>
-              <Download className="size-3.5" /> Export data
+              <Download className="size-3.5" /> Экспорт данных
             </Button>
             <Button variant="danger" onClick={() => void eraseFan()}>
-              <Trash2 className="size-3.5" /> Delete data
+              <Trash2 className="size-3.5" /> Удалить данные
             </Button>
             <Link to={`/conversations?fan=${fan.id}`}>
               <Button variant="secondary">
-                <MessagesSquare className="size-3.5" /> Open conversation
+                <MessagesSquare className="size-3.5" /> Открыть диалог
               </Button>
             </Link>
           </div>
@@ -182,18 +192,18 @@ export default function FanProfile() {
         <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
           {[
             { label: "LTV", value: currency(fan.ltv, { cents: fan.ltv % 1 !== 0 }) },
-            { label: "Purchases", value: fmtNum(fan.purchases) },
-            { label: "Subscription", value: fan.subscription?.status ?? "None" },
-            { label: "Last activity", value: ago(fan.lastActivity) },
+            { label: "Покупки", value: fmtNum(fan.purchases) },
+            { label: "Подписка", value: fan.subscription ? label(fan.subscription.status) : label("None") },
+            { label: "Последняя активность", value: ago(fan.lastActivity) },
           ].map((s) => (
             <div key={s.label} className="bg-surface px-5 py-4">
               <div className="label">{s.label}</div>
               <div className="num mt-1.5 text-[16px] font-medium text-ink">{s.value}</div>
-              {s.label === "Subscription" && fan.subscription && (
-                <div className="mt-0.5 text-[11.5px] text-faint">{fan.subscription.plan} · renews {fan.subscription.renews}</div>
+              {s.label === "Подписка" && fan.subscription && (
+                <div className="mt-0.5 text-[11.5px] text-faint">{fan.subscription.plan} · продление {fan.subscription.renews}</div>
               )}
-              {s.label === "Last activity" && (
-                <div className="mt-0.5 text-[11.5px] text-faint">joined {longDate(fan.joined)}</div>
+              {s.label === "Последняя активность" && (
+                <div className="mt-0.5 text-[11.5px] text-faint">в базе с {longDate(fan.joined)}</div>
               )}
             </div>
           ))}
@@ -209,17 +219,17 @@ export default function FanProfile() {
             </div>
 
             <div className="p-5">
-              {tab === "Overview" && (
+              {tab === "Обзор" && (
                 <div className="space-y-5">
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div>
-                      <div className="label mb-2.5">Journey</div>
+                      <div className="label mb-2.5">Путь</div>
                       <div className="space-y-3">
                         {[
-                          { label: "Source", value: fan.source },
-                          { label: "Joined", value: longDate(fan.joined) },
-                          { label: "Relationship", value: fan.relationship },
-                          { label: "Spend tier", value: fan.ltv >= 500 ? "Top 10%" : fan.ltv >= 150 ? "Mid" : "Entry" },
+                          { label: "Источник", value: fan.source },
+                          { label: "В базе с", value: longDate(fan.joined) },
+                          { label: "Уровень", value: label(fan.relationship) },
+                          { label: "Уровень трат", value: fan.ltv >= 500 ? "Топ-10%" : fan.ltv >= 150 ? "Средний" : "Начальный" },
                         ].map((r) => (
                           <div key={r.label} className="flex items-center justify-between text-[12.5px]">
                             <span className="text-muted">{r.label}</span>
@@ -229,18 +239,18 @@ export default function FanProfile() {
                       </div>
                     </div>
                     <div>
-                      <div className="label mb-2.5">Signals</div>
+                      <div className="label mb-2.5">Сигналы</div>
                       <div className="space-y-3">
                         <div>
                           <div className="mb-1.5 flex items-center justify-between text-[12px]">
-                            <span className="text-muted">Engagement score</span>
+                            <span className="text-muted">Вовлечённость</span>
                             <span className="num text-ink">{fan.status === "Sleeping" ? 31 : 82}/100</span>
                           </div>
                           <ProgressBar value={fan.status === "Sleeping" ? 31 : 82} tone={fan.status === "Sleeping" ? "warn" : "accent"} />
                         </div>
                         <div>
                           <div className="mb-1.5 flex items-center justify-between text-[12px]">
-                            <span className="text-muted">Churn risk</span>
+                            <span className="text-muted">Риск оттока</span>
                             <span className="num text-ink">{fan.status === "Churn risk" ? 71 : fan.status === "Sleeping" ? 54 : 12}%</span>
                           </div>
                           <ProgressBar
@@ -258,7 +268,7 @@ export default function FanProfile() {
                   <Divider />
 
                   <div>
-                    <div className="label mb-3">Recent timeline</div>
+                    <div className="label mb-3">Последние события</div>
                     <div className="space-y-3.5">
                       {(events ?? []).slice(0, 5).map((e) => (
                         <div key={e.id} className="flex gap-3">
@@ -273,13 +283,13 @@ export default function FanProfile() {
                           </div>
                         </div>
                       ))}
-                      {(events ?? []).length === 0 && <div className="text-[12.5px] text-muted">No events recorded yet.</div>}
+                      {(events ?? []).length === 0 && <div className="text-[12.5px] text-muted">Событий пока нет.</div>}
                     </div>
                   </div>
                 </div>
               )}
 
-              {tab === "Conversations" && (
+              {tab === "Диалоги" && (
                 <div className="space-y-3">
                   {fanConversations.map((c) => (
                     <Link
@@ -292,21 +302,21 @@ export default function FanProfile() {
                         <div className="truncate text-[13px] text-ink">{c.subject}</div>
                         <div className="text-[11.5px] text-faint">{c.channel} · {ago(c.lastMessageAt)}</div>
                       </div>
-                      {c.awaitingApproval > 0 && <Badge tone="warn">{c.awaitingApproval} draft</Badge>}
-                      {c.unread > 0 && <Badge tone="accent">{c.unread} new</Badge>}
+                      {c.awaitingApproval > 0 && <Badge tone="warn">{c.awaitingApproval} черн.</Badge>}
+                      {c.unread > 0 && <Badge tone="accent">{c.unread} новых</Badge>}
                     </Link>
                   ))}
                   {fanConversations.length === 0 && (
                     <EmptyState
                       icon={<MessagesSquare className="size-4" />}
-                      title="No conversations"
-                      description="This fan has not been contacted yet."
+                      title="Диалогов нет"
+                      description="С этим фаном ещё не связывались."
                     />
                   )}
                 </div>
               )}
 
-              {tab === "Purchases" && (
+              {tab === "Покупки" && (
                 <div className="space-y-1">
                   {(purchases ?? []).map((p) => (
                     <div key={p.id} className="flex items-center gap-3 border-b border-line/60 py-3 last:border-0">
@@ -314,7 +324,7 @@ export default function FanProfile() {
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] text-ink">{p.offer}</div>
                         <div className="text-[11.5px] text-faint">
-                          {p.kind} · {longDate(p.at)}
+                          {label(p.kind)} · {longDate(p.at)}
                         </div>
                       </div>
                       <StatusBadge status={p.status} dot={false} />
@@ -324,18 +334,18 @@ export default function FanProfile() {
                     </div>
                   ))}
                   {(purchases ?? []).length === 0 && (
-                    <EmptyState icon={<CircleDollarSign className="size-4" />} title="No purchases yet" description="This fan has not spent money." />
+                    <EmptyState icon={<CircleDollarSign className="size-4" />} title="Покупок пока нет" description="Этот фан ещё не тратил деньги." />
                   )}
                 </div>
               )}
 
-              {tab === "Memories" && (
+              {tab === "Воспоминания" && (
                 <div className="space-y-3">
                   {(memories ?? []).map((m) => (
                     <div key={m.id} className="rounded-lg border border-line bg-canvas-2/40 p-3.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[13px] text-ink">{m.statement}</span>
-                        <Badge>Category: {m.category}</Badge>
+                        <Badge>{label(m.category)}</Badge>
                         <span className="num ml-auto text-[11px] text-faint">{ago(m.createdAt)}</span>
                       </div>
                       <div className="mt-2.5 flex items-center gap-3">
@@ -348,14 +358,14 @@ export default function FanProfile() {
                   {(memories ?? []).length === 0 && (
                     <EmptyState
                       icon={<Brain className="size-4" />}
-                      title="No memories yet"
-                      description="The Memory Agent has not extracted facts from this fan's conversations."
+                      title="Воспоминаний пока нет"
+                      description="Агент памяти ещё не извлекал факты из диалогов этого фана."
                     />
                   )}
                 </div>
               )}
 
-              {tab === "Events" && (
+              {tab === "События" && (
                 <div className="relative pl-5">
                   <span className="absolute top-1 bottom-1 left-[5px] w-px bg-line" />
                   {(events ?? []).map((e) => (
@@ -363,7 +373,7 @@ export default function FanProfile() {
                       <span className="absolute top-1 -left-5 size-[9px] rounded-full border-2 border-surface bg-accent/80" />
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[12.5px] font-medium text-ink">{e.title}</span>
-                        <Badge tone={e.type === "purchase" || e.type === "tip" ? "pos" : "neutral"}>{e.type}</Badge>
+                        <Badge tone={e.type === "purchase" || e.type === "tip" ? "pos" : "neutral"}>{EVENT_TYPE_LABELS[e.type] ?? e.type}</Badge>
                         {e.amount && <span className="num text-[12px] text-pos">{currency(e.amount, { cents: true })}</span>}
                       </div>
                       <div className="mt-1 text-[12px] text-muted">{e.detail}</div>
@@ -371,7 +381,7 @@ export default function FanProfile() {
                     </div>
                   ))}
                   {(events ?? []).length === 0 && (
-                    <EmptyState icon={<CalendarClock className="size-4" />} title="No events" />
+                    <EmptyState icon={<CalendarClock className="size-4" />} title="Событий нет" />
                   )}
                 </div>
               )}
@@ -387,18 +397,18 @@ export default function FanProfile() {
               <div className="flex items-center gap-2">
                 <Sparkles className="size-3.5 text-accent-hi" strokeWidth={1.9} />
                 <span className="text-[10.5px] font-semibold tracking-[0.1em] text-accent-hi uppercase">
-                  AI Recommendation
+                  AI-рекомендация
                 </span>
               </div>
               <h3 className="mt-3 text-[14px] font-medium text-ink">{recommendation.title}</h3>
               <p className="mt-2 text-[12.5px] leading-relaxed text-ink-2">{recommendation.body}</p>
               <div className="mt-3 rounded-lg border border-line bg-canvas-2/60 p-3">
-                <div className="label">Suggested action</div>
+                <div className="label">Предлагаемое действие</div>
                 <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">{recommendation.action}</p>
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="label">Confidence</span>
+                  <span className="label">Уверенность</span>
                   <span
                     className={cn(
                       "num text-[12.5px] font-medium",
@@ -409,21 +419,21 @@ export default function FanProfile() {
                   </span>
                 </div>
                 <Button variant="primary" size="sm" onClick={() => navigate(`/conversations?fan=${fan.id}`)}>
-                  <Send className="size-3.5" /> Open in inbox
+                  <Send className="size-3.5" /> Открыть в инбоксе
                 </Button>
               </div>
             </div>
           )}
 
           <Card>
-            <CardHeader title="Memory summary" subtitle={`${(memories ?? []).length} memories · ${(memories ?? []).reduce((s, m) => s + m.confidence, 0) / Math.max(1, (memories ?? []).length) | 0}% avg confidence`} />
+            <CardHeader title="Сводка воспоминаний" subtitle={`${(memories ?? []).length} записей · ${(memories ?? []).reduce((s, m) => s + m.confidence, 0) / Math.max(1, (memories ?? []).length) | 0}% средняя уверенность`} />
             <div className="space-y-2 px-5 pb-5">
               {(memories ?? []).slice(0, 4).map((m) => (
                 <div key={m.id} className="flex items-start gap-2.5">
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent/60" />
                   <div>
                     <div className="text-[12.5px] text-ink-2">{m.statement}</div>
-                    <div className="text-[11px] text-faint">{m.category}</div>
+                    <div className="text-[11px] text-faint">{label(m.category)}</div>
                   </div>
                 </div>
               ))}
@@ -431,17 +441,17 @@ export default function FanProfile() {
           </Card>
 
           <Card>
-            <CardHeader title="Value" subtitle="Lifetime contribution" />
+            <CardHeader title="Ценность" subtitle="Вклад за всё время" />
             <div className="grid grid-cols-2 gap-5 px-5 pb-5">
-              <KeyStat label="LTV" value={currency(fan.ltv)} hint="lifetime" />
-              <KeyStat label="Orders" value={fmtNum(fan.purchases)} hint="paid events" />
-              <KeyStat label="Avg order" value={currency(Math.round(fan.ltv / Math.max(1, fan.purchases)))} hint="per purchase" />
-              <KeyStat label="Months" value={Math.max(1, Math.round((Date.now() - new Date(fan.joined).getTime()) / 2_592_000_000))} hint="in base" />
+              <KeyStat label="LTV" value={currency(fan.ltv)} hint="за всё время" />
+              <KeyStat label="Заказы" value={fmtNum(fan.purchases)} hint="оплаченные" />
+              <KeyStat label="Средний чек" value={currency(Math.round(fan.ltv / Math.max(1, fan.purchases)))} hint="на покупку" />
+              <KeyStat label="Месяцев" value={Math.max(1, Math.round((Date.now() - new Date(fan.joined).getTime()) / 2_592_000_000))} hint="в базе" />
             </div>
           </Card>
 
-          <AINote title="Memory Agent">
-            Next memory review for {fan.name.split(" ")[0]} is scheduled after the next 5 conversations.
+          <AINote title="Агент памяти">
+            Следующий пересмотр воспоминаний для {fan.name.split(" ")[0]} — после следующих 5 диалогов.
           </AINote>
         </div>
       </div>

@@ -22,6 +22,7 @@ import { EmptyState, SkeletonRows } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories, story, actionQueue } from "@/repositories";
 import { ago, number as fmtNum, signed, currency } from "@/lib/format";
+import { label } from "@/lib/labels";
 import { media } from "@/data/media";
 import { cn } from "@/utils/cn";
 
@@ -64,17 +65,17 @@ export default function Overview() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Command"
-        title="Good morning"
-        description="Mara's business overview — what changed since yesterday and what needs a decision today."
+        eyebrow="Штаб"
+        title="Доброе утро"
+        description="Сводка бизнеса Мары: что изменилось со вчерашнего дня и какие решения нужны сегодня."
         meta={
           <>
             <span className="flex items-center gap-1.5 text-[12px] text-muted">
               <span className="size-1.5 rounded-full bg-pos" />
-              {onlineAgents} of {(agents ?? []).length} agents online
+              {onlineAgents} из {(agents ?? []).length} агентов в сети
             </span>
             <span className="text-[12px] text-muted">
-              Last sync <span className="num text-ink-2">just now</span>
+              Последняя синхронизация <span className="num text-ink-2">только что</span>
             </span>
           </>
         }
@@ -82,7 +83,7 @@ export default function Overview() {
           <>
             <DateRangePicker value={period} onChange={setPeriod} />
             <Button variant="primary" onClick={() => navigate("/content/new")}>
-              <Plus className="size-3.5" /> Create content
+              <Plus className="size-3.5" /> Создать контент
             </Button>
           </>
         }
@@ -91,14 +92,14 @@ export default function Overview() {
       {/* KPI - real numbers */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-8">
         {[
-          { key: "total_fans", label: "Total Fans", value: String(totalFans), hint: "in CRM" },
-          { key: "active_fans", label: "Active Fans", value: String(activeFans), hint: "active status" },
-          { key: "subscribers", label: "Subscribers", value: String(subscribers), hint: "active subs" },
-          { key: "revenue", label: "Revenue", value: currency(totalRevenue), hint: "all time gross", accent: true, onClick: () => (window.location.hash = "#/revenue") },
-          { key: "purchases", label: "Purchases", value: String(totalPurchases), hint: "paid orders" },
-          { key: "content", label: "Content", value: String(totalContent), hint: "items" },
-          { key: "tasks", label: "Tasks", value: String(pendingTasks), hint: "to do" },
-          { key: "ai_activity", label: "AI Runs", value: String((agents ?? []).reduce((s, a) => s + a.tasks, 0)), hint: "all time" },
+          { key: "total_fans", label: "Всего фанов", value: String(totalFans), hint: "в CRM" },
+          { key: "active_fans", label: "Активные фаны", value: String(activeFans), hint: "статус «активен»" },
+          { key: "subscribers", label: "Подписчики", value: String(subscribers), hint: "активные подписки" },
+          { key: "revenue", label: "Выручка", value: currency(totalRevenue), hint: "всего, без вычетов", accent: true, onClick: () => (window.location.hash = "#/revenue") },
+          { key: "purchases", label: "Покупки", value: String(totalPurchases), hint: "оплаченные заказы" },
+          { key: "content", label: "Контент", value: String(totalContent), hint: "единиц" },
+          { key: "tasks", label: "Задачи", value: String(pendingTasks), hint: "к работе" },
+          { key: "ai_activity", label: "AI-запуски", value: String((agents ?? []).reduce((s, a) => s + a.tasks, 0)), hint: "всего" },
         ].map((m) => (
           <MetricCard
             key={m.key}
@@ -115,13 +116,13 @@ export default function Overview() {
       <Grid className="mt-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
-            title="Revenue"
-            subtitle={`${period} · gross, all platforms`}
+            title="Выручка"
+            subtitle={`${label(period)} · без вычетов, все платформы`}
             action={
               <>
                 {summary?.thisMonth ? <Badge tone="pos">{signed(0)}</Badge> : null}
                 <Link to="/revenue" className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-ink">
-                  Revenue detail <ChevronRight className="size-3.5" />
+                  Детализация выручки <ChevronRight className="size-3.5" />
                 </Link>
               </>
             }
@@ -131,16 +132,16 @@ export default function Overview() {
               <AreaChart data={revenue} height={216} format="currency" />
             ) : (
               <div className="flex h-[216px] items-center justify-center rounded-lg bg-surface-2 text-[12.5px] text-muted">
-                No revenue events yet
+                Событий выручки пока нет
               </div>
             )}
             <Divider className="my-4" />
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               {[
-                { label: "Subscriptions", value: currency(summary?.byCategory?.subscription ?? 0) },
+                { label: "Подписки", value: currency(summary?.byCategory?.subscription ?? 0) },
                 { label: "PPV", value: currency(summary?.byCategory?.ppv ?? 0) },
-                { label: "Tips", value: currency(summary?.byCategory?.tip ?? 0) },
-                { label: "AOV", value: currency(summary?.averageOrderValue ?? 0) },
+                { label: "Чаевые", value: currency(summary?.byCategory?.tip ?? 0) },
+                { label: "Средний чек", value: currency(summary?.averageOrderValue ?? 0) },
               ].map((s) => (
                 <div key={s.label}>
                   <div className="label">{s.label}</div>
@@ -170,11 +171,11 @@ export default function Overview() {
       <Grid className="mt-4 lg:grid-cols-3">
         <Card>
           <CardHeader
-            title="Audience growth"
-            subtitle="Fans in CRM over time"
+            title="Рост аудитории"
+            subtitle="Фаны в CRM по времени"
             action={
               <Badge tone="accent">
-                +{fmtNum((audience ?? []).reduce((s, p) => s + p.value, 0))} new
+                +{fmtNum((audience ?? []).reduce((s, p) => s + p.value, 0))} новых
               </Badge>
             }
           />
@@ -182,18 +183,18 @@ export default function Overview() {
             <AreaChart data={audience ?? []} height={150} showCompare={false} />
             <Divider className="my-4" />
             <p className="text-[11.5px] text-muted">
-              External follower counts (TikTok/Instagram) are not connected — only fans in CRM are shown.
+              Внешние счётчики подписчиков (TikTok/Instagram) не подключены — показаны только фаны из CRM.
             </p>
           </div>
         </Card>
 
         <Card>
           <CardHeader
-            title="Content performance"
-            subtitle="Top content this period"
+            title="Результаты контента"
+            subtitle="Лучший контент за период"
             action={
               <Link to="/content" className="flex items-center gap-1 text-[12px] text-muted transition-colors hover:text-ink">
-                All content <ChevronRight className="size-3.5" />
+                Весь контент <ChevronRight className="size-3.5" />
               </Link>
             }
           />
@@ -209,7 +210,7 @@ export default function Overview() {
                   <div className="truncate text-[13px] font-medium text-ink">“{item.title}”</div>
                   <div className="mt-1 flex items-center gap-3 text-[11.5px] text-muted">
                     <span className="num flex items-center gap-1">
-                      <Eye className="size-3" /> {fmtNum(item.views, true)} views
+                      <Eye className="size-3" /> {fmtNum(item.views, true)} просмотров
                     </span>
                     <span className="num flex items-center gap-1 text-pos">
                       <UserPlus className="size-3" /> +{fmtNum(item.followers)}
@@ -220,20 +221,20 @@ export default function Overview() {
               </Link>
             ))}
             {(!top || top.length === 0) && (
-              <div className="p-4 text-[12.5px] text-muted">No content performance data yet.</div>
+              <div className="p-4 text-[12.5px] text-muted">Данных о результатах контента пока нет.</div>
             )}
           </div>
           <Divider />
           <div className="px-5 py-4">
-            <div className="label mb-3">Funnel</div>
+            <div className="label mb-3">Воронка</div>
             <FunnelBars data={funnel ?? []} />
           </div>
         </Card>
 
         <Card>
           <CardHeader
-            title="Action queue"
-            subtitle="Needs attention"
+            title="Очередь действий"
+            subtitle="Требует внимания"
             action={<Badge tone="warn">{actionQueue.length}</Badge>}
           />
           <div className="space-y-1 px-2 pb-4">
@@ -254,7 +255,7 @@ export default function Overview() {
           </div>
           <Divider />
           <div className="px-5 py-4">
-            <div className="label mb-3">Storyline · {story.season}</div>
+            <div className="label mb-3">Сюжет · {story.season}</div>
             {nextContent.length > 0 ? (
               <div className="space-y-2.5">
                 {nextContent.slice(0, 2).map((c) => (
@@ -267,13 +268,13 @@ export default function Overview() {
                 ))}
               </div>
             ) : (
-              <p className="text-[12px] text-muted">No content scheduled.</p>
+              <p className="text-[12px] text-muted">Запланированного контента нет.</p>
             )}
             <Link
               to="/content"
               className="mt-3 flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
             >
-              All content <ChevronRight className="size-3.5" />
+              Весь контент <ChevronRight className="size-3.5" />
             </Link>
           </div>
         </Card>
@@ -282,36 +283,36 @@ export default function Overview() {
       {/* Revenue mix + Mara panel + secondary insights */}
       <Grid className="mt-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Revenue mix" subtitle="From revenue_events" />
+          <CardHeader title="Структура выручки" subtitle="Из таблицы revenue_events" />
           <div className="px-5 pb-5">
             {revenue && revenue.length > 0 ? (
               <StackedBars
                 data={revenue.slice(-6).map((p) => ({
                   label: p.label,
                   segments: [
-                    { key: "Gross", value: Math.round(p.value) },
+                    { key: "Всего", value: Math.round(p.value) },
                   ],
                 }))}
                 height={176}
               />
             ) : (
-              <EmptyState title="No revenue data" description="Revenue breakdown appears when events exist." />
+              <EmptyState title="Нет данных о выручке" description="Разбивка появится, когда появятся события выручки." />
             )}
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Mara" subtitle="Character · story state" />
+          <CardHeader title="Мара" subtitle="Персонаж · состояние истории" />
           <div className="px-5 pb-5">
             <div className="flex items-center gap-3">
               <Avatar name="Mara Quinn" src={media.mara} size={44} />
               <div className="min-w-0">
                 <div className="text-[13.5px] font-medium text-ink">Mara Quinn</div>
-                <div className="mt-0.5 text-[12px] text-muted">23 · Chicago · Marketing Coordinator</div>
+                <div className="mt-0.5 text-[12px] text-muted">23 · Чикаго · маркетинг-координатор</div>
               </div>
             </div>
             <div className="mt-4 rounded-lg border border-line bg-canvas-2/60 p-3">
-              <div className="label">Current story</div>
+              <div className="label">Текущая история</div>
               <div className="mt-1.5 text-[13px] leading-snug text-ink">{story.title}</div>
               <p className="mt-2 text-[12px] leading-relaxed text-muted">{story.logline}</p>
             </div>
@@ -332,7 +333,7 @@ export default function Overview() {
               to="/ai"
               className="mt-4 flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
             >
-              Open AI Studio <ChevronRight className="size-3.5" />
+              Открыть AI-студию <ChevronRight className="size-3.5" />
             </Link>
           </div>
         </Card>
@@ -340,13 +341,13 @@ export default function Overview() {
 
       {/* Latest activity */}
       <Card className="mt-4 lg:mt-5">
-        <CardHeader title="Latest activity" subtitle="System, content and revenue events from your workspace" />
+        <CardHeader title="Последняя активность" subtitle="Системные, контентные и финансовые события рабочей области" />
         <div className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: <Users className="size-3.5" />, label: "Total fans", value: fmtNum(totalFans), meta: "in CRM" },
-            { icon: <Images className="size-3.5" />, label: "Content items", value: String(totalContent), meta: `${(content ?? []).filter((c) => c.status === "Published").length} published` },
-            { icon: <Clock3 className="size-3.5" />, label: "Pending tasks", value: String(pendingTasks), meta: "need attention" },
-            { icon: <TriangleAlert className="size-3.5" />, label: "AI insights", value: String((insights ?? []).length), meta: `${onlineAgents} agents online` },
+            { icon: <Users className="size-3.5" />, label: "Всего фанов", value: fmtNum(totalFans), meta: "в CRM" },
+            { icon: <Images className="size-3.5" />, label: "Единиц контента", value: String(totalContent), meta: `${(content ?? []).filter((c) => c.status === "Published").length} опубликовано` },
+            { icon: <Clock3 className="size-3.5" />, label: "Задачи в работе", value: String(pendingTasks), meta: "требуют внимания" },
+            { icon: <TriangleAlert className="size-3.5" />, label: "AI-инсайты", value: String((insights ?? []).length), meta: `${onlineAgents} агентов в сети` },
           ].map((item) => (
             <div key={item.label} className="bg-surface px-5 py-4">
               <div className="flex items-center gap-2 text-faint">
@@ -362,13 +363,13 @@ export default function Overview() {
 
       {!insights?.length && (
         <EmptyState
-          title="No AI insights yet"
-          description="The Analytics Agent will publish insights once the first sync completes."
+          title="AI-инсайтов пока нет"
+          description="Агент аналитики опубликует инсайты после первой синхронизации."
           className="mt-4"
         />
       )}
       <div className="mt-6 text-[11px] text-faint">
-        Real data from Supabase / demo dataset · last rendered {ago(new Date().toISOString())}
+        Реальные данные из Supabase / демо-датасет · отрисовано {ago(new Date().toISOString())}
       </div>
     </PageContainer>
   );

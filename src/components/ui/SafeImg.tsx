@@ -11,7 +11,7 @@ export function SafeImg({
   src,
   alt,
   className,
-  fallbackLabel = "No preview",
+  fallbackLabel = "Нет превью",
   ...rest
 }: ImgHTMLAttributes<HTMLImageElement> & { fallbackLabel?: string }) {
   const [failed, setFailed] = useState(false);

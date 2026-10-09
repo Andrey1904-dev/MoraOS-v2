@@ -250,7 +250,7 @@ const check = (name, condition, detail = '') => {
   })
   const text = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
   check('webhook принимает update от Telegram', response.status === 200, `status=${response.status}`)
-  check('по /link бот отправляет код', /CONNECTION CODE/.test(text), text.slice(0, 80))
+  check('по /link бот отправляет код', /КОД ПРИВЯЗКИ/.test(text), text.slice(0, 80))
   check('код сохранён в таблицу с хэшем', insertedCodes.length === 1 && /^[0-9a-f]{64}$/.test(insertedCodes[0].code_hash))
   check('код привязан к чату Telegram', insertedCodes[0]?.telegram_chat_id === CHAT_ID)
   check('getWebhookInfo вызывается для /health', telegramMethods.includes('getWebhookInfo'))
@@ -277,7 +277,7 @@ const check = (name, condition, detail = '') => {
     }),
   })
   const text = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
-  check('непривязанный чат получает просьбу подключить сайт', /NOT CONNECTED/.test(text), text.slice(0, 80))
+  check('непривязанный чат получает просьбу подключить сайт', /НЕ ПОДКЛЮЧЕНО/.test(text), text.slice(0, 80))
 
   sentMessages.length = 0
   linkRows = [{ user_id: USER_ID }]
@@ -295,7 +295,7 @@ const check = (name, condition, detail = '') => {
     }),
   })
   const linkedText = sentMessages.map((message) => message.text ?? message.caption ?? '').join('\n')
-  check('привязанный чат получает сводку аудитории', /Total audience — <b>2<\/b>/.test(linkedText), linkedText.slice(0, 120))
+  check('привязанный чат получает сводку аудитории', /Всего аудитория — <b>2<\/b>/.test(linkedText), linkedText.slice(0, 120))
 }
 
 {

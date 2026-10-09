@@ -68,11 +68,11 @@ test('HTML escaping protects bot messages from user-provided text', () => {
   assert.equal(escapeHtml(`<script title="a&b">'x'</script>`), '&lt;script title=&quot;a&amp;b&quot;&gt;&#39;x&#39;&lt;/script&gt;')
 })
 
-test('display helpers format USD and English dates', () => {
-  assert.match(formatMoney(4820), /\$4,?820/)
-  assert.equal(formatDate('2026-09-30'), 'September 30, 2026')
+test('display helpers format USD and Russian dates', () => {
+  assert.match(formatMoney(4820), /4[\s\u00a0]?820\s?\$/)
+  assert.equal(formatDate('2026-09-30'), '30 сентября 2026 г.')
   assert.equal(formatDate(null), '—')
-  assert.equal(formatMonth(new Date('2026-10-08T12:00:00Z')), 'October')
+  assert.equal(formatMonth(new Date('2026-10-08T12:00:00Z')), 'октябрь')
 })
 
 test('daysUntil and inCurrentMonth handle boundaries', () => {
@@ -150,7 +150,7 @@ test('bot core answers commands and issues link codes', async () => {
   })
   const linkMessage = sent.at(-1)
   assert.equal(linkMessage.method, 'sendMessage')
-  assert.match(linkMessage.body.text, /CONNECTION CODE/)
+  assert.match(linkMessage.body.text, /КОД ПРИВЯЗКИ/)
   assert.match(linkMessage.body.text, /[0-9A-HJKMNP-TV-Z]{5}-[0-9A-HJKMNP-TV-Z]{5}/)
   assert.ok(rest.some((href) => href.includes('/rest/v1/telegram_link_codes')))
   assert.equal(insertedCodes.at(-1)?.telegram_display, 'Ann', 'код хранит имя аккаунта для предпросмотра')
@@ -181,7 +181,7 @@ test('bot core answers commands and issues link codes', async () => {
   assert.equal(sent.at(-2).method, 'sendChatAction')
   assert.equal(sent.at(-1).method, 'editMessageText')
   assert.equal(sent.at(-1).body.message_id, 99)
-  assert.match(sent.at(-1).body.text, /NOT CONNECTED/)
+  assert.match(sent.at(-1).body.text, /НЕ ПОДКЛЮЧЕНО/)
   const keyboards = sent.at(-1).body.reply_markup.inline_keyboard.flat()
   assert.ok(keyboards.some((button) => button.callback_data === 'link'))
 
@@ -195,7 +195,7 @@ test('bot core answers commands and issues link codes', async () => {
     },
   })
   assert.equal(sent.at(-1).method, 'editMessageText')
-  assert.match(sent.at(-1).body.text, /DISCONNECT ACCOUNT\?/)
+  assert.match(sent.at(-1).body.text, /ОТКЛЮЧИТЬ АККАУНТ\?/)
   const confirmButtons = sent.at(-1).body.reply_markup.inline_keyboard.flat()
   assert.ok(confirmButtons.some((button) => button.callback_data === 'unlink_confirm'))
 })
@@ -242,30 +242,30 @@ test('linked chat sees Mara OS summaries from CRM tables', async () => {
 
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/fans' } })
   const fansText = sent.at(-1).body.text
-  assert.match(fansText, /Total audience — <b>3<\/b>/)
-  assert.match(fansText, /New this month — <b>2<\/b>/)
-  assert.match(fansText, /Inner circle — <b>1<\/b>/)
+  assert.match(fansText, /Всего аудитория — <b>3<\/b>/)
+  assert.match(fansText, /Новых за месяц — <b>2<\/b>/)
+  assert.match(fansText, /Ближний круг — <b>1<\/b>/)
 
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/messages' } })
   const inboxText = sent.at(-1).body.text
-  assert.match(inboxText, /Unread messages — <b>3<\/b>/)
-  assert.match(inboxText, /awaiting approval — <b>2<\/b>/)
+  assert.match(inboxText, /Непрочитанные сообщения — <b>3<\/b>/)
+  assert.match(inboxText, /Черновики AI на одобрении — <b>2<\/b>/)
 
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/analytics' } })
   const revText = sent.at(-1).body.text
-  assert.match(revText, /REVENUE · OCTOBER/)
-  assert.match(revText, /\$20/)
+  assert.match(revText, /ВЫРУЧКА · ОКТЯБРЬ/)
+  assert.match(revText, /20\s?\$/)
 
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/tasks' } })
   const tasksText = sent.at(-1).body.text
   assert.match(tasksText, /Approve PPV draft/)
-  assert.match(tasksText, /due today/)
+  assert.match(tasksText, /срок сегодня/)
 
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/ai' } })
   const aiText = sent.at(-1).body.text
-  assert.match(aiText, /Runs today — <b>1<\/b>/)
-  assert.match(aiText, /Conversation<\/b> — reply drafts for the inbox · 1 today/)
-  assert.match(aiText, /AI provider — <b>not configured<\/b>/, 'без ключа провайдер показан честно')
+  assert.match(aiText, /Запусков сегодня — <b>1<\/b>/)
+  assert.match(aiText, /Диалоги<\/b> — черновики ответов для инбокса/)
+  assert.match(aiText, /AI-провайдер — <b>не настроен<\/b>/, 'без ключа провайдер показан честно')
 })
 
 test('/help lists the full Mara OS command set', async () => {
@@ -551,7 +551,7 @@ test('API: unexpected errors return a generic message; internal details stay in 
   assert.equal(response.status, 500)
   assert.equal(text.includes('ECONNREFUSED'), false)
   assert.equal(text.includes('service-role'), false)
-  assert.equal(JSON.parse(text).error, 'Internal server error.')
+  assert.equal(JSON.parse(text).error, 'Внутренняя ошибка сервера.')
   assert.ok(logged.some((line) => line.includes('ECONNREFUSED')), 'детали остаются в журнале сервера')
 })
 
@@ -696,31 +696,31 @@ test('new Mara OS sections render from their own tables', async () => {
 
   await command(bot, '/episodes')
   const ep = lastText(sent)
-  assert.match(ep, /Total — <b>2<\/b>/)
+  assert.match(ep, /Всего — <b>2<\/b>/)
   assert.match(ep, /#2 The Notebook/)
-  assert.match(ep, /In production/)
+  assert.match(ep, /В производстве/)
 
   await command(bot, '/revenue')
   const rev = lastText(sent)
-  assert.match(rev, /REVENUE · OCTOBER/)
-  assert.match(rev, /\$50/)
-  assert.match(rev, /Active subscriptions — <b>2<\/b>/)
-  assert.match(rev, /Source: revenue_events, purchases, subscriptions/)
+  assert.match(rev, /ВЫРУЧКА · ОКТЯБРЬ/)
+  assert.match(rev, /50\s?\$/)
+  assert.match(rev, /Активные подписки — <b>2<\/b>/)
+  assert.match(rev, /Источник: revenue_events, purchases, subscriptions/)
 
   await command(bot, '/automations')
   const auto = lastText(sent)
   assert.match(auto, /Welcome sequence/)
-  assert.match(auto, /Errors in last 1 runs — <b>1<\/b>/)
-  assert.match(auto, /execution engine is not built yet/)
+  assert.match(auto, /Ошибки за последние 1 запуск — <b>1<\/b>/)
+  assert.match(auto, /Движок исполнения ещё не построен/)
 
   await command(bot, '/status')
   const status = lastText(sent)
-  assert.match(status, /Bot — <b>online · polling mode<\/b>/)
-  assert.match(status, /Telegram API — <b>reachable · @MaraOS_test_bot<\/b>/)
-  assert.match(status, /Supabase — <b>reachable/)
-  assert.match(status, /This chat — <b>linked/)
-  assert.match(status, /AI provider — <b>not configured/)
-  assert.match(status, /connectors are not implemented/)
+  assert.match(status, /Бот — <b>онлайн · режим polling<\/b>/)
+  assert.match(status, /Telegram API — <b>доступен · @MaraOS_test_bot<\/b>/)
+  assert.match(status, /Supabase — <b>доступен/)
+  assert.match(status, /Этот чат — <b>привязан/)
+  assert.match(status, /AI-провайдер — <b>не настроен/)
+  assert.match(status, /коннекторы не реализованы/)
 })
 
 test('/status degrades to red rows instead of throwing when Supabase is down', async () => {
@@ -745,8 +745,8 @@ test('/status degrades to red rows instead of throwing when Supabase is down', a
   })
   await command(bot, '/status')
   const text = sent.findLast((m) => m.body?.text)?.body?.text ?? ''
-  assert.match(text, /STATUS/)
-  assert.match(text, /Supabase — <b>unreachable/, 'деградация показана красной строкой, экран не падает')
+  assert.match(text, /СТАТУС/)
+  assert.match(text, /Supabase — <b>недоступен/, 'деградация показана красной строкой, экран не падает')
 })
 
 test('settings: digest is off by default; toggles persist per owner', async () => {
@@ -763,19 +763,19 @@ test('settings: digest is off by default; toggles persist per owner', async () =
 
   await command(bot, '/settings')
   const screen = lastText(sent)
-  assert.match(screen, /Digest — <b>off \(default\)<\/b>/, 'по умолчанию выключено — opt-in')
+  assert.match(screen, /Дайджест — <b>выключен \(по умолчанию\)<\/b>/, 'по умолчанию выключено — opt-in')
 
   // Включаем мастер-переключатель: строки нет → создаётся через POST с enabled=true.
   await callback(bot, 'ntf:master')
   assert.ok(restCalls.some((c) => c.table === 'telegram_notification_settings' && c.method === 'POST' && c.body.enabled === true))
-  assert.match(lastText(sent), /Digest — <b>on \(opt-in\)<\/b>/)
+  assert.match(lastText(sent), /Дайджест — <b>включён \(по подписке\)<\/b>/)
 
   // Выключаем один раздел: PATCH по user_id.
   await callback(bot, 'ntf:notify_tasks')
   const patch = restCalls.find((c) => c.table === 'telegram_notification_settings' && c.method === 'PATCH')
   assert.equal(patch.body.notify_tasks, false)
   assert.equal(patch.query.user_id, 'eq.u-1')
-  assert.match(lastText(sent), /◻️ 📋 Tasks/)
+  assert.match(lastText(sent), /◻️ 📋 Задачи/)
 
   // Незнакомый toggle ничего не пишет.
   const writes = restCalls.filter((c) => (c.method === 'PATCH' || c.method === 'POST') && c.table === 'telegram_notification_settings').length
@@ -788,13 +788,13 @@ test('AI commands are honest when the provider key is missing', async () => {
   const { bot, sent, restCalls } = await maraBot({ ai: {} })
   await command(bot, '/ideas')
   const text = lastText(sent)
-  assert.match(text, /AI PROVIDER NOT CONFIGURED/)
-  assert.match(text, /never|not fabricate|will not fabricate/i, 'никаких выдуманных результатов')
+  assert.match(text, /AI-ПРОВАЙДЕР НЕ НАСТРОЕН/)
+  assert.match(text, /не будет выдумывать|выдуманного результата/, 'никаких выдуманных результатов')
   assert.ok(!sent.some((m) => m.method === 'AI'), 'внешних AI-вызовов не было')
   assert.ok(!restCalls.some((c) => c.table === 'ai_runs' && c.method === 'POST'), 'в журнал без вызова не пишем')
 
   await callback(bot, 'ai:sum:fans')
-  assert.match(lastText(sent), /NOT CONFIGURED/)
+  assert.match(lastText(sent), /НЕ НАСТРОЕН/)
   assert.ok(!sent.some((m) => m.method === 'AI'))
 })
 
@@ -808,7 +808,7 @@ test('AI ideas call the real provider and log the run to ai_runs', async () => {
   })
   await command(bot, '/ideas')
   const text = lastText(sent)
-  assert.match(text, /CONTENT IDEAS/)
+  assert.match(text, /ИДЕИ КОНТЕНТА/)
   assert.match(text, /test-model-1/)
   const aiCall = sent.find((m) => m.method === 'AI')
   assert.ok(aiCall, 'вызов провайдера был')
@@ -837,7 +837,7 @@ test('AI briefings narrate the real snapshot; the hourly budget applies', async 
   const prompt = sent.findLast((m) => m.method === 'AI')?.body?.messages?.[1]?.content ?? ''
   assert.match(prompt, /"total_fans":\s*2/, 'модель получает реальные числа, а не просит их выдумать')
   assert.match(prompt, /"active_subscriptions":\s*1/)
-  assert.match(lastText(sent), /Source: live tables/)
+  assert.match(lastText(sent), /Источник: живые таблицы/)
 })
 
 test('AI budget: 429-like state produces an honest limit screen', async () => {
@@ -846,7 +846,7 @@ test('AI budget: 429-like state produces an honest limit screen', async () => {
     restRoutes: { consume_rate_limit: false },
   })
   await command(bot, '/ideas')
-  assert.match(lastText(sent), /AI BUDGET REACHED/)
+  assert.match(lastText(sent), /ЛИМИТ AI ИСЧЕРПАН/)
   assert.ok(!sent.some((m) => m.method === 'AI'))
 })
 
@@ -887,7 +887,7 @@ test('draft review: approve mirrors console semantics; dismiss deletes; counters
 
   await callback(bot, 'drafts')
   const queue = lastText(sent)
-  assert.match(queue, /Pending — <b>1<\/b>/)
+  assert.match(queue, /В очереди — <b>1<\/b>/)
   assert.match(queue, /Dragon wants an update/)
   const buttons = sent.findLast((m) => m.body?.text)?.body?.reply_markup?.inline_keyboard?.flat() ?? []
   for (const button of buttons) {
@@ -896,7 +896,7 @@ test('draft review: approve mirrors console semantics; dismiss deletes; counters
 
   await callback(bot, `dra${key}`)
   const afterApprove = lastText(sent)
-  assert.match(afterApprove, /Draft approved/)
+  assert.match(afterApprove, /Черновик одобрен/)
   const msgPatch = writes.find((w) => w.method === 'PATCH' && w.body?.status === 'approved')
   assert.ok(msgPatch, 'статус сообщения = approved, без sent')
   assert.equal('sent_at' in (msgPatch.body ?? {}), false)
@@ -906,7 +906,7 @@ test('draft review: approve mirrors console semantics; dismiss deletes; counters
   // Повторное нажатие на устаревшую кнопку не падает и не пишет.
   writes.length = 0
   await callback(bot, `dra${key}`)
-  assert.match(lastText(sent), /already resolved/)
+  assert.match(lastText(sent), /уже обработан/)
   assert.equal(writes.filter((w) => w.method !== 'GET').length, 0)
 
   // Новый черновик → dismiss: DELETE + декремент, без status=approved.
@@ -915,7 +915,7 @@ test('draft review: approve mirrors console semantics; dismiss deletes; counters
   await callback(bot, `drx${key}`)
   assert.ok(writes.some((w) => w.method === 'DELETE'))
   assert.ok(!writes.some((w) => w.body?.status === 'approved'))
-  assert.match(lastText(sent), /Draft dismissed/)
+  assert.match(lastText(sent), /Черновик отклонён/)
 })
 
 test('digest: opt-in only, builds from fresh events, advances watermark without duplicates', async () => {
@@ -950,8 +950,8 @@ test('digest: opt-in only, builds from fresh events, advances watermark without 
 
   const digest = await bot.buildDigest(777)
   assert.equal(digest.skipped, null)
-  assert.match(digest.text, /new task/)
-  assert.match(digest.text, /3<\/b> unread · <b>1<\/b> drafts/)
+  assert.match(digest.text, /новая задача|новые задачи|новых задач/)
+  assert.match(digest.text, /3<\/b> непрочитанных · <b>1<\/b> черновик ждёт/)
   assert.ok(!/AI:/.test(digest.text), 'выключенные разделы молчат')
   assert.ok(digest.watermark.tasks, 'watermark предложен')
 
@@ -996,7 +996,7 @@ test('settings without migration 0005 tells what to apply instead of crashing', 
   })
   await command(bot2, '/settings')
   const screen = sent2.findLast((m) => m.body?.text)?.body?.text ?? ''
-  assert.match(screen, /migration <b>0005<\/b>/)
+  assert.match(screen, /миграция базы <b>0005<\/b>/)
   assert.doesNotMatch(screen, /temporarily unavailable/)
 
   const digest = await bot2.buildDigest(777)

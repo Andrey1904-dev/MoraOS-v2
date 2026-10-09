@@ -55,14 +55,14 @@ const supabaseAuth: AuthApi = {
       options: { emailRedirectTo },
     })
     if (error) throw toAuthProblem(error)
-    if (!data.user) throw new AuthProblem('unknown', 'Could not create the account')
+    if (!data.user) throw new AuthProblem('unknown', 'Не удалось создать аккаунт')
 
     // Supabase скрывает факт существования аккаунта: при повторной регистрации
     // возвращается пользователь с пустым списком identities и без сессии.
     const alreadyRegistered = Array.isArray(data.user.identities) && data.user.identities.length === 0
     if (alreadyRegistered) {
-      throw new AuthProblem('user_exists', 'This email is already registered', {
-        detail: 'Sign in with this address instead — no need to register again.',
+      throw new AuthProblem('user_exists', 'Этот email уже зарегистрирован', {
+        detail: 'Войдите с этим адресом — регистрироваться заново не нужно.',
       })
     }
 

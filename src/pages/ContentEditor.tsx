@@ -36,16 +36,16 @@ export default function ContentEditor() {
         onClick={() => navigate("/content")}
         className="mb-4 flex items-center gap-1.5 text-[12.5px] text-muted transition-colors hover:text-ink"
       >
-        <ArrowLeft className="size-3.5" /> Back to Content
+        <ArrowLeft className="size-3.5" /> К контенту
       </button>
 
       <PageHeader
-        eyebrow="Content"
-        title={data ? `Edit · ${data.title}` : "Create content"}
+        eyebrow="Контент"
+        title={data ? `Правка · ${data.title}` : "Создать контент"}
         description={
           data
-            ? `${data.platform} · ${data.type} · created for the 365-days storyline`
-            : "Write the hook, caption and CTA, attach an approved asset and place it inside an episode."
+            ? `${data.platform} · ${data.type} · создано для сюжета «365 дней»`
+            : "Напишите хук, подпись и призыв, прикрепите одобренный ассет и привяжите к эпизоду."
         }
       />
 

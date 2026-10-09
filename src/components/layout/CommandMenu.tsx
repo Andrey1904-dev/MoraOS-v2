@@ -18,6 +18,13 @@ import { fans } from "@/data/fans";
 import { contentItems } from "@/data/content";
 import { cn } from "@/utils/cn";
 
+const groupLabels: Record<Command["group"], string> = {
+  Navigate: "Переход",
+  Create: "Действия",
+  Fans: "Фаны",
+  Content: "Контент",
+};
+
 interface Command {
   id: string;
   label: string;
@@ -47,7 +54,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
     const create: Command[] = [
       {
         id: "create-content",
-        label: "Create content",
+        label: "Создать контент",
         hint: "content / new",
         group: "Create",
         icon: <Images className="size-4" strokeWidth={1.75} />,
@@ -55,7 +62,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "create-offer",
-        label: "Create offer",
+        label: "Создать оффер",
         hint: "offers",
         group: "Create",
         icon: <Tag className="size-4" strokeWidth={1.75} />,
@@ -63,7 +70,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "open-ai",
-        label: "Open AI Studio",
+        label: "Открыть AI-студию",
         hint: "ai",
         group: "Create",
         icon: <Sparkles className="size-4" strokeWidth={1.75} />,
@@ -71,7 +78,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "open-conversations",
-        label: "Open conversations",
+        label: "Открыть диалоги",
         hint: "inbox",
         group: "Create",
         icon: <MessageSquare className="size-4" strokeWidth={1.75} />,
@@ -79,7 +86,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "open-revenue",
-        label: "Open revenue",
+        label: "Открыть выручку",
         hint: "revenue",
         group: "Create",
         icon: <Wallet className="size-4" strokeWidth={1.75} />,
@@ -87,7 +94,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "open-episodes",
-        label: "Open storyline",
+        label: "Открыть сюжетную линию",
         hint: "episodes",
         group: "Create",
         icon: <Clapperboard className="size-4" strokeWidth={1.75} />,
@@ -95,7 +102,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
       },
       {
         id: "open-analytics",
-        label: "Open analytics",
+        label: "Открыть аналитику",
         hint: "analytics",
         group: "Create",
         icon: <BarChart3 className="size-4" strokeWidth={1.75} />,
@@ -180,7 +187,7 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
               setQuery(e.target.value);
               setIndex(0);
             }}
-            placeholder="Search fans, content or jump to a page…"
+            placeholder="Поиск по фанам и контенту или переход к разделу…"
             className="h-12 flex-1 bg-transparent text-[13.5px] text-ink placeholder:text-faint focus:outline-none"
           />
           <kbd className="rounded border border-line px-1.5 py-0.5 text-[10px] text-faint">ESC</kbd>
@@ -188,14 +195,14 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
 
         <div className="hide-scrollbar max-h-[52vh] overflow-y-auto p-2">
           {filtered.length === 0 && (
-            <div className="px-3 py-10 text-center text-[12.5px] text-muted">No results for “{query}”</div>
+            <div className="px-3 py-10 text-center text-[12.5px] text-muted">По запросу «{query}» ничего не найдено</div>
           )}
           {filtered.map((cmd, i) => {
             const showGroup = cmd.group !== lastGroup;
             lastGroup = cmd.group;
             return (
               <div key={cmd.id}>
-                {showGroup && <div className="label px-2.5 pt-3 pb-1.5">{cmd.group}</div>}
+                {showGroup && <div className="label px-2.5 pt-3 pb-1.5">{groupLabels[cmd.group]}</div>}
                 <button
                   onMouseEnter={() => setIndex(i)}
                   onClick={() => {
@@ -219,11 +226,11 @@ export function CommandMenu({ open, onClose }: { open: boolean; onClose: () => v
 
         <div className="flex items-center justify-between border-t border-line bg-canvas-2/60 px-4 py-2.5 text-[10.5px] text-faint">
           <span className="flex items-center gap-3">
-            <span>↑↓ navigate</span>
-            <span>↵ open</span>
+            <span>↑↓ — навигация</span>
+            <span>↵ — открыть</span>
           </span>
           <span className="flex items-center gap-1">
-            Mara OS command palette <ArrowRight className="size-3" />
+            Командная панель Mara OS <ArrowRight className="size-3" />
           </span>
         </div>
       </div>

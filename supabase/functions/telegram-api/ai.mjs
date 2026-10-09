@@ -18,7 +18,7 @@
 /** Thrown when AI_API_KEY is missing; the bot turns this into an honest reply. */
 export class AiNotConfiguredError extends Error {
   constructor() {
-    super('AI provider is not configured. Set AI_API_KEY (and optionally AI_BASE_URL, AI_MODEL) for the bot service.')
+    super('AI-провайдер не настроен. Задайте AI_API_KEY (и опционально AI_BASE_URL, AI_MODEL) для сервиса бота.')
     this.code = 'AI_NOT_CONFIGURED'
   }
 }
@@ -54,7 +54,7 @@ export function createAiClient({
    */
   async function generate({ system = '', prompt, temperature = 0.7, maxTokens = MAX_COMPLETION_TOKENS }) {
     if (!key) throw new AiNotConfiguredError()
-    if (!prompt || !String(prompt).trim()) throw new Error('AI prompt is empty.')
+    if (!prompt || !String(prompt).trim()) throw new Error('Пустой промпт для AI.')
     const started = Date.now()
     let response
     try {
@@ -76,16 +76,16 @@ export function createAiClient({
         signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (error) {
-      throw new Error(`AI provider connection failed: ${error instanceof Error ? error.message : 'network error'}`)
+      throw new Error(`Не удалось соединиться с AI-провайдером: ${error instanceof Error ? error.message : 'ошибка сети'}`)
     }
     const data = await response.json().catch(() => null)
     if (!response.ok) {
       const detail = typeof data?.error?.message === 'string' ? data.error.message.slice(0, 160) : `HTTP ${response.status}`
-      throw new Error(`AI provider rejected the request: ${detail}`)
+      throw new Error(`AI-провайдер отклонил запрос: ${detail}`)
     }
     const text = data?.choices?.[0]?.message?.content
     if (typeof text !== 'string' || !text.trim()) {
-      throw new Error('AI provider returned an empty completion.')
+      throw new Error('AI-провайдер вернул пустой ответ.')
     }
     return {
       text: text.trim(),
@@ -108,18 +108,18 @@ export function createAiClient({
 /* ------------------------------------------------------------ prompts --- */
 
 const DIGEST_BY_KIND = {
-  fans: 'audience (fan base) snapshot',
-  inbox: 'inbox and conversation queue snapshot',
-  revenue: 'revenue snapshot',
+  fans: 'срез аудитории (базы фанов)',
+  inbox: 'срез инбокса и очереди диалогов',
+  revenue: 'срез выручки',
 }
 
 /** System prompt shared by all bot-side calls: Mara OS owner-assistant voice. */
 const BOT_SYSTEM_PROMPT = [
-  'You are the Mara OS operating assistant: a Telegram copilot for the owner of a',
-  'virtual AI-creator studio. Write tight, factual, owner-facing briefings in the',
-  'same language the metrics are labeled in (English). Short lines, no fluff,',
-  'no invented numbers: use only the data supplied in the prompt. Never address',
-  'fans and never draft messages to them.',
+  'Ты — операционный ассистент Mara OS: Telegram-копилот для владельца',
+  'виртуальной AI-студии креатора. Пиши плотные, фактические сводки для владельца',
+  'на русском языке. Короткие строки, без воды, без выдуманных цифр:',
+  'используй только данные из промпта. Никогда не обращайся к фанам',
+  'и не пиши им сообщения.',
 ].join(' ')
 
 /**
@@ -129,13 +129,13 @@ const BOT_SYSTEM_PROMPT = [
 export function ideasPrompt({ characterName = 'Mara', characterDescription = '', platform = 'instagram', existingTitles = [] }) {
   const avoid = existingTitles.slice(0, 10).map((t) => `- ${t}`).join('\n')
   return [
-    `Character: ${characterName}${characterDescription ? ` — ${characterDescription}` : ''}.`,
-    `Platform: ${platform}.`,
-    'Propose 5 content ideas for the next week that fit the persona.',
-    avoid ? `Do NOT repeat these pipeline titles:\n${avoid}` : 'The pipeline is empty — any direction is fine.',
+    `Персонаж: ${characterName}${characterDescription ? ` — ${characterDescription}` : ''}.`,
+    `Площадка: ${platform}.`,
+    'Предложи 5 идей контента на следующую неделю, которые подходят персоне.',
+    avoid ? `НЕ повторяй эти заголовки из конвейера:\n${avoid}` : 'Конвейер пуст — подойдёт любое направление.',
     '',
-    'Output format (strict): 5 numbered lines, each "Title — one sentence hook".',
-    'No preamble, no closing remarks.',
+    'Формат вывода (строго): 5 нумерованных строк, каждая «Заголовок — хук в одно предложение».',
+    'Без вступления и без заключительных фраз. Отвечай по-русски.',
   ].join('\n')
 }
 
@@ -144,15 +144,15 @@ export function ideasPrompt({ characterName = 'Mara', characterDescription = '',
  * own tables (fans / inbox / revenue).
  */
 export function summaryPrompt(kind, snapshotText) {
-  const label = DIGEST_BY_KIND[kind] ?? 'account snapshot'
+  const label = DIGEST_BY_KIND[kind] ?? 'срез аккаунта'
   return [
-    `Here is the owner's ${label} from Mara OS (current data, JSON lines):`,
+    `Это ${label} владельца из Mara OS (актуальные данные, JSON-строки):`,
     snapshotText,
     '',
-    'Write a briefing of at most 6 short lines:',
-    'line 1 — headline state; lines 2-4 — what changed / what matters;',
-    'last line — one concrete recommended action.',
-    'Use the numbers exactly as given, state the period where known.',
+    'Напиши сводку не длиннее 6 коротких строк:',
+    'строка 1 — главное состояние; строки 2-4 — что изменилось / что важно;',
+    'последняя строка — одно конкретное рекомендованное действие.',
+    'Используй цифры ровно как даны, указывай период, если он известен. Отвечай по-русски.',
   ].join('\n')
 }
 

@@ -50,7 +50,7 @@ export default function SplashScreen() {
         className="anim-fade mt-1.5 text-[12px] font-medium tracking-wide text-muted"
         style={{ animationDelay: '240ms' }}
       >
-        365 days to buy back my time
+        365 дней, чтобы выкупить своё время
       </p>
 
       {/* Полоса прогресса */}

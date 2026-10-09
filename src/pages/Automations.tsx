@@ -7,6 +7,8 @@ import { useToast } from "@/components/ui/Feedback";
 import { useResource } from "@/hooks/useResource";
 import { repositories } from "@/repositories";
 import { ago, number as fmtNum } from "@/lib/format";
+import { label } from "@/lib/labels";
+import { pluralRu } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 export default function Automations() {
@@ -17,20 +19,20 @@ export default function Automations() {
     const next = currentStatus === "Active" ? "Paused" : "Active";
     try {
       await repositories.ai.setAutomationStatus(id, next);
-      push({ title: next === "Active" ? "Automation enabled" : "Automation disabled", tone: "success" });
+      push({ title: next === "Active" ? "Автоматизация включена" : "Автоматизация выключена", tone: "success" });
       void refetch();
     } catch (error) {
-      push({ title: "Update failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      push({ title: "Не удалось обновить", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
     }
   }
 
   async function runNow(id: string, name: string) {
     try {
       await repositories.ai.recordAutomationRun(id);
-      push({ title: `Ran: ${name}`, description: "Run logged to automation_runs.", tone: "success" });
+      push({ title: `Выполнено: ${name}`, description: "Запуск записан в automation_runs.", tone: "success" });
       void refetch();
     } catch (error) {
-      push({ title: "Run failed", description: error instanceof Error ? error.message : "Try again.", tone: "error" });
+      push({ title: "Запуск не удался", description: error instanceof Error ? error.message : "Попробуйте ещё раз.", tone: "error" });
     }
   }
 
@@ -38,30 +40,30 @@ export default function Automations() {
     <PageContainer>
       <PageHeader
         eyebrow="AI"
-        title="Automations"
-        description="Workflow definitions that connect fans, content and money. MVP: every action runs synchronously when triggered; no enterprise engine yet."
+        title="Автоматизации"
+        description="Определения процессов, связывающих фанов, контент и деньги. MVP: каждое действие выполняется синхронно по триггеру; движка исполнения пока нет."
         actions={
           <>
-            <Button variant="outline" disabled title="Pause-all control coming after MVP">
-              <Pause className="size-3.5" /> Pause all
+            <Button variant="outline" disabled title="Общая пауза появится после MVP">
+              <Pause className="size-3.5" /> Пауза всех
             </Button>
-            <Button variant="primary" disabled title="Visual workflow builder is post-MVP">
-              <Plus className="size-3.5" /> New workflow
+            <Button variant="primary" disabled title="Визуальный конструктор процессов — после MVP">
+              <Plus className="size-3.5" /> Новый процесс
             </Button>
           </>
         }
       />
 
       <div role="note" className="mt-4 rounded-lg border border-info/40 bg-info/10 px-4 py-3 text-[12.5px] leading-6 text-info">
-        MVP runner: triggers are defined but conditions execute as simple pass-through. Each "Run now" logs an entry to <code className="rounded bg-surface-2 px-1 font-mono text-[11px]">automation_runs</code>.
+        MVP-исполнитель: триггеры описаны, но условия выполняются как прямой проход. Каждый «Запустить сейчас» пишет запись в <code className="rounded bg-surface-2 px-1 font-mono text-[11px]">automation_runs</code>.
       </div>
 
       <Grid className="lg:grid-cols-4">
         {[
-          { label: "Active workflows", value: String((data ?? []).filter((w) => w.status === "Active").length) },
-          { label: "Total runs", value: fmtNum((data ?? []).reduce((s, w) => s + w.runs, 0)) },
-          { label: "AI decision points", value: String((data ?? []).reduce((s, w) => s + w.steps.filter((x) => x.actor === "ai").length, 0)) },
-          { label: "Failed runs (24h)", value: "0" },
+          { label: "Активные процессы", value: String((data ?? []).filter((w) => w.status === "Active").length) },
+          { label: "Всего запусков", value: fmtNum((data ?? []).reduce((s, w) => s + w.runs, 0)) },
+          { label: "Точек решения AI", value: String((data ?? []).reduce((s, w) => s + w.steps.filter((x) => x.actor === "ai").length, 0)) },
+          { label: "Ошибок за 24 ч", value: "0" },
         ].map((s) => (
           <Card key={s.label} className="p-4">
             <div className="label">{s.label}</div>
@@ -81,7 +83,7 @@ export default function Automations() {
               <div className="min-w-0">
                 <div className="text-[14px] font-medium text-ink">{w.name}</div>
                 <div className="mt-0.5 text-[11.5px] text-muted">
-                  Trigger · {w.trigger} · {fmtNum(w.runs)} runs · last {ago(w.lastRun)}
+                  Триггер · {w.trigger} · {fmtNum(w.runs)} запусков · последний {ago(w.lastRun)}
                 </div>
               </div>
               <div className="ml-auto flex items-center gap-2">
@@ -92,7 +94,7 @@ export default function Automations() {
                   onClick={() => void setStatus(w.id, w.status)}
                 >
                   {w.status === "Active" ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-                  {w.status === "Active" ? "Disable" : "Enable"}
+                  {w.status === "Active" ? "Выключить" : "Включить"}
                 </Button>
                 <Button
                   size="sm"
@@ -100,7 +102,7 @@ export default function Automations() {
                   onClick={() => void runNow(w.id, w.name)}
                   disabled={w.status !== "Active"}
                 >
-                  <Play className="size-3.5" /> Run now
+                  <Play className="size-3.5" /> Запустить сейчас
                 </Button>
               </div>
             </div>
@@ -110,13 +112,13 @@ export default function Automations() {
                 className="hide-scrollbar flex gap-3 overflow-x-auto pb-1"
                 role="region"
                 tabIndex={0}
-                aria-label={`${w.name} steps`}
+                aria-label={`Шаги: ${w.name}`}
               >
                 <div className="flex shrink-0 flex-col items-center gap-2">
                   <div className="flex h-16 w-36 flex-col justify-center rounded-lg border border-accent/30 bg-accent/[0.07] px-3">
                     <div className="flex items-center gap-1.5">
                       <Cog className="size-3 text-accent-hi" />
-                      <span className="text-[10px] font-semibold tracking-[0.08em] text-accent-hi uppercase">Trigger</span>
+                      <span className="text-[10px] font-semibold tracking-[0.08em] text-accent-hi uppercase">Триггер</span>
                     </div>
                     <div className="mt-1 text-[12px] leading-snug text-ink">{w.trigger}</div>
                   </div>
@@ -143,7 +145,7 @@ export default function Automations() {
                             step.actor === "ai" ? "text-info" : "text-faint",
                           )}
                         >
-                          {step.actor === "ai" ? "AI" : "System"}
+                          {step.actor === "ai" ? "AI" : "Система"}
                         </span>
                         <span className="num ml-auto text-[9.5px] text-faint">{i + 1}</span>
                       </div>
@@ -157,12 +159,12 @@ export default function Automations() {
               <Divider className="my-4" />
 
               <div className="flex flex-wrap items-center gap-4 text-[11.5px] text-muted">
-                <span className="num">{w.steps.length} steps</span>
-                <span className="num">{w.steps.filter((s) => s.actor === "ai").length} AI steps</span>
-                <span className="num">{w.steps.filter((s) => s.actor === "system").length} system steps</span>
+                <span className="num">{w.steps.length} {pluralRu(w.steps.length, ["шаг", "шага", "шагов"])}</span>
+                <span className="num">{w.steps.filter((s) => s.actor === "ai").length} шагов AI</span>
+                <span className="num">{w.steps.filter((s) => s.actor === "system").length} системных шагов</span>
                 <span className="ml-auto flex items-center gap-2">
                   <Badge tone={w.status === "Active" ? "pos" : "warn"} dot>
-                    {w.status}
+                    {label(w.status)}
                   </Badge>
                 </span>
               </div>
@@ -173,10 +175,10 @@ export default function Automations() {
 
       <Grid className="mt-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Kill switch" subtitle="One click to disable every automation" />
+          <CardHeader title="Аварийный выключатель" subtitle="Один клик — и все автоматизации остановлены" />
           <div className="space-y-3 px-5 pb-5">
             <p className="text-[12.5px] leading-relaxed text-muted">
-              If an automation misbehaves, use the Disable button next to it above. The button below pauses every active workflow at once.
+              Если автоматизация ведёт себя неправильно, нажмите «Выключить» рядом с ней выше. Кнопка ниже ставит на паузу все активные процессы сразу.
             </p>
             <Button
               variant="primary"
@@ -186,22 +188,22 @@ export default function Automations() {
                     await repositories.ai.setAutomationStatus(w.id, "Paused");
                   }
                 }
-                push({ title: "All automations paused", tone: "success" });
+                push({ title: "Все автоматизации на паузе", tone: "success" });
                 void refetch();
               }}
             >
-              <Pause className="size-3.5" /> Pause all workflows
+              <Pause className="size-3.5" /> Пауза всех процессов
             </Button>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Supported triggers" subtitle="MVP" />
+          <CardHeader title="Поддерживаемые триггеры" subtitle="MVP" />
           <div className="space-y-3 px-5 pb-5">
             {[
-              { t: "manual", d: "Triggered by the operator (Run now)." },
-              { t: "schedule", d: "Time-based; runner invoked externally (cron or Edge Function cron)." },
-              { t: "event", d: "Fires on matching event types (fan_created, subscription_started, etc.)." },
+              { t: "manual", d: "Запускает оператор («Запустить сейчас»)." },
+              { t: "schedule", d: "По расписанию; исполнитель вызывается извне (cron или cron Edge Function)." },
+              { t: "event", d: "Срабатывает на подходящие типы событий (fan_created, subscription_started и т.п.)." },
             ].map((r) => (
               <div key={r.t} className="flex items-start gap-3">
                 <span className="num mt-0.5 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px]">{r.t}</span>
