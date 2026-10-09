@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BRAND_LOGO_URL } from '@/lib/assets'
 
 /**
  * Заставка при входе: эмблема Mara OS и слоган истории.
@@ -32,12 +33,15 @@ export default function SplashScreen() {
         aria-hidden="true"
       />
 
-      <div
-        className="anim-fade grid size-20 place-items-center rounded-[20px] border border-line bg-surface text-[34px] font-bold text-accent-hi shadow-2xl shadow-black/70"
+      <img
+        src={BRAND_LOGO_URL}
+        alt=""
+        width={80}
+        height={80}
+        decoding="async"
+        className="anim-fade size-20 rounded-[20px] shadow-2xl shadow-black/70"
         style={{ animationDelay: '60ms' }}
-      >
-        M
-      </div>
+      />
 
       <p
         className="anim-fade mt-5 text-[15px] font-semibold tracking-[0.22em] text-ink uppercase"
