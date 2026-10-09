@@ -321,7 +321,7 @@ if (run('3')) {
   await page.getByText(/[1-9]\d*\s+(фан|фана|фанов) в сегменте/).waitFor({ timeout: 10000 })
   await page.getByRole('button', { name: /Экспорт CSV/ }).click()
   const exportPopup = await answerPopup(page, true)
-  check('экспорт: предложено открыть кабинет в браузере', /browser/i.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
+  check('экспорт: предложено открыть кабинет в браузере', /в браузере/i.test(exportPopup?.message ?? ''), JSON.stringify(exportPopup))
   check('экспорт: открывается внешний браузер на разделе «Fans»', /#\/fans$/.test((await lastEvent(page, 'web_app_open_link'))?.url ?? ''))
 
   check('Mini App: без ошибок JS и нативных диалогов', errors.length === 0, errors.join(' | '))
