@@ -142,8 +142,24 @@ describe('startapp / screen: белый список маршрутов', () => 
     assert.equal(resolveStartRoute('messages'), '/conversations')
     assert.equal(resolveStartRoute('content'), '/content')
     assert.equal(resolveStartRoute('analytics'), '/analytics')
+    assert.equal(resolveStartRoute('episodes'), '/episodes')
+    assert.equal(resolveStartRoute('revenue'), '/revenue')
+    assert.equal(resolveStartRoute('automations'), '/automations')
     assert.equal(resolveStartRoute('FANS'), '/fans')
     assert.equal(resolveStartRoute('telegram'), '/settings')
+  })
+
+  it('каждый ключ бота указывает на существующий маршрут приложения', () => {
+    // Маршруты из src/App.tsx (HashRouter). Если страницу переименуют,
+    // белый список deep links должен обновиться вместе с ней.
+    const appRoutes = new Set([
+      '/', '/auth', '/fans', '/conversations', '/content', '/episodes',
+      '/assets', '/offers', '/revenue', '/analytics', '/ai', '/automations',
+      '/tasks', '/settings',
+    ])
+    for (const route of Object.values(START_ROUTES)) {
+      assert.ok(appRoutes.has(route), `${route} существует в App.tsx`)
+    }
   })
 
   it('неизвестные, пустые и опасные значения не исполняются', () => {

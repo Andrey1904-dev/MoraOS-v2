@@ -74,8 +74,12 @@
 
 ## Telegram
 
-- Бот: `Mara OS Assistant`, команды `/start /menu /fans /messages /content /analytics /tasks /ai /link /unlink /help`.
-- Экраны читают Mara-таблицы (fans, conversations, revenue, tasks, insights) через service-role REST — как раньше читали cars/loans.
+> Обновлено 2026-10-09: набор команд расширен — см. README и `docs/audit-2026-10-09-telegram.md`.
+
+- Бот: `Mara OS Assistant`, команды `/start /menu /status /fans /messages /content /episodes /analytics /revenue /tasks /ai /automations /settings /drafts /ideas /brief /link /unlink /help`.
+- Экраны читают Mara-таблицы (fans, conversations, revenue, tasks, insights, episodes, purchases, subscriptions, automations) через service-role REST — как раньше читали cars/loans.
+- AI в боте — серверный `bot/ai.mjs` (OpenAI-совместимый, `AI_API_KEY`); без ключа — честный отказ. Вызовы логируются в `ai_runs`.
+- Дайджест-уведомления opt-in (`/settings` → миграция 0005) доставляет `scripts/telegram-notify.mjs` под cron.
 - Привязка по одноразовому коду и HTTP API для сайта — без изменений (совместимость `lib/telegram.ts`).
 
 ## Фазы выполнения

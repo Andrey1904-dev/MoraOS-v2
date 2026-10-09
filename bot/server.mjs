@@ -16,6 +16,11 @@ const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY ?? '').trim()
 const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
 const TELEGRAM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const WEB_APP_URL = (process.env.WEB_APP_URL ?? '').trim()
+// Серверный AI-провайдер (OpenAI-совместимый). Без AI_API_KEY бот честно
+// отвечает «провайдер не настроен» вместо выдуманных результатов.
+const AI_API_KEY = (process.env.AI_API_KEY ?? '').trim()
+const AI_BASE_URL = (process.env.AI_BASE_URL ?? '').trim()
+const AI_MODEL = (process.env.AI_MODEL ?? '').trim()
 const PORT = Number(process.env.PORT || 3001)
 
 let polling = true
@@ -84,6 +89,8 @@ export async function start() {
     supabaseAnonKey: SUPABASE_ANON_KEY,
     supabaseServiceRoleKey: SUPABASE_SERVICE_ROLE_KEY,
     webAppUrl: WEB_APP_URL,
+    ai: { apiKey: AI_API_KEY, baseUrl: AI_BASE_URL, model: AI_MODEL },
+    transportMode: 'polling',
   })
 
   const api = createTelegramApi({
@@ -165,6 +172,7 @@ export async function start() {
   console.log(`Mara OS Telegram API listening on 0.0.0.0:${PORT}`)
   console.log(`Telegram bot @${botInfo.username} is ready.`)
   if (!WEB_APP_URL) console.warn('WEB_APP_URL is empty: the bot will not show the website shortcut button.')
+  if (!AI_API_KEY) console.warn('AI_API_KEY is empty: AI commands will report "provider not configured" (no fabricated output).')
   void pollingLoop()
 
   const stop = () => {

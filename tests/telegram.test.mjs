@@ -95,16 +95,13 @@ test('English plural helper', () => {
   assert.equal(plural(0, 'event'), 'events')
 })
 
-test('edge copies of the bot core match bot/core.mjs and bot/format.mjs', async () => {
+test('edge copies of the shared bot modules match bot/', async () => {
   const { readFile } = await import('node:fs/promises')
   const { fileURLToPath } = await import('node:url')
   const path = await import('node:path')
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-  const pairs = [
-    ['bot/core.mjs', 'supabase/functions/telegram-api/core.mjs'],
-    ['bot/format.mjs', 'supabase/functions/telegram-api/format.mjs'],
-    ['bot/api.mjs', 'supabase/functions/telegram-api/api.mjs'],
-  ]
+  const { EDGE_SHARED_FILES } = await import('../scripts/sync-edge.mjs')
+  const pairs = EDGE_SHARED_FILES.map((file) => [`bot/${file}`, `supabase/functions/telegram-api/${file}`])
   for (const [source, copy] of pairs) {
     const [a, b] = await Promise.all([
       readFile(path.join(root, source), 'utf8'),
@@ -267,7 +264,16 @@ test('linked chat sees Mara OS summaries from CRM tables', async () => {
   await bot.handleUpdate({ message: { from: { id: 7 }, chat: { id: 777, type: 'private' }, text: '/ai' } })
   const aiText = sent.at(-1).body.text
   assert.match(aiText, /Runs today — <b>1<\/b>/)
-  assert.match(aiText, /conversation — <b>1<\/b>/)
+  assert.match(aiText, /Conversation<\/b> — reply drafts for the inbox · 1 today/)
+  assert.match(aiText, /AI provider — <b>not configured<\/b>/, 'без ключа провайдер показан честно')
+})
+
+test('/help lists the full Mara OS command set', async () => {
+  const { HELP_TEXT } = await import('../bot/core.mjs')
+  for (const cmd of ['/menu', '/status', '/fans', '/messages', '/content', '/episodes', '/analytics', '/revenue', '/tasks', '/ai', '/automations', '/settings', '/link', '/unlink']) {
+    assert.ok(HELP_TEXT.includes(cmd), cmd)
+  }
+  assert.ok(!/garage|кредит|ОСАГО|Granta/i.test(HELP_TEXT), 'без автомобильного наследия')
 })
 
 test('text progress bar is stable at boundaries', async () => {
@@ -590,4 +596,420 @@ test('API /health without a configured token reports the state only', async () =
   const { status, body } = await health()
   assert.equal(status, 503)
   assert.equal(body.configured, false)
+})
+
+/* ------------------------------------------- Mara OS sections (round 2) --- */
+
+test('uuid ↔ base64url helpers roundtrip and reject garbage', async () => {
+  const { uuidToB64Uuid, b64UuidToUuid } = await import('../bot/format.mjs')
+  const id = '3f2c1a9e-7b4d-4e5f-9a8b-0c1d2e3f4a5b'
+  const enc = uuidToB64Uuid(id)
+  assert.equal(enc.length, 22)
+  assert.match(enc, /^[A-Za-z0-9_-]+$/)
+  assert.equal(b64UuidToUuid(enc), id)
+  assert.equal(b64UuidToUuid(uuidToB64Uuid('00000000-0000-0000-0000-000000000000')), '00000000-0000-0000-0000-000000000000')
+  assert.equal(uuidToB64Uuid('not-a-uuid'), '')
+  assert.equal(b64UuidToUuid('!!!'), '')
+  assert.equal(b64UuidToUuid('too-short'), '')
+})
+
+test('truncateText collapses whitespace and keeps the limit', async () => {
+  const { truncateText } = await import('../bot/format.mjs')
+  assert.equal(truncateText('hello   world', 50), 'hello world')
+  assert.equal(truncateText('x'.repeat(500), 10).length, 10)
+  assert.equal(truncateText('', 10), '')
+  assert.equal(truncateText(null), '')
+})
+
+/**
+ * Харнесс «связанный чат»: telegram_links знает u-1, REST-записи подменены.
+ * restRoutes: { 'table или rpc': (query, method, body) => rows | response }.
+ */
+async function maraBot({ restRoutes = {}, ai = {}, webAppUrl = SITE } = {}) {
+  const { createBot } = await import('../bot/core.mjs')
+  const sent = []
+  const restCalls = []
+  const bot = createBot({
+    telegramToken: '8703956173:TEST-TOKEN-0123456789abcdefghij',
+    supabaseUrl: 'https://project.supabase.co',
+    supabaseAnonKey: 'anon',
+    supabaseServiceRoleKey: 'service',
+    webAppUrl,
+    ai,
+    now: () => Date.parse('2026-10-09T12:00:00Z'),
+    logger: { warn() {}, error() {} },
+    fetchImpl: async (url, init = {}) => {
+      const href = String(url)
+      const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } })
+      if (href.startsWith('https://api.telegram.org/')) {
+        sent.push({ method: href.split('/').pop(), body: init.body ? JSON.parse(init.body) : null })
+        return json({ ok: true, result: { username: 'MaraOS_test_bot' } })
+      }
+      if (href.includes('/chat/completions')) {
+        sent.push({ method: 'AI', body: init.body ? JSON.parse(init.body) : null })
+        return json({
+          model: 'test-model-1',
+          usage: { total_tokens: 123 },
+          choices: [{ message: { content: '1. Утро в студии — закулисье съёмки\n2. Q&A по персонажу — ответы фанам' } }],
+        })
+      }
+      const table = /\/rest\/v1\/([^?]+)/.exec(href)?.[1] ?? ''
+      const query = Object.fromEntries(new URL(href).searchParams)
+      const method = init.method ?? 'GET'
+      const body = init.body ? JSON.parse(init.body) : null
+      restCalls.push({ table, query, method, body })
+      if (table === 'rpc/link_telegram_account') return json(false)
+      if (table === 'rpc/consume_rate_limit') return json(restRoutes.consume_rate_limit ?? true)
+      if (table === 'telegram_links') return json([{ user_id: 'u-1' }])
+      const handler = restRoutes[table]
+      if (handler) {
+        const result = await handler(query, method, body)
+        return json(result ?? null)
+      }
+      return json([])
+    },
+  })
+  return { bot, sent, restCalls }
+}
+
+const command = (bot, text) => bot.handleUpdate({ message: { from: { id: 7, first_name: 'Ann' }, chat: { id: 777, type: 'private' }, text } })
+const callback = (bot, data) => bot.handleUpdate({
+  callback_query: { id: `cb-${data}`, from: { id: 7, first_name: 'Ann' }, data, message: { message_id: 5, chat: { id: 777, type: 'private' } } },
+})
+const lastText = (sent) => sent.findLast((m) => m.body?.text)?.body?.text ?? ''
+
+test('new Mara OS sections render from their own tables', async () => {
+  const { bot, sent } = await maraBot({
+    restRoutes: {
+      episodes: () => [
+        { number: 1, title: 'Arrival', status: 'published', start_date: '2026-09-01', end_date: null },
+        { number: 2, title: 'The Notebook', status: 'in_production', start_date: null, end_date: null },
+      ],
+      revenue_events: () => [{ amount: 49.99, category: 'ppv', occurred_at: '2026-10-02T10:00:00Z' }],
+      purchases: () => [{ amount: 49.99, status: 'paid', purchased_at: '2026-10-02T10:05:00Z' }],
+      subscriptions: () => [{ status: 'active' }, { status: 'active' }],
+      automations: () => [{ name: 'Welcome sequence', status: 'active', enabled: true, last_run_at: '2026-10-08T09:00:00Z' }],
+      automation_runs: () => [{ status: 'error', started_at: '2026-10-08T09:00:00Z', finished_at: '2026-10-08T09:01:00Z' }],
+      telegram_notification_settings: () => [],
+    },
+  })
+
+  await command(bot, '/episodes')
+  const ep = lastText(sent)
+  assert.match(ep, /Total — <b>2<\/b>/)
+  assert.match(ep, /#2 The Notebook/)
+  assert.match(ep, /In production/)
+
+  await command(bot, '/revenue')
+  const rev = lastText(sent)
+  assert.match(rev, /REVENUE · OCTOBER/)
+  assert.match(rev, /\$50/)
+  assert.match(rev, /Active subscriptions — <b>2<\/b>/)
+  assert.match(rev, /Source: revenue_events, purchases, subscriptions/)
+
+  await command(bot, '/automations')
+  const auto = lastText(sent)
+  assert.match(auto, /Welcome sequence/)
+  assert.match(auto, /Errors in last 1 runs — <b>1<\/b>/)
+  assert.match(auto, /execution engine is not built yet/)
+
+  await command(bot, '/status')
+  const status = lastText(sent)
+  assert.match(status, /Bot — <b>online · polling mode<\/b>/)
+  assert.match(status, /Telegram API — <b>reachable · @MaraOS_test_bot<\/b>/)
+  assert.match(status, /Supabase — <b>reachable/)
+  assert.match(status, /This chat — <b>linked/)
+  assert.match(status, /AI provider — <b>not configured/)
+  assert.match(status, /connectors are not implemented/)
+})
+
+test('/status degrades to red rows instead of throwing when Supabase is down', async () => {
+  const { createBot } = await import('../bot/core.mjs')
+  const sent = []
+  const bot = createBot({
+    telegramToken: '8703956173:TEST-TOKEN-0123456789abcdefghij',
+    supabaseUrl: 'https://project.supabase.co',
+    supabaseAnonKey: 'anon',
+    supabaseServiceRoleKey: 'service',
+    now: () => Date.parse('2026-10-09T12:00:00Z'),
+    logger: { warn() {}, error() {} },
+    fetchImpl: async (url, init = {}) => {
+      const href = String(url)
+      if (href.startsWith('https://api.telegram.org/')) {
+        sent.push({ method: href.split('/').pop(), body: init.body ? JSON.parse(init.body) : null })
+        return new Response(JSON.stringify({ ok: true, result: { username: 'x' } }), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (href.includes('/rest/v1/telegram_links')) return new Response('[{"user_id":"u-1"}]', { headers: { 'Content-Type': 'application/json' } })
+      return new Response('boom', { status: 500 })
+    },
+  })
+  await command(bot, '/status')
+  const text = sent.findLast((m) => m.body?.text)?.body?.text ?? ''
+  assert.match(text, /STATUS/)
+  assert.match(text, /Supabase — <b>unreachable/, 'деградация показана красной строкой, экран не падает')
+})
+
+test('settings: digest is off by default; toggles persist per owner', async () => {
+  let storedRow = null
+  const { bot, sent, restCalls } = await maraBot({
+    restRoutes: {
+      telegram_notification_settings: (query, method, body) => {
+        if (method === 'POST') { storedRow = { ...body }; return null }
+        if (method === 'PATCH') { storedRow = { ...storedRow, ...body }; return null }
+        return storedRow ? [storedRow] : []
+      },
+    },
+  })
+
+  await command(bot, '/settings')
+  const screen = lastText(sent)
+  assert.match(screen, /Digest — <b>off \(default\)<\/b>/, 'по умолчанию выключено — opt-in')
+
+  // Включаем мастер-переключатель: строки нет → создаётся через POST с enabled=true.
+  await callback(bot, 'ntf:master')
+  assert.ok(restCalls.some((c) => c.table === 'telegram_notification_settings' && c.method === 'POST' && c.body.enabled === true))
+  assert.match(lastText(sent), /Digest — <b>on \(opt-in\)<\/b>/)
+
+  // Выключаем один раздел: PATCH по user_id.
+  await callback(bot, 'ntf:notify_tasks')
+  const patch = restCalls.find((c) => c.table === 'telegram_notification_settings' && c.method === 'PATCH')
+  assert.equal(patch.body.notify_tasks, false)
+  assert.equal(patch.query.user_id, 'eq.u-1')
+  assert.match(lastText(sent), /◻️ 📋 Tasks/)
+
+  // Незнакомый toggle ничего не пишет.
+  const writes = restCalls.filter((c) => (c.method === 'PATCH' || c.method === 'POST') && c.table === 'telegram_notification_settings').length
+  await callback(bot, 'ntf:hack_the_planet')
+  const writesAfter = restCalls.filter((c) => (c.method === 'PATCH' || c.method === 'POST') && c.table === 'telegram_notification_settings').length
+  assert.equal(writes, writesAfter)
+})
+
+test('AI commands are honest when the provider key is missing', async () => {
+  const { bot, sent, restCalls } = await maraBot({ ai: {} })
+  await command(bot, '/ideas')
+  const text = lastText(sent)
+  assert.match(text, /AI PROVIDER NOT CONFIGURED/)
+  assert.match(text, /never|not fabricate|will not fabricate/i, 'никаких выдуманных результатов')
+  assert.ok(!sent.some((m) => m.method === 'AI'), 'внешних AI-вызовов не было')
+  assert.ok(!restCalls.some((c) => c.table === 'ai_runs' && c.method === 'POST'), 'в журнал без вызова не пишем')
+
+  await callback(bot, 'ai:sum:fans')
+  assert.match(lastText(sent), /NOT CONFIGURED/)
+  assert.ok(!sent.some((m) => m.method === 'AI'))
+})
+
+test('AI ideas call the real provider and log the run to ai_runs', async () => {
+  const { bot, sent, restCalls } = await maraBot({
+    ai: { apiKey: 'sk-test', baseUrl: 'https://llm.test/v1', model: 'test-model-1' },
+    restRoutes: {
+      characters: () => [{ name: 'Mara', description: 'test persona' }],
+      content: () => [{ title: 'Old drop' }],
+    },
+  })
+  await command(bot, '/ideas')
+  const text = lastText(sent)
+  assert.match(text, /CONTENT IDEAS/)
+  assert.match(text, /test-model-1/)
+  const aiCall = sent.find((m) => m.method === 'AI')
+  assert.ok(aiCall, 'вызов провайдера был')
+  assert.match(aiCall.body.messages[1].content, /Mara/)
+  assert.match(aiCall.body.messages[1].content, /Old drop/, 'промпт избегает повторов пайплайна')
+  const run = restCalls.find((c) => c.table === 'ai_runs' && c.method === 'POST')
+  assert.ok(run, 'запуск записан в журнал')
+  assert.equal(run.body.agent, 'content')
+  assert.equal(run.body.model, 'test-model-1')
+  assert.equal(run.body.status, 'success')
+  assert.equal(run.body.tokens, 123)
+})
+
+test('AI briefings narrate the real snapshot; the hourly budget applies', async () => {
+  const { bot, sent } = await maraBot({
+    ai: { apiKey: 'sk-test', baseUrl: 'https://llm.test/v1' },
+    restRoutes: {
+      fans: () => [
+        { relationship_level: 'visitor', joined_at: '2026-10-01' },
+        { relationship_level: 'subscriber', joined_at: '2026-09-02' },
+      ],
+      subscriptions: () => [{ status: 'active' }],
+    },
+  })
+  await callback(bot, 'ai:sum:fans')
+  const prompt = sent.findLast((m) => m.method === 'AI')?.body?.messages?.[1]?.content ?? ''
+  assert.match(prompt, /"total_fans":\s*2/, 'модель получает реальные числа, а не просит их выдумать')
+  assert.match(prompt, /"active_subscriptions":\s*1/)
+  assert.match(lastText(sent), /Source: live tables/)
+})
+
+test('AI budget: 429-like state produces an honest limit screen', async () => {
+  const { bot, sent } = await maraBot({
+    ai: { apiKey: 'sk-test', baseUrl: 'https://llm.test/v1' },
+    restRoutes: { consume_rate_limit: false },
+  })
+  await command(bot, '/ideas')
+  assert.match(lastText(sent), /AI BUDGET REACHED/)
+  assert.ok(!sent.some((m) => m.method === 'AI'))
+})
+
+test('draft review: approve mirrors console semantics; dismiss deletes; counters sync', async () => {
+  const convId = '11111111-2222-3333-4444-555555555555'
+  const draftId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+  let awaiting = 2
+  let draftAlive = true
+  const writes = []
+  const { bot, sent } = await maraBot({
+    restRoutes: {
+      messages: (query, method, body) => {
+        writes.push({ method, body, query })
+        if (method === 'GET') {
+          return draftAlive
+            ? [{ id: draftId, conversation_id: convId, content: 'Dragon wants an update 💜', status: 'awaiting_approval', ai_generated: true, created_at: '2026-10-09T10:00:00Z' }]
+            : []
+        }
+        if (method === 'PATCH') { if (body?.status === 'approved') draftAlive = false; return null }
+        if (method === 'DELETE') { draftAlive = false; return null }
+        return null
+      },
+      conversations: (query, method, body) => {
+        writes.push({ method, body, query })
+        if (method === 'GET') {
+          if (query.id === `eq.${convId}` && query.select === 'id,subject') return [{ id: convId, subject: 'Dragon' }]
+          if (query.id === `eq.${convId}`) return [{ awaiting_approval_count: awaiting }]
+          return [{ id: convId, subject: 'Dragon', unread_count: 0, awaiting_approval_count: awaiting, last_message_at: '2026-10-09T10:00:00Z' }]
+        }
+        if (method === 'PATCH') { awaiting = Math.max(0, awaiting - 1); return null }
+        return null
+      },
+    },
+  })
+
+  const { uuidToB64Uuid } = await import('../bot/format.mjs')
+  const key = `${uuidToB64Uuid(convId)}${uuidToB64Uuid(draftId)}`
+
+  await callback(bot, 'drafts')
+  const queue = lastText(sent)
+  assert.match(queue, /Pending — <b>1<\/b>/)
+  assert.match(queue, /Dragon wants an update/)
+  const buttons = sent.findLast((m) => m.body?.text)?.body?.reply_markup?.inline_keyboard?.flat() ?? []
+  for (const button of buttons) {
+    assert.ok(!button.callback_data || Buffer.byteLength(button.callback_data) <= 64, `callback_data≤64: ${button.callback_data}`)
+  }
+
+  await callback(bot, `dra${key}`)
+  const afterApprove = lastText(sent)
+  assert.match(afterApprove, /Draft approved/)
+  const msgPatch = writes.find((w) => w.method === 'PATCH' && w.body?.status === 'approved')
+  assert.ok(msgPatch, 'статус сообщения = approved, без sent')
+  assert.equal('sent_at' in (msgPatch.body ?? {}), false)
+  const convPatch = writes.find((w) => w.method === 'PATCH' && typeof w.body?.awaiting_approval_count === 'number')
+  assert.equal(convPatch.body.awaiting_approval_count, 1, 'счётчик уменьшен, как в веб-репозитории')
+
+  // Повторное нажатие на устаревшую кнопку не падает и не пишет.
+  writes.length = 0
+  await callback(bot, `dra${key}`)
+  assert.match(lastText(sent), /already resolved/)
+  assert.equal(writes.filter((w) => w.method !== 'GET').length, 0)
+
+  // Новый черновик → dismiss: DELETE + декремент, без status=approved.
+  draftAlive = true
+  writes.length = 0
+  await callback(bot, `drx${key}`)
+  assert.ok(writes.some((w) => w.method === 'DELETE'))
+  assert.ok(!writes.some((w) => w.body?.status === 'approved'))
+  assert.match(lastText(sent), /Draft dismissed/)
+})
+
+test('digest: opt-in only, builds from fresh events, advances watermark without duplicates', async () => {
+  let settings = {
+    user_id: 'u-1',
+    enabled: true,
+    notify_tasks: true,
+    notify_inbox: true,
+    notify_ai: false,
+    notify_automations: false,
+    notify_metrics: false,
+    watermark: {},
+    last_notified_at: null,
+  }
+  const { bot, restCalls } = await maraBot({
+    restRoutes: {
+      telegram_notification_settings: (query, method, body) => {
+        if (method === 'POST') { settings = { ...settings, ...body }; return null }
+        if (method === 'PATCH') { settings = { ...settings, ...body }; return null }
+        return [settings]
+      },
+      tasks: (query) => {
+        // Эмуляция БД: после watermark свежих задач нет.
+        if (String(query.created_at ?? '').startsWith('gt.')) return []
+        return [{ title: 'Approve the PPV draft', created_at: '2026-10-09T08:00:00Z' }]
+      },
+      conversations: (query) => (String(query.last_message_at ?? '').startsWith('gt.')
+        ? []
+        : [{ unread_count: 3, awaiting_approval_count: 1, last_message_at: '2026-10-09T09:00:00Z' }]),
+    },
+  })
+
+  const digest = await bot.buildDigest(777)
+  assert.equal(digest.skipped, null)
+  assert.match(digest.text, /new task/)
+  assert.match(digest.text, /3<\/b> unread · <b>1<\/b> drafts/)
+  assert.ok(!/AI:/.test(digest.text), 'выключенные разделы молчат')
+  assert.ok(digest.watermark.tasks, 'watermark предложен')
+
+  // Watermark сохраняется ПОСЛЕ отправки (это делает notify-скрипт).
+  await bot.writeNotificationSettings(digest.userId, { watermark: digest.watermark, last_notified_at: '2026-10-09T12:00:00Z' })
+  const again = await bot.buildDigest(777)
+  assert.equal(again.skipped, 'quiet', 'те же события не уходят повторно')
+
+  // Дайджест выключен → skipped=disabled, чтения событий не требуется.
+  settings = { ...settings, enabled: false }
+  const off = await bot.buildDigest(777)
+  assert.equal(off.skipped, 'disabled')
+  const taskReads = restCalls.filter((c) => c.table === 'tasks').length
+  assert.ok(taskReads <= 2, 'при выключенном дайджесте события не читаются')
+})
+
+test('settings without migration 0005 tells what to apply instead of crashing', async () => {
+  const { bot, sent } = await maraBot({
+    restRoutes: {
+      telegram_notification_settings: () => { throw new Error('table missing') },
+    },
+  })
+  // Харнесс не умеет 404: используем прямой fetch-мок, где таблицы нет (404 PostgREST).
+  const { createBot } = await import('../bot/core.mjs')
+  const sent2 = []
+  const bot2 = createBot({
+    telegramToken: '8703956173:TEST-TOKEN-0123456789abcdefghij',
+    supabaseUrl: 'https://project.supabase.co',
+    supabaseAnonKey: 'anon',
+    supabaseServiceRoleKey: 'service',
+    now: () => Date.parse('2026-10-09T12:00:00Z'),
+    logger: { warn() {}, error() {} },
+    fetchImpl: async (url, init = {}) => {
+      const href = String(url)
+      if (href.startsWith('https://api.telegram.org/')) {
+        sent2.push({ method: href.split('/').pop(), body: init.body ? JSON.parse(init.body) : null })
+        return new Response(JSON.stringify({ ok: true, result: {} }), { headers: { 'Content-Type': 'application/json' } })
+      }
+      if (href.includes('/rest/v1/telegram_links')) return new Response('[{"user_id":"u-1"}]', { headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ code: '42P01', message: 'relation does not exist' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
+    },
+  })
+  await command(bot2, '/settings')
+  const screen = sent2.findLast((m) => m.body?.text)?.body?.text ?? ''
+  assert.match(screen, /migration <b>0005<\/b>/)
+  assert.doesNotMatch(screen, /temporarily unavailable/)
+
+  const digest = await bot2.buildDigest(777)
+  assert.equal(digest.skipped, 'no-table')
+  void bot
+  void sent
+})
+
+test('main keyboard covers all Mara OS sections', async () => {
+  const { bot, sent } = await maraBot({})
+  await command(bot, '/menu')
+  const buttons = sent.findLast((m) => m.body?.reply_markup)?.body?.reply_markup?.inline_keyboard?.flat() ?? []
+  for (const key of ['fans', 'messages', 'content', 'episodes', 'analytics', 'revenue', 'tasks', 'ai', 'automations', 'status', 'settings']) {
+    assert.ok(buttons.some((b) => b.callback_data === key), key)
+  }
 })

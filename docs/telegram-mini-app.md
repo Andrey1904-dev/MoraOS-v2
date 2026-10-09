@@ -30,9 +30,12 @@
 | `fans` | `/fans` |
 | `messages`, `conversations`, `inbox` | `/conversations` |
 | `content` | `/content` |
+| `episodes` | `/episodes` |
 | `analytics` | `/analytics` |
+| `revenue` | `/revenue` |
 | `tasks` | `/tasks` |
 | `ai` | `/ai` |
+| `automations` | `/automations` |
 | `settings`, `bot`, `telegram` | `/settings` |
 
 Неизвестные, пустые и опасные значения (`..%2Fauth`, `//evil.example`) игнорируются:
