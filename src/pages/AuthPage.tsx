@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { SegmentedControl } from '@/components/ui/Controls'
 import { checkEmail, webmailUrl } from '@/lib/email'
 import { AuthProblem, toAuthProblem } from '@/lib/authErrors'
+import { BRAND_LOGO_URL } from '@/lib/assets'
 import { cn } from '@/utils/cn'
 
 /**
@@ -145,7 +146,7 @@ export default function AuthPage() {
           <div className="relative overflow-hidden rounded-2xl border border-line bg-surface">
             <div className="grain absolute inset-0" aria-hidden="true" />
             <div className="relative flex items-center gap-2.5 px-7 pt-7">
-              <span className="grid size-7 place-items-center rounded-[7px] bg-accent text-[13px] font-bold text-white">M</span>
+              <img src={BRAND_LOGO_URL} alt="" width={28} height={28} decoding="async" className="size-7 shrink-0 rounded-[7px]" />
               <span className="text-[13px] font-semibold tracking-[0.16em]">MARA OS</span>
               <span className="num ml-auto rounded border border-line px-1.5 py-0.5 text-[10px] text-faint">v2</span>
             </div>
@@ -183,7 +184,7 @@ export default function AuthPage() {
         {/* Форма */}
         <div className="px-4 py-8 sm:px-8 lg:col-span-5 lg:px-0 lg:py-0">
           <div className="mb-5 flex items-center gap-2.5 lg:hidden">
-            <span className="grid size-7 place-items-center rounded-[7px] bg-accent text-[13px] font-bold text-white">M</span>
+            <img src={BRAND_LOGO_URL} alt="" width={28} height={28} decoding="async" className="size-7 shrink-0 rounded-[7px]" />
             <div>
               <div className="text-[13px] font-semibold tracking-[0.16em]">MARA OS</div>
               <div className="text-[11px] text-muted">365 дней, чтобы выкупить своё время</div>

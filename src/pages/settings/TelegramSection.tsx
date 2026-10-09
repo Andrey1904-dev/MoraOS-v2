@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/Feedback";
 import { useAuth } from "@/context/AuthContext";
 import {
   TELEGRAM_BOT_URL,
+  TELEGRAM_BOT_USERNAME,
   TELEGRAM_CONFIG_MESSAGE,
   checkTelegramHealth,
   isTelegramConfigured,
@@ -24,6 +25,33 @@ import {
   type TelegramLinkPreview,
   type TelegramLinkStatus,
 } from "@/lib/telegram";
+import { TELEGRAM_ASSISTANT_AVATAR } from "@/lib/assets";
+
+/** Узнаваемая «визитка» ассистента: аватар, имя и публичный @username из сборки. */
+function BotIdentity() {
+  return (
+    <div className="flex items-center gap-3">
+      <picture>
+        <source srcSet={TELEGRAM_ASSISTANT_AVATAR.webp} type="image/webp" />
+        <img
+          src={TELEGRAM_ASSISTANT_AVATAR.jpg}
+          alt="Аватар Mara OS Assistant"
+          width={48}
+          height={48}
+          loading="lazy"
+          decoding="async"
+          className="size-12 shrink-0 rounded-full object-cover ring-1 ring-line"
+        />
+      </picture>
+      <div className="min-w-0">
+        <div className="text-[13px] font-medium text-ink">Mara OS Assistant</div>
+        <div className="truncate text-[12px] text-muted">
+          {TELEGRAM_BOT_USERNAME ? `@${TELEGRAM_BOT_USERNAME}` : "Имя бота не задано в сборке"}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type Status =
   | { kind: "loading" }
@@ -139,6 +167,7 @@ export function TelegramSection() {
       <Card>
         <CardHeader title="Telegram" subtitle="Бот Mara OS Assistant и Mini App" action={<Badge tone="warn">Демо-режим</Badge>} />
         <div className="space-y-3 px-5 pb-5">
+          <BotIdentity />
           <p className="text-[13px] leading-6 text-muted">
             В демо-режиме привязка Telegram не используется — аккаунт привязывается к вашему проекту
             Supabase. Сам бот работает: отправьте ему /link, затем войдите здесь с облачными учётными
@@ -174,6 +203,8 @@ export function TelegramSection() {
           }
         />
         <div className="space-y-4 px-5 pb-5">
+          <BotIdentity />
+
           {!isTelegramConfigured && (
             <div className="rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-3 text-[12.5px] text-warn">
               {TELEGRAM_CONFIG_MESSAGE}

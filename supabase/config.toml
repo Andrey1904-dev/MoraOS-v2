@@ -1,5 +1,5 @@
 # Конфигурация Supabase CLI для Mara OS.
-# Миграции: supabase/migrations/ (0001 → 0004). Сид: supabase/seed/ (вручную).
+# Миграции: supabase/migrations/ (0001 → 0005). Сид: supabase/seed/ (вручную).
 # Функция telegram-api сама проверяет access token сайта (Supabase Auth)
 # и секрет webhook, поэтому встроенная проверка JWT выключена:
 # без этого Telegram не смог бы доставлять обновления.

@@ -3,6 +3,7 @@ import { SafeImg } from "@/components/ui/SafeImg";
 import { Circle, Command as CommandIcon } from "lucide-react";
 import { navGroups } from "./nav";
 import { media } from "@/data/media";
+import { BRAND_LOGO_URL } from "@/lib/assets";
 import { cn } from "@/utils/cn";
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -10,7 +11,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="flex h-full w-[232px] shrink-0 flex-col border-r border-line bg-canvas-2">
       {/* Логотип */}
       <div className="flex h-14 items-center gap-2.5 px-5">
-        <span className="grid size-6 place-items-center rounded-[6px] bg-accent text-[11px] font-bold text-white">M</span>
+        <img src={BRAND_LOGO_URL} alt="" width={24} height={24} decoding="async" className="size-6 shrink-0 rounded-[6px]" />
         <span className="text-[12.5px] font-semibold tracking-[0.14em] text-ink">MARA OS</span>
         <span className="num ml-auto rounded border border-line px-1 py-0.5 text-[10px] text-faint">v2</span>
       </div>
